@@ -1054,6 +1054,13 @@ if (!class_exists('XAGIO_MODEL_KEYWORDS')) {
                 $filters['is_relative']    = 1;
                 $filters['path']           = $path;
                 $filters['match_case_url'] = $match_case_url;
+            } else {
+                // If it's Homepage check if match case is ON and filter only for Homepage
+                if($match_case_url === 1) {
+                    $filters['is_relative']     = "1";
+                    $filters['path']            = $path;
+                    $filters['match_case_url']  = $match_case_url;
+                }
             }
 
             if ($current_project_id != 0) {

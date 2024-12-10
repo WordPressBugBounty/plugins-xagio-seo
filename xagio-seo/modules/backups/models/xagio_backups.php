@@ -12,20 +12,18 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
         public static function scriptData()
         {
-            $bs = get_option('XAGIO_BACKUP_SPEED');
-            $bz = get_option('XAGIO_BACKUP_SIZE');
+            $bs = get_option('XAGIO_BACKUP_SPEED', []);
+            $bz = get_option('XAGIO_BACKUP_SIZE', '');
 
-			if (!$bs) $bs = '';
-			if (!$bz) $bz = '';
+            $backup_speed = [
+                'grade'      => isset($bs['grade']) ? esc_html($bs['grade']) : '',
+                'time_taken' => isset($bs['time_taken']) ? esc_html($bs['time_taken']) : ''
+            ];
 
             wp_localize_script('xagio_backup', 'xagio_backup', [
-                'backup_speed' => [
-                    'grade'      => esc_html($bs['grade']),
-                    'time_taken' => esc_html($bs['time_taken']),
-                ],
+                'backup_speed' => $backup_speed,
                 'backup_size'  => esc_html($bz)
             ]);
-
         }
 
         public static function initialize()
