@@ -1,0 +1,498 @@
+.jstree-default .jstree-disabled.jstree-clicked {
+    background: transparent !important;
+}
+
+[data-action="overwrite"] {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+[data-action="delete"] {
+    font-size: 16px;
+    color: red;
+    font-weight: 600;
+}
+
+[data-action="force-overwrite"] {
+    font-size: 16px;
+    color: #3c87ff;
+    font-weight: 600;
+}
+
+[data-action="add"] {
+    font-size: 16px;
+    color: #107310;
+    font-weight: 600;
+}
+
+
+div#rescue-core {
+    font-size: 15px;
+    overflow: auto;
+    max-height: 500px;
+}
+
+span.rescue-folder {
+    font-weight: 600;
+    font-size: 18px;
+}
+
+a.uk-close.rescue-core-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 27px;
+}
+
+.rescue-container .uk-progress {
+    height: 43px;
+    line-height: 43px;
+}
+
+.rescue-container h2 {
+    font-size: 23px;
+    font-weight: 600;
+    color: black;
+}
+
+.rescue-container .uk-progress .uk-progress-bar {
+    font-size: 20px;
+}
+
+div#rescue-core-files-list.easy-mode > ul {
+    list-style: circle;
+}
+
+div#rescue-core-files-list {
+    max-height: 500px;
+    background: white;
+    padding: 10px;
+    border: 1px solid #e5e5e5;
+    border-radius: 5px;
+    overflow: auto;
+}
+
+.rescue-container-multi {
+    padding: 20px;
+}
+
+.rescue-container-multi > h2 {
+    font-weight: 600;
+}
+
+.uk-block.uk-block-small {
+    padding: 15px 0;
+}
+
+.uk-block-small .uk-container {
+    padding: 0 20px;
+}
+
+.rescue-plugin-theme-template {
+    position: relative;
+    background: var(--color-xagio-white-primary);
+    padding: 40px;
+    margin-bottom: 10px;
+    border-radius: var(--xagio-box-border-radius);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.rescue-description {
+    display: flex;
+    align-items: center;
+    gap: 40px;
+}
+
+.uk-accordion-content {
+    padding: 0;
+}
+
+.uk-accordion-title {
+    margin-bottom: 0;
+    background: #0084E6 !important;
+    color: white;
+    padding: 15px;
+}
+
+span.rescue-version {
+    font-size: 13px;
+}
+
+.plugin-theme-upload {
+    display: none;
+}
+
+h3.rescue-name {
+    font-size: 20px;
+    font-weight: 600;
+    margin-right: 10px !important;
+    display: inline-block;
+}
+
+.rescue-plugin-theme-progress {
+    height: 30px;
+    line-height: 30px;
+}
+
+.rescue-plugin-theme-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.rescue-description h3 {
+    margin: 0;
+    display: inline-block;
+}
+
+p.rescue-plugin-theme-no-results {
+    font-weight: 600;
+    font-size: 17px;
+    padding: 10px 20px;
+    background: white;
+}
+
+.rescue-scan-plugins-themes,
+.rescue-scan-uploads {
+    font-size: 21px;
+    padding-bottom: 14px;
+}
+
+ul.rescue-uploads-files li {
+    background: #ff7878;
+    padding: 26px 18px;
+    line-height: 15px;
+    font-size: 19px;
+    color: white;
+    font-family: sans-serif;
+    position: relative;
+    margin-bottom: 30px;
+    border-radius: 5px;
+    border-bottom-left-radius: 0;
+}
+
+ul.rescue-uploads-files li::after {
+    background-color: #ff5557;
+    content: attr(data-path);
+    display: block;
+    position: absolute;
+    left: 0;
+    bottom: -28px;
+    text-align: center;
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 10px;
+    padding: 7px 25px;
+    font-size: 13px;
+}
+
+label.rescue-uploads-severity {
+    font-size: 14px;
+    margin-right: 10px;
+    padding: 13px;
+    background: white;
+    color: black;
+    border-radius: 10px;
+}
+
+ul.rescue-uploads-files li.suspicious {
+    background: #ffe3af;
+    color: black;
+}
+
+ul.rescue-uploads-files li.suspicious::after {
+    background: #ffc964;
+    color: black;
+}
+
+ul.rescue-uploads-files li.suspicious label.rescue-uploads-severity {
+    background: orange;
+    color: white;
+}
+
+ul.rescue-uploads-files li.dangerous {
+    background: #ff8e8e;
+    color: white;
+}
+
+ul.rescue-uploads-files li.dangerous::after {
+    background: #ff6363;
+    color: white;
+}
+
+div#wpwrap {
+    background: #f5f7fb;
+}
+
+ul.rescue-uploads-files li.dangerous label.rescue-uploads-severity {
+    background: #9d0101;
+    color: white;
+}
+
+ul.rescue-uploads-files li.very-dangerous {
+    background: #d53163 !important;
+    color: white;
+}
+
+ul.rescue-uploads-files li.very-dangerous::after {
+    background: #d53163 !important;
+    color: white;
+}
+
+ul.rescue-uploads-files li.very-dangerous label.rescue-uploads-severity {
+    background: #ffffff;
+    color: #d53163 !important;
+    font-weight: 600;
+}
+
+button.uk-button.uk-button-small.uk-button-danger.rescue-uploads-remove {
+    background: #082440 !important;
+    border-radius: 5px !important;
+    box-shadow: 0 1px 1px #dddddd;
+    font-weight: normal;
+    padding: 7px 20px !important;
+    border: none;
+}
+
+button.uk-button.uk-button-small.uk-button-danger.rescue-uploads-remove:hover {
+    background: #0c355d !important;
+}
+
+button.uk-button.uk-button-small.uk-button-primary.rescue-uploads-remove {
+    background: #082440 !important;
+    border-radius: 5px !important;
+    box-shadow: 0 1px 1px #dddddd;
+    font-weight: normal;
+    padding: 7px 20px !important;
+    border: none;
+}
+
+button.uk-button.uk-button-small.uk-button-primary.rescue-uploads-remove:hover {
+    background: #0c355d !important;
+}
+
+
+ul.rescue-uploads-files li > input {
+    margin-top: 1px;
+    width: 20px !important;
+    height: 20px !important;
+    border-radius: 3px !important;
+    box-shadow: 0 1px 1px #dddddd !important;
+}
+
+.rescue-uploads-row-actions {
+    float: right;
+    margin-top: -7px;
+}
+
+input.uk-input-big.clone-url {
+    padding-left: 48px !important;
+    width: 100%;
+}
+
+button.clone-button {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border: 0;
+}
+
+button.verify-button {
+    border: 0;
+    border-radius: 0;
+}
+
+p.clone-status {
+    padding: 10px;
+    background: #f3f3f3;
+    color: #cacaca;
+    font-size: 15px;
+    text-align: center;
+    padding-bottom: 20px;
+}
+
+p.clone-status i.fa {
+    font-size: 50px;
+    display: block;
+    text-align: center;
+    padding: 15px;
+}
+
+p.clone-status.running {
+    background: #3c94d2;
+    color: white;
+}
+
+p.clone-status.success {
+    background: #80ba40;
+    color: white;
+}
+
+p.clone-status.failed {
+    background: #d65757;
+    color: white;
+}
+
+.uk-button.uk-button-small.uk-button-primary {
+    background: #0084E6 !important;
+    padding: 7px 15px !important;
+    border-radius: 4px !important;
+    color: #f8fcff !important;
+    border: none !important;
+    font-weight: normal;
+}
+
+.uk-button.uk-button-small.uk-button-primary:hover {
+    background: #169afa !important;
+}
+
+.uk-button.uk-button-small.uk-button-danger {
+    background: #d53163 !important;
+    padding: 7px 15px !important;
+    border-radius: 4px !important;
+    color: #f8fcff !important;
+    border: none !important;
+}
+
+.uk-button.uk-button-small.uk-button-danger:hover {
+    background: #ed3b72 !important;
+}
+
+p.logo-paragraph.uk-block-xagio.rescue-info {
+    padding: 8px 20px 10px 110px;
+}
+
+p.logo-paragraph.logo-paragraph-warning.logo-paragraph-small.uk-block-xagio.old-core-files-message {
+    padding: 15px 24px;
+}
+
+p.logo-paragraph.logo-paragraph-warning.logo-paragraph-small.uk-block-xagio.old-core-files-message:before {
+    background: none;
+}
+
+button.uk-button.uk-button-large {
+    background: #0084E6 !important;
+    padding: 6px 15px !important;
+    border-radius: 4px !important;
+    color: #f8fcff !important;
+    border: none !important;
+}
+
+button.uk-button.uk-button-large:hover {
+    background: #169afa !important;
+}
+
+button.uk-button.uk-button-large.uk-button-primary.uk-width-1-1.rescue-scan-plugins-themes, button.uk-button.uk-button-large.uk-button-primary.uk-width-1-1.rescue-scan-uploads {
+    padding: 23px 15px !important;
+}
+
+select#rescue-core-version-value {
+    max-width: 335px !important;
+}
+
+p.logo-paragraph.logo-paragraph-warning.logo-paragraph-small.uk-block-xagio.old-core-files-message {
+    gap: 10px;
+}
+
+h3.rescue-type {
+    padding: 5px 25px;
+    border-radius: 100vh;
+    font-size: 15px;
+    font-weight: 600;
+    color: white;
+}
+
+h3.rescue-type.plugin {
+    background: #FF914D;
+}
+
+h3.rescue-type.theme {
+    background: #38B6FF;
+}
+
+.upload-plugin-theme-rescue {
+    font-size: 13px !important;
+}
+
+.rescue-upload-template {
+    margin-bottom: 10px;
+    border-radius: var(--xagio-box-border-radius);
+    padding: 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--color-xagio-white-primary);
+}
+
+.rescue-skelet {
+    animation-duration: 1.2s;
+    animation-fill-mode: forwards;
+    animation-iteration-count: infinite;
+    animation-name: placeHolderShimmer;
+    animation-timing-function: cubic-bezier(.14, .75, .2, 1.01);
+    background: linear-gradient(to right, var(--color-xagio-white-primary) 8%, #e1e1e1 38%, #e1e1e1 38%, var(--color-xagio-white-primary) 54%);
+    background-size: 1000px 640px;
+
+    margin-bottom: 10px;
+    border-radius: var(--xagio-box-border-radius);
+    height: 124px;
+}
+
+@keyframes placeHolderShimmer {
+    0% {
+        background-position: -468px 0
+    }
+    100% {
+        background-position: 468px 0
+    }
+}
+
+.rescue-plugin-theme-alert {
+    font-size: 15px;
+}
+
+.rescue-plugin-theme-alert i.xagio-icon.xagio-icon-check {
+    color: green;
+    font-weight: 600;
+}
+
+.rescue-plugin-theme-alert i.xagio-icon.xagio-icon-close {
+    color: red;
+    font-weight: 600;
+}
+
+.xagio-alert.xagio-alert-danger {
+    background: #FFA5A5;
+    border-color: #F63F3F;
+}
+
+h3.rescue-type.very-dangerous {
+    background: red;
+}
+
+h3.rescue-type.dangerous {
+    background: #ff6a6a;
+}
+
+h3.rescue-type.suspicious {
+    background: #FFB000;
+}
+
+.rescue-two-rows .rescue-description {
+    gap: 15px;
+}
+
+span.rescue-location {
+    display: block;
+    margin-top: 10px;
+    font-size: 15px;
+}
+
+.rescue-two-rows h3.rescue-type {
+    min-width: 73px;
+    text-align: center;
+}
+
+.upload-title-holder .upload-title {
+    margin-bottom: 0;
+}
+

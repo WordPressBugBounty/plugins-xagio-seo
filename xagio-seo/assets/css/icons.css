@@ -1,0 +1,395 @@
+/***************** XAGIO ICONS START ******************/
+.xagio-icon {
+    display: inline-block;
+    width: 0.9em;
+    height: 0.9em;
+    background-color: currentColor;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    vertical-align: middle;
+    transition: transform 150ms ease-in;
+    mask-size: 1em;
+    mask-position: -1px -1px;
+    /*align-self: baseline;*/
+}
+
+.xagio-icon-link {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/link.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/link.svg');
+}
+
+.xagio-icon-link-off {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/link-off.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/link-off.svg');
+}
+
+.xagio-icon-refresh {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/refresh.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/refresh.svg');
+}
+.xagio-icon-file {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/file.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/file.svg');
+}
+.xagio-icon-info {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/info.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/info.svg');
+}
+
+.xagio-icon-upload {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/upload.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/upload.svg');
+}
+
+.xagio-icon-download {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/download.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/download.svg');
+}
+
+.xagio-icon-gear {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/gear.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/gear.svg');
+}
+
+.xagio-icon-draw {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/draw.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/draw.svg');
+}
+.xagio-icon-plus {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/plus.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/plus.svg');
+}
+.xagio-icon-close {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/close.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/close.svg');
+}
+.xagio-icon-arrow-down {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/arrow_down.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/arrow_down.svg');
+}
+.xagio-icon-check {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/check.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/check.svg');
+}
+.xagio-icon-code {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/code.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/code.svg');
+}
+.xagio-icon-arrow-right {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/arrow_right.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/arrow_right.svg');
+}
+.xagio-icon-folder-open {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/folder_open.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/folder_open.svg');
+}
+.xagio-icon-dots-horizontal {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/dots_h.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/dots_h.svg');
+}
+
+.xagio-icon-search {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/search.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/search.svg');
+}
+.xagio-icon-store {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/store.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/store.svg');
+}
+.xagio-icon-travel-explore {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/travel_explore.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/travel_explore.svg');
+}
+.xagio-icon-school {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/school.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/school.svg');
+}
+.xagio-icon-history {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/history.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/history.svg');
+}
+.xagio-icon-google {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/google.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/google.svg');
+}
+.xagio-icon-quora {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/quora.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/quora.svg');
+}
+.xagio-icon-copy {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/copy.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/copy.svg');
+}
+.xagio-icon-sync {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/sync.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/sync.svg');
+}
+.xagio-icon-edit {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/edit.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/edit.svg');
+}
+.xagio-icon-delete {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/delete.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/delete.svg');
+}
+.xagio-icon-list {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/list.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/list.svg');
+}
+.xagio-icon-external-link {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/external_link.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/external_link.svg');
+}
+.xagio-icon-filter {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/filter.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/filter.svg');
+}
+.xagio-icon-chart-line {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/chart_line.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/chart_line.svg');
+}
+.xagio-icon-warning {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/warning.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/warning.svg');
+}
+.xagio-icon-ban {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/ban.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/ban.svg');
+}
+.xagio-icon-comment {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/comment.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/comment.svg');
+}
+.xagio-icon-quote {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/quote.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/quote.svg');
+}
+.xagio-icon-star {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/star.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/star.svg');
+}
+.xagio-icon-star-o {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/star_o.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/star_o.svg');
+}
+.xagio-icon-thumbs-up {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/thumb_up.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/thumb_up.svg');
+}
+.xagio-icon-thumbs-down {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/thumb_down.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/thumb_down.svg');
+}
+.xagio-icon-hourglass {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/hourglass.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/hourglass.svg');
+}
+.xagio-icon-plug {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/plug.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/plug.svg');
+}
+.xagio-icon-arrow-left {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/arrow_left.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/arrow_left.svg');
+}
+.xagio-icon-folder {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/folder.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/folder.svg');
+}
+.xagio-icon-image {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/image.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/image.svg');
+}
+.xagio-icon-zip {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/zip.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/zip.svg');
+}
+.xagio-icon-save {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/save.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/save.svg');
+}
+.xagio-icon-mobile {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/mobile.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/mobile.svg');
+}
+.xagio-icon-desktop {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/desktop.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/desktop.svg');
+}
+.xagio-icon-cogs {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/cogs.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/cogs.svg');
+}
+.xagio-icon-eye {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/eye.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/eye.svg');
+}
+.xagio-icon-eye-slash {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/eye_slash.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/eye_slash.svg');
+}
+.xagio-icon-arrow-up {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/arrow_up.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/arrow_up.svg');
+}
+.xagio-icon-arrows {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/arrows.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/arrows.svg');
+}
+.xagio-icon-branch {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/branch.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/branch.svg');
+}
+.xagio-icon-tag {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/tag.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/tag.svg');
+}
+.xagio-icon-align-justify {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/align_justify.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/align_justify.svg');
+}
+.xagio-icon-map {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/map.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/map.svg');
+}
+.xagio-icon-globe {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/globe.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/globe.svg');
+}
+.xagio-icon-ai {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/ai_chip.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/ai_chip.svg');
+}
+.xagio-icon-magnifying-glass-chart {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/magnifying_glass_chart.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/magnifying_glass_chart.svg');
+}
+.xagio-icon-key {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/key.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/key.svg');
+    transform: scale(1, -1) rotate(-135deg);
+}
+
+.xagio-icon-note {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/note.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/note.svg');
+}
+.xagio-icon-note-o {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/note_o.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/note_o.svg');
+}
+.xagio-icon-cloud {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/cloud.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/cloud.svg');
+}
+.xagio-icon-cloud-o {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/cloud_o.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/cloud_o.svg');
+}
+.xagio-icon-eye-o {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/eye_o.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/eye_o.svg');
+}
+.xagio-icon-brain {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/brain.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/brain.svg');
+}
+.xagio-icon-rocket {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/rocket.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/rocket.svg');
+}
+.xagio-icon-target {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/target.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/target.svg');
+}
+.xagio-icon-sort {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/sort.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/sort.svg');
+}
+.xagio-icon-sort-up {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/sort.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/sort.svg');
+    rotate: 180deg;
+}
+.xagio-icon-minus {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/minus.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/minus.svg');
+}
+.xagio-icon-robot {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/robot.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/robot.svg');
+}
+.xagio-icon-clock {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/clock.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/clock.svg');
+}
+.xagio-icon-play-circle {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/play_circle.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/play_circle.svg');
+}
+.xagio-icon-long-arrow-up {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/long_arrow_up.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/long_arrow_up.svg');
+    rotate: 45deg;
+}
+.xagio-icon-question-circle {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/question_circle.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/question_circle.svg');
+}
+.xagio-icon-align-right {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/align_right.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/align_right.svg');
+}
+.xagio-icon-analytics {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/analytics.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/analytics.svg');
+}
+.xagio-icon-home {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/home.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/home.svg');
+}
+.xagio-icon-send {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/send.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/send.svg');
+    rotate: 45deg;
+}
+.xagio-icon-at {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/at.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/at.svg');
+}
+.xagio-icon-phone {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/phone.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/phone.svg');
+}
+.xagio-icon-frown {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/frown.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/frown.svg');
+}
+.xagio-icon-check-double {
+    mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/check-double.svg');
+    -webkit-mask-image: url('/wp-content/plugins/xagio-seo/assets/css/icons/check-double.svg');
+}
+
+.xagio-icon-blue {
+    color: #3a33e8;
+}
+
+
+.xagio-icon-spin {
+    animation-name: spin;
+    animation-duration: 3000ms;
+    animation-iteration-count: infinite;
+    animation-timing-function: linear;
+}
+
+@keyframes spin {
+    from {
+        transform:rotate(0deg);
+    }
+    to {
+        transform:rotate(360deg);
+    }
+}
+
+/***************** XAGIO ICONS END ******************/

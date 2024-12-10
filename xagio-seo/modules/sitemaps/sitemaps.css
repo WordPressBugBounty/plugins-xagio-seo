@@ -1,0 +1,42 @@
+.sitemap-location a {
+    font-weight: bold;
+    margin-top: 10px;
+    display: block;
+    color: #2830c6;
+}
+
+.content-settings label {
+    font-size: 15px !important;
+    display: block;
+    font-weight: normal;
+    margin-bottom: 10px;
+    margin-top: 20px;
+}
+
+.content-settings input, .content-settings select {
+    font-size: 14px !important;
+}
+
+.content-settings span.current-value {
+    font-size: 14px;
+    color: #1a4674;
+}
+.content-settings {
+    background: #f5f7fb;
+    border-radius: 10px;
+    padding: 40px;
+}
+.content-settings-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.content-settings-header .post-type, .content-settings-header .taxonomy {
+    margin: 0;
+    color: black;
+}
+
+.content-settings-header .xagio-slider-container {
+    margin: 0;
+}

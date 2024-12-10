@@ -1,0 +1,326 @@
+
+.ui-draggable-container {
+    position: absolute;
+    outline: 1px dashed #cccccc;
+    background-color: rgba(255, 255, 255, 0.5);
+    box-sizing: border-box;
+    opacity: 0.9;
+}
+
+.ui-draggable-clone {
+    visibility: visible !important;
+}
+
+.ui-draggable-hidden {
+    visibility: hidden;
+}
+
+.logo-title-center {
+    max-width: 100%;
+    padding: 20px 40px;
+}
+
+.flowchart-operator {
+    border-radius: 0 !important;
+    border: 1px solid #dcdcdc !important;
+}
+
+.operator-page .flowchart-operator-title {
+    background: white !important;
+    border-radius: 0 !important;
+}
+
+.uk-button {
+    background: #082440 !important;
+    border-radius: 5px !important;
+    box-shadow: 0 2px 2px #dddddd !important;
+    font-weight: normal !important;
+    padding: 7px 20px !important;
+    color: white;
+    text-shadow: none !important;
+}
+
+.uk-button:hover {
+    background: #0c355d !important;
+    color: white;
+    text-shadow: none !important;
+}
+
+.generate-silo-container {
+    padding: 10px 0;
+}
+
+ul.uk-tab.main-nav {
+    margin-bottom: 20px;
+    border: 0;
+}
+
+div#silo-tabs {
+    border: 0;
+    grid-area: silo-tabs;
+    margin-top: var(--xagio-gap-medium);;
+}
+
+.uk-tab {
+    border: 0;
+}
+
+.silo-categories-tags {
+    border-top: 1px solid;
+    border-right: 1px solid;
+    border-color: #e2e2e2;
+    background: white;
+}
+
+.uk-tab-big.uk-tab > li > a {
+    padding: 14px 17px !important;
+}
+
+b.post-title {
+    font-size: 16px;
+}
+h3.xagio-accordion-title.xagio-accordion-panel-title {
+    font-size: 23px;
+    font-weight: bold;
+    color: black;
+}
+.xagio-flex-even-columns > div {
+    flex-grow: 1;
+    flex-shrink: 0;
+    flex-basis: 120px;
+}
+label.xagio-label-text {
+    margin-bottom: var(--xagio-gap-medium);
+}
+
+.table-row-silo-pages h2 {
+    font-size: 18px;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    color: black;
+    margin-bottom: 14px;
+    transition: color 120ms ease-in;
+}
+
+.table-row-silo-pages .post-status, .table-row-silo-pages .post-date {
+    font-size: 11px;
+    color: #545454;
+    transition: color 120ms ease-in;
+}
+
+.table-row-silo-pages .post-date {
+    font-weight: bold;
+}
+
+.table-row-silo-pages {
+    position: relative;
+    display: grid;
+    background: #f5f7fb;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    transition: background 120ms ease-in;
+}
+
+.table-row-silo-pages:hover img.v3-image-table {
+    filter: brightness(0) invert(1)
+}
+
+.xagio-table-silo tobdy td {
+    padding: 0 !important;
+}
+
+.xagio-table-silo tbody tr td {
+    padding: 0 !important;
+    background: white;
+}
+
+.table-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+    opacity: 0;
+    transition: opacity 120ms ease-in;
+}
+
+.table-row-actions a {
+    color: white !important;
+}
+.xagio-table-silo tbody tr:first-child td .table-row-silo-pages {
+    margin-top: 20px;
+}
+
+.table-row-silo-pages:hover {
+    background: #383ee2;
+}
+
+.table-row-silo-pages:hover h2 {
+    color: white;
+}
+
+.table-row-silo-pages:hover .post-status, .table-row-silo-pages:hover .post-date {
+    color: white;
+}
+
+.table-row-silo-pages:hover .table-row-actions {
+    opacity: 1;
+}
+.xagio-table-silo thead tr th {
+    padding: 24px 24px 24px 0;
+    font-size: 22px;
+}
+
+.xagio-table-silo thead tr th::after {
+    top: 30px !important;
+}
+ul.uk-tab.uk-tab-big {
+    margin-top: 0;
+}
+h3.pop {
+    font-weight: bold;
+}
+.xagio-table-silo tbody tr:last-child .table-row-silo-pages {
+    margin-bottom: 0;
+}
+.xagio-table-bottom {
+    padding-block: var(--xagio-gap-large) 0;
+}
+.remove-silo-name {
+    color: white;
+    font-size: 13px;
+    position: absolute;
+    top: -7px;
+    right: -5px;
+    display: none;
+    background: #fd1f36;
+    padding: 6px 8px;
+    border-radius: 100%;
+}
+ul.uk-tab.uk-tab-big li a.new-silo {
+    padding: 14px 22px !important;
+}
+a.new-silo i {
+    font-size: 21px;
+}
+.silo-categories-holder, .silo-tags-holder {
+    display: flex;
+    align-items: center;
+    padding-block: 10px;
+}
+
+.silo-categories-holder h3, .silo-tags-holder h3 {
+    margin: 0;
+    min-width: 112px;
+}
+
+.silo-categories, .silo-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    overflow: visible;
+}
+.xagio-button-mini.silo-categories-tags-button {
+    padding: 11px 15px !important;
+    height: 36px;
+    width: 38px;
+    margin-right: 10px;
+    place-content: center;
+}
+
+button.xagio-button-tag {
+    background: #fd8d55;
+    color: white;
+    border: none;
+    padding: 10px 28px;
+    border-radius: 100vh;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+div#permalink-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+button.xagio-button-tag:hover {
+    background: #dd7b4a;
+}
+
+button.xagio-button-tag.active {
+    background: #de723c;
+}
+
+input[name="selection"] {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px !important;
+    margin-right: 10px !important;
+}
+
+input[name="selection"]::before {
+    content: "";
+    background-image: url(/wp-content/plugins/xagio-seo/assets/css/icons/check.svg);
+    background-size: 20px;
+    background-repeat: no-repeat;
+    margin: -1px;
+}
+
+input[name="selection"]:checked {
+    background: #1a4674;
+}
+input[name="selection"]:checked::before {
+    background: transparent;
+}
+.modal-inline-input {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.modal-inline-input input {
+    flex: 1;
+}
+
+.project-silo {
+    margin-top: var(--xagio-gap-large);
+    display: grid;
+    grid-template-areas:
+            'tab action-buttons'
+            'silo-tabs silo-tabs';
+    grid-template-columns: 40% 60%;
+}
+
+@media (max-width:1150px) {
+    .project-silo {
+        grid-template-areas:
+            'tab'
+            'action-buttons'
+            'silo-tabs';
+        grid-template-columns: 100%;
+        width: 100%;
+    }
+    .project-silo-action-buttons {
+        margin-top: var(--xagio-gap-medium);
+        justify-content: flex-start !important;
+    }
+}
+
+.project-silo-action-buttons {
+    display: flex;
+    gap: var(--xagio-gap-small);
+    flex-wrap: wrap;
+    grid-area: action-buttons;
+    height: fit-content;
+    justify-content: flex-end;
+    align-self: center;
+}
+.xagio-tab.main-nav {
+    grid-area: tab;
+    height: fit-content;
+    margin-top: 0;
+    margin-bottom: 0;
+}

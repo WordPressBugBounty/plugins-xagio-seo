@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<?xml-stylesheet type='text/xsl' href='{{url}}/wp-content/plugins/xagio-seo/modules/sitemaps/meta/sitemap.xsl'?>
+<!-- sitemap-generator-url='https://xagio.net' sitemap-generator-version='5.0.0.0' -->
+<!-- generated-on='{{date}}' -->
+<urlset xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:schemaLocation='http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd'
+        xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'>
+    {{urls}}
+</urlset>

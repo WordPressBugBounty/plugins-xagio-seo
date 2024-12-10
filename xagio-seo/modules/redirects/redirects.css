@@ -1,0 +1,159 @@
+table.CSV_example_table,
+.CSV_example_table th,
+.CSV_example_table td {
+    border-collapse: collapse !important;
+    border: 10px solid white !important;
+    border-left: none !important;
+}
+
+.CSV_example_table th,
+.CSV_example_table td {
+    padding: 10px 10px;
+    text-align: center;
+}
+
+table.CSV_example_table {
+    width: 100%;
+    background: #f8f8f8;
+}
+
+div#wpwrap {
+    background: #f5f7fb;
+}
+
+.footer-buttons button.uk-button {
+    background: #082440;
+    border-radius: 5px !important;
+    box-shadow: 0 2px 2px #dddddd;
+    font-weight: normal;
+    padding: 7px 20px !important;
+    border: none;
+}
+
+.footer-buttons button.uk-button:hover {
+    background: #0c355d;
+}
+
+table button.uk-button {
+    background: #082440;
+    border-radius: 5px !important;
+    box-shadow: 0 2px 2px #dddddd;
+    font-weight: normal;
+    padding: 4px 12px !important;
+    border: none;
+}
+
+table button.uk-button:hover {
+    background: #0c355d;
+}
+
+.uk-block-xagio table.wp-list-table tbody tr td input[type=checkbox]:checked:before {
+    margin: -3px 0 0 -5px !important;
+    width: 26px !important;
+    content: url("data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2020%2020%27%3E%3Cpath%20d%3D%27M14.83%204.89l1.34.94-5.81%208.38H9.02L5.78%209.67l1.34-1.25%202.57%202.4z%27%20fill%3D%27%233582c4%27%2F%3E%3C%2Fsvg%3E") !important;
+}
+
+.logTable-actions input.uk-form-small {
+    padding: 15px !important;
+    border: 1px solid #f3f3fal !important;
+    border-radius: 5px !important;
+    box-shadow: 0 1px 1px #dddddd !important;
+    height: 40px !important;
+}
+
+.logTable-actions select.uk-form-small {
+    padding: 1px 13px !important;
+    border: 1px solid #f3f3fal !important;
+    border-radius: 5px !important;
+    box-shadow: 0 1px 1px #dddddd !important;
+    height: 40px !important;
+    font-size: 15px;
+}
+
+.uk-pagination > .uk-disabled > span {
+    padding: 5px 23px;
+    height: 26px;
+    box-shadow: 0 1px 1px 1px rgb(115 121 130 / 13%);
+    border: none;
+    border-radius: 5px !important;
+    line-height: 26px;
+}
+
+.uk-pagination > li > a, .uk-pagination > .uk-active > span {
+    padding: 5px 12px;
+    height: 26px;
+    box-shadow: 0 1px 1px 1px rgb(115 121 130 / 13%);
+    border: none;
+    border-radius: 4px !important;
+    line-height: 26px;
+}
+
+.dataTables_info {
+    text-align: right;
+}
+
+table.xagio-table.logTable tbody td:nth-child(3) {
+    color: #2830c6;
+}
+.xagio-tr-opened {
+    position: relative;
+}
+.xagio-tr-opened::after {
+    content: "";
+    width: 20px;
+    height: 20px;
+    position: absolute;
+    border-left: 1px solid;
+    bottom: -12px;
+    left: 50%;
+    translate: -50% 0;
+    rotate: 45deg;
+    border-top: 1px solid;
+    border-color: var(--color-xagio-deep-blue);
+    background: var(--color-xagio-white-primary);
+}
+.xagio-toogle-tr-row {
+    border: 1px solid var(--color-xagio-deep-blue);
+    border-radius: 10px;
+    padding: 20px 20px;
+    background: var(--color-xagio-white-primary);
+    display: flex;
+    gap: 20px;
+}
+table.xagio-table tbody td:has(.xagio-toogle-tr-row) {
+    padding-bottom: 10px;
+}
+.xagio-toogle-tr-row > ul {
+    margin: 0;
+    padding: 0;
+    font-weight: bold;
+    color: var( --color-xagio-red);
+}
+
+td.column-url {
+    max-width: 370px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-wrap: break-word;
+}
+
+td.column-url a {
+    color: #2830c6;
+}
+.CSV_example_table td {
+    color: #545454;
+}
+
+.CSV_example_table th {
+    color: black;
+    width: calc(100% / 6);
+}
+
+.frmLogSettings .help-icon
+{
+    font-size: 16px;
+}
+
+.xagio-panel-title.xagio-margin-bottom-large {
+    margin-bottom: 40px;
+}

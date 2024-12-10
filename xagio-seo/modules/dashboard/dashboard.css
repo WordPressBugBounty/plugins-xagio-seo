@@ -1,0 +1,1325 @@
+a {
+    color: #07D;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.sw-theme-dots > .nav .nav-link > .num {
+    right: -1px;
+    top: -29px;
+}
+
+.sw > .tab-content > .tab-pane {
+    padding: 0;
+}
+
+.sw > .tab-content {
+    overflow: visible;
+}
+
+div#onboarding {
+    z-index: 99999;
+    background: #f0f0f1;
+}
+
+div#onboarding .uk-modal-dialog.uk-modal-dialog-blank {
+    background: transparent;
+}
+
+.uk-width-max500 {
+    max-width: 500px;
+    margin-top: 10vh;
+    margin-bottom: 10vh;
+}
+
+.uk-width-max700 {
+    max-width: 700px;
+    margin-top: 10vh;
+    margin-bottom: 10vh;
+    background: white;
+    padding: 50px;
+    border: none !important;
+    border-radius: 5px;
+    box-shadow: 0 2px 2px #dddddd;
+}
+
+.uk-width-max900 {
+    max-width: 900px;
+    margin-top: 10vh;
+    margin-bottom: 50vh;
+}
+
+.welcome-block, .onboarding-new, .onboarding-old {
+    height: 100vh;
+    min-height: 600px;
+}
+
+.sw-theme-arrows>.nav .nav-link::after, .sw-theme-arrows>.nav .nav-link::before {
+    top: 50%;
+}
+
+.sw ul.nav {
+    height: 38px;
+    border-bottom: 1px solid #ebebeb;
+}
+
+.sw {
+    box-shadow: 0 3px 8px 1px #e5e5e5;
+    border-radius: 4px;
+}
+
+.sw > .tab-content {
+    padding: 60px 22px;
+    background: white;
+}
+
+.bold-middle {
+    font-size: 18px;
+    vertical-align: text-bottom;
+    font-weight: 600;
+}
+p.help {
+    color: #adadad;
+    font-size: 11px;
+    margin-block: 5px;
+}
+
+.creator {
+    border-bottom: 1px solid #f1f1f1;
+    margin-bottom: 20px;
+    padding-bottom: 8px;
+}
+
+.creator .actions {
+    margin: 5px 0 20px 0;
+}
+.creator > :last-child {
+    margin-bottom: 20px;
+}
+
+.install {
+    background: #f9f9f9;
+    padding: 15px;
+    border: 1px solid #e5e5e5;
+    position: relative;
+}
+
+div#search_plugins_dropdown, div#search_themes_dropdown {
+    position: absolute;
+    background: white;
+    top: 95px;
+    right: 0;
+    left: 0;
+    overflow: auto;
+    border: 1px solid #d7d7d7;
+    padding: 15px;
+    max-height: 315px;
+}
+
+.search-result-title small {
+    display: block;
+    font-size: 10px;
+}
+
+.added-install {
+    background: #e9e9e9;
+    padding: 20px 20px;
+    margin-top: 10px;
+}
+
+.added-install img.icon {
+    max-width: 39px;
+}
+
+a.stop-onboarding {
+    text-align: center;
+    display: block;
+}
+
+.option-picker {
+    display: flex;
+    align-items: center;
+    gap: 4rem;
+    background: white;
+    padding: 27px 30px;
+    border: 1px solid #bfbfbf;
+    border-radius: 7px;
+    transition: all 0.5s;
+    cursor: pointer;
+    box-shadow: 0 0 0 0 white;
+}
+
+.option-picker i {
+    font-size: 30px !important;
+    color: #7a7a7a;
+    transition: all 0.5s;
+}
+
+.option-picker b {
+    font-size: 21px;
+    vertical-align: middle;
+}
+
+.option-picker b + span {
+    display: block;
+    margin-top: 5px;
+    color: #686868;
+}
+
+.option-picker:hover {
+    border: 1px solid var(--primary-color-blue);
+    box-shadow: 0 5px 14px -7px black;
+}
+
+.option-picker:hover i, .option-picker:hover b {
+    color: var(--primary-color-blue);
+}
+
+.rank_math_logo {
+    background: url("/wp-content/plugins/xagio-seo/assets/img/rank_math.webp");
+}
+.yoast_logo {
+    background: url("/wp-content/plugins/xagio-seo/assets/img/yoast.webp");
+}
+.aio_logo {
+    background: url("/wp-content/plugins/xagio-seo/assets/img/aio_logo.webp");
+}
+
+.rank_math_logo, .yoast_logo, .aio_logo {
+    position: absolute;
+    width: 50%;
+    top: 0;
+    right: 20px;
+    opacity: 0.3;
+    height: 100%;
+    background-size: 130px;
+    background-position: right;
+    background-repeat: no-repeat;
+}
+
+iframe.support-iframe {
+    width: 100%;
+    height: 1650px;
+}
+
+.announcement {
+    margin-bottom: 30px;
+    border-top: 1px solid #f3f3fa;
+}
+
+.announcement:last-child {
+    margin-bottom: 10px;
+}
+
+.announcement .announcement-heading {
+    position: relative;
+    font-family: sans-serif;
+    padding: 15px 25px;
+    background: #0824400a;
+}
+
+.announcement .announcement-heading span.announcement-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #3c4366;
+}
+
+.announcement .announcement-heading span.announcement-date {
+    color: rgba(60, 67, 102, 0.81);
+    display: block;
+    font-size: 11px;
+}
+
+.announcement .announcement-body {
+    padding: 15px 25px;
+    background: #fbfbfb;
+    border: none !important;
+    border-radius: 5px;
+    box-shadow: 0 15px 40px -30px #565656;
+}
+p.xagio-text-center.xagio-loading-plugins {
+    font-size: 15px;
+}
+
+.found_plugin {
+    text-align: right;
+    position: absolute;
+    display: inline;
+    right: 3px;
+    padding: 4px 8px;
+    background: #38a509;
+    color: white;
+    border-radius: 5px;
+    top: 0;
+}
+.rank-loading-holder {
+    position: absolute;
+    right: -11px;
+    bottom: 0;
+}
+.yoast-loading-holder {
+    position: absolute;
+    right: 25px;
+    bottom: 0;
+}
+.rank-loading-holder .xagio-loading-rank-math {
+    font-size: 13px;
+    width: 149px;
+}
+.yoast-loading-holder .xagio-loading-yoast {
+
+    font-size: 13px;
+    margin-top: -13px;
+    width: 100%;
+}
+.aio-loading-holder {
+    position: absolute;
+    right: 26px;
+    bottom: -13px;
+}
+.aio-loading-holder .xagio-loading-aio {
+    font-size: 13px;
+    margin-top: -3px;
+    width: 100%;
+}
+
+.uk-alert-heading {
+    font-size: 17px;
+    font-weight: 600;
+}
+
+.uk-alert.uk-alert-icon {
+    padding-left: 90px;
+    position: relative;
+}
+
+.uk-alert-icon > i {
+    position: absolute;
+    top: 20px;
+    left: 23px;
+    font-size: 47px;
+}
+
+ul.seo-setup li p {
+    margin: 10px 0 0 0;
+}
+
+.uk-alert a {
+    padding: 2px 10px;
+    background: var(--primary-color-green);
+    color: white !important;
+    border-radius: 8px;
+}
+
+input.uk-radio.plugin-select-radio {
+    border-radius: 50% !important;
+    width: 20px;
+    height: 20px;
+    position: absolute;
+    left: 5px;
+    top: 9px;
+}
+input[type=radio].plugin-select-radio:checked::before {
+    width: 14px;
+    height: 14px;
+    margin: 2px;
+}
+.onboarding-old-wizard .uk-block-xagio:hover {
+    background: #f3f3f3;
+    cursor: pointer;
+}
+
+div .xagio-text-center.generating-project-loading, div .xagio-text-center.finish-onboarding {
+    font-size: 15px;
+}
+
+a.uk-button[disabled="disabled"] {
+    pointer-events: none;
+    cursor: default !important;
+    background: #8ac770;
+}
+
+.uk-panel-borderless + .uk-panel-borderless {
+    margin-top: 25px;
+}
+
+button.uk-button.uk-button-success.support-button {
+    margin-bottom: 20px;
+    width: 100%;
+    font-size: 17px;
+    padding: 12px;
+}
+
+.top-ten-results {
+    margin-bottom: 5rem;
+}
+
+.top-ten-result {
+    margin-bottom: 1.8rem;
+    border-bottom: 1px solid #e9e9e9;
+    position: relative;
+    padding: 1rem;
+}
+.top-ten-result > p {
+    margin: 0;
+}
+.g-url {
+    color: #202124;
+    padding-bottom: 2px;
+    padding-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 80%;
+    display: inline-block;
+}
+.g-title {
+    display: block;
+    font-size: 18px;
+    color: #1a0dab;
+    font-weight: 600;
+    padding-top: 5px;
+    line-height: 1.3;
+    margin-bottom: 3px;
+}
+p.g-desc {
+    color: #202124;
+    width: 85%;
+}
+
+.top-ten-search {
+    display: flex;
+}
+
+.search-top-ten {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.search-top-ten i {
+    margin-right: 9px;
+}
+
+input.select-website {
+    position: absolute;
+    right: 16px;
+    margin: 0px;
+    border-radius: 50% !important;
+    height: 23px;
+    width: 23px;
+    top: 3px;
+}
+input.select-website:before {
+    width: 17px !important;
+    height: 17px !important;
+    margin: 2px !important;
+}
+
+.top-ten-results-info {
+    margin-bottom: 60px;
+}
+
+.uk-notify {
+    z-index: 100009 !important;
+}
+
+.xagio-feature {
+    font-size: 17px;
+    margin-bottom: 27px;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+.xagio-feature i {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.xagio-feature i.fas.fa-check-circle {
+    font-size: 19px;
+    margin-right: 2px;
+    border-radius: 100%;
+    color: #2f2aea;
+}
+
+.xagio-block.xagio-first {
+    border: 1px solid #ebebeb91;
+    border-radius: 4px;
+    background: white;
+    box-shadow: 1px 1px 10px -6px #b7b7b7;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.xagio-block {
+    min-height: 50vh;
+    padding: 2.5rem;
+}
+
+.xagio-block h3 {
+    margin-bottom: 30px;
+}
+
+.xagio-welcome-img {
+    position: absolute;
+    z-index: 0;
+    right: 0;
+    object-fit: cover;
+    mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0%) 20%,rgb(0 0 0 / 86%) 100%);
+    -webkit-mask-image: linear-gradient(to bottom, rgb(0 0 0 / 0%) 20%,rgb(0 0 0 / 86%) 100%);
+    min-height: 47rem;
+    bottom: 0;
+    height: 80%;
+}
+
+.uk-block.uk-block-muted.uk-block-xagio.uk-margin-bottom {
+    overflow: hidden;
+}
+
+.uk-grid.uk-grid-large {
+    position: relative;
+}
+.xagio-block-backdrop {
+    background: linear-gradient(180deg, white, transparent);
+    backdrop-filter: blur(1px);
+    -webkit-backdrop-filter: blur(1px);
+}
+
+.xagio-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 6rem 3rem;
+}
+
+.xagio-block-review {
+    padding: 4rem 2rem 1rem 2rem;
+    border: 1px solid #ebebeb91;
+    border-radius: 4px;
+    box-shadow: 1px 1px 10px -6px #b7b7b7;
+    position: relative;
+}
+
+.xagio-block-review img {
+    position: absolute;
+    width: 90px;
+    border-radius: 50%;
+    top: -50px;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 2px solid #4b4a5cb3;
+    padding: 1px;
+}
+
+.xagio-block-review .name span {
+    font-size: 14px;
+    font-weight: bold;
+    color: rgb(47, 42, 234);
+}
+
+.xagio-review-h2 {
+    margin-bottom: 7rem;
+    text-align: center;
+}
+
+img.xagio-loading-cogs {
+    max-width: 100px;
+}
+ul.migration-list {
+    list-style: none;
+}
+
+ul.migration-list > li {
+    position: relative;
+}
+ul.migration-list > li i {
+    position: absolute;
+    left: -20px;
+    top: 2px;
+    font-size: 15px;
+}
+.keyword-example {
+    font-size: 23px;
+    font-weight: bold;
+}
+
+.keyword-search {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.top-ten-result.recommended, .top-ten-result.not-recommended {
+    border-radius: 8px;
+}
+.top-ten-result.recommended {
+    border: 2px dashed #3728ec;
+}
+.top-ten-result.not-recommended {
+    border: 2px dashed #bbbbbb;
+}
+
+.top-ten-result.recommended:before, .top-ten-result.not-recommended:before {
+    position: absolute;
+    right: 100px;
+    top: -10px;
+    font-size: 18px;
+    font-weight: bold;
+    background: white;
+    padding: 0 5px;
+}
+.top-ten-result.recommended:before {
+    content: "RECOMMENDED";
+    color: blue;
+}
+
+.top-ten-result.not-recommended:before {
+    content: "NOT RECOMMENDED";
+    color: #939393;
+}
+.top-ten-result.not-recommended .g-url, .top-ten-result.not-recommended .g-title, .top-ten-result.not-recommended .g-desc {
+    color: #bbbbbb;
+}
+
+.connect-account {
+    position: relative;
+}
+
+a.connect-account abbr {
+    position: absolute;
+    bottom: -30px;
+    left: 0;
+    right: 0;
+    border-bottom: 0;
+}
+
+.xagio-panel.xagio-panel-welcome-image {
+    background-image: linear-gradient(to bottom, rgb(255 255 255 / 100%) 75%, rgba(255, 255, 255, 0) 150%), url(../../assets/img/welcome.webp);
+    background-size: cover;
+    background-position: bottom;
+}
+
+h2.xagio-benefits-h2 {
+    font-weight: 600;
+    font-size: 24px;
+    line-height: 30px;
+    margin: 0 0 25px 0;
+}
+
+h1.xagio-connect-h1 {
+    font-weight: 600;
+    /*font-size: 36px;*/
+    font-size: clamp(1.714rem, 1.231vw + 1.385rem, 2.571rem);
+    margin-bottom: 0;
+    color: #444;
+}
+
+img.xagio-connect-logo {
+    max-width: 120px;
+    vertical-align: middle;
+}
+.xagio-sub-heading {
+    margin-top: 0;
+    color: #444;
+    font-weight: 600;
+    /*font-size: 28px !important;*/
+    font-size: clamp(1.429rem, 0.821vw + 1.209rem, 2rem) !important;
+}
+
+.xagio-connect {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+    min-height: 460px;
+}
+
+p.xagio-connect-p {
+    display: flex;
+    gap: 5px;
+    align-items: baseline;
+}
+
+p.xagio-has-account {
+    font-weight: bold;
+    font-size: 24px;
+    margin: 0;
+}
+
+a.xagio-connect-have-account {
+    color: #3a33e8;
+    text-decoration: underline;
+    font-size: 17px;
+    font-weight: 600;
+    text-align: center;
+    display: inline-block;
+}
+
+.xagio-connect-p i.fa-solid.fa-chart-line-up {
+    font-size: 26px;
+    color: #3a33e8;
+    transform: translateY(4px);
+}
+
+.xagio-welcome-tut {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    padding: 14px 30px;
+    background: #f0f0f0;
+    border-radius: 0 30px 0 30px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    max-width: 280px;
+    font-size: 16px;
+    font-weight: bold;
+    color: #40474d;
+}
+.xagio-welcome-tut i {
+    font-size: 55px;
+    color: #2830c6;
+    background: #dcddf6;
+    border-radius: 100%;
+    position: relative;
+    min-width: 55px;
+    min-height: 55px;
+}
+.xagio-welcome-tut i::before {
+    z-index: 10;
+    position: relative;
+    background: #dcddf6;
+    border-radius: 100%;
+    min-width: 55px;
+    display: block;
+    min-height: 55px;
+}
+.xagio-welcome-tut i:after {
+    content: "";
+    background: #46498d;
+    position: absolute;
+    inset: 0;
+    border-radius: 100%;
+    z-index: 1;
+    animation: pulse 1200ms infinite;
+    display: grid;
+    place-items: center;
+}
+.xagio-welcome-tut i:hover::before {
+    background: #ffffff;
+    cursor: pointer;
+}
+
+.xagio-welcome-tut i:hover::after {
+    animation: none;
+}
+.xagio-welcome-footer {
+    display: grid;
+    gap: 20px;
+    grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width:1500px) {
+    .xagio-welcome-footer {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width:1050px) {
+    .xagio-welcome-footer {
+        grid-template-columns: 1fr;
+    }
+}
+
+.xagio-border-panel {
+    background: white;
+    border-radius: 30px;
+    padding: 40px clamp(1.429rem, 1.878vw + 0.926rem, 2.857rem);
+    border: 1px solid #a3a3a33b;
+}
+.xagio-border-panel.xagio-main-panel {
+    background-image: linear-gradient(to bottom, rgb(253 253 253) 35%, rgb(255 255 255 / 30%) 170%), url(../../assets/img/welcome.webp);
+    background-size: cover;
+    background-position: bottom;
+    border: none;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+}
+.xagio-person-review {
+    position: relative;
+    background: white;
+    border-radius: 30px;
+    padding: 30px;
+    border: 1px solid #a3a3a33b;
+    display: grid;
+    gap: 10px;
+    place-content: baseline;
+}
+.xagio-person-review.xagio-person-review-gray {
+    background: #f5f7fb;
+}
+
+.xagio-review-head {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.xagio-review-head img {
+    width: 78px;
+    border-radius: 100%;
+}
+
+.xagio-review-head .name {
+    display: flex;
+    flex-direction: column;
+}
+
+.xagio-review-head .name span:last-child {
+    color: #feaa7f;
+}
+
+.xagio-review-head .name span:first-child {
+    color: #3c434a;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.xagio-review-content {
+    font-size: 16px;
+    line-height: 1.7;
+    color: black;
+}
+svg.xagio-review-quote {
+    position: absolute;
+    width: 78px;
+    fill: #383ee2;
+    right: 40px;
+    top: -29px;
+}
+.xagio-welcome-reviews {
+    display: flex;
+    flex-wrap: wrap;
+    row-gap: 30px;
+    column-gap: 20px;
+}
+
+.xagio-welcome-reviews > .xagio-person-review {
+    flex-grow: 1;
+    flex-basis: 25ch;
+}
+.xagio-main-panel-left {
+    display: flex;
+}
+.xagio-main-panel-left .xagio-panel {
+    flex: 1;
+    border-radius: 30px;
+    position: relative;
+    padding-bottom: 100px;
+}
+.xagio-welcome-footer .xagio-border-panel h3 {
+    font-size: 26px;
+    font-weight: bold;
+    color: black;
+}
+.xagio-welcome-footer .xagio-border-panel p {
+    font-size: 18px;
+    color: #3c434a;
+    flex: 1;
+}
+.xagio-welcome-footer .xagio-border-panel button {
+    width: 100%;
+}
+.xagio-welcome-footer .xagio-border-panel {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    flex-basis: 25ch;
+}
+.xagio-brands-review {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    row-gap: 0;
+    column-gap: 30px;
+}
+
+.xagio-brands-review > div {
+    padding: 40px;
+}
+.xagio-learn-more {
+    text-align: center;
+    margin-top: 40px;
+}
+.xagio-learn-more p {
+    margin: 0;
+    font-size: 26px;
+    text-decoration: underline;
+    color: #8e8cdb;
+}
+
+.xagio-brands-review img {
+    max-width: 250px;
+}
+
+
+@media (max-width:1150px) {
+    .xagio-border-panel.xagio-main-panel {
+        grid-template-columns: 1fr;
+    }
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(.9);
+        opacity: .75;
+    }
+    100% {
+        transform: scale(1.35);
+        opacity: 0;
+    }
+}
+
+.xagio-learn-more a {
+    color: inherit;
+}
+.second-panel h2, .third-panel h2 {
+    font-size: 30px;
+    color: black;
+    margin-bottom: 40px;
+    font-weight: 400;
+}
+
+.second-panel h3, .third-panel h3 {
+    font-size: 23px;
+    font-weight: bold;
+    margin: 0;
+    color: #3c434a;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.third-panel h3 a {
+    color: inherit;
+}
+
+.third-panel h3 i {
+    font-size: 25px;
+    color: #383ee2;
+}
+
+.second-panel .xagio-person-review p, .third-panel .xagio-person-review p {
+    font-size: 19px;
+    color: black;
+}
+
+.second-panel .xagio-person-review {
+    padding: 40px;
+}
+
+.xagio-additional-resources {
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+}
+
+.xagio-additional-resources > div {
+    flex-basis: calc(50% - 77px);
+    flex-grow: 1;
+    place-content: normal;
+}
+.panel-connected {
+    display: flex;
+    justify-content: space-between;
+    gap: 30px;
+    flex-wrap: wrap;
+}
+
+button.xagio-button.xagio-button-purple-normal {
+    box-shadow: 0 12px 30px -15px black;
+    font-size: 19px;
+    color: white !important;
+    background: linear-gradient(180deg, #3a33e8, #7553fc);
+    padding: 20px 55px;
+    cursor: pointer;
+    position: relative;
+    text-transform: uppercase;
+}
+
+button.xagio-button.xagio-button-orange-normal {
+    box-shadow: 0 12px 30px -15px black;
+    font-size: 19px;
+    color: white !important;
+    background: linear-gradient(180deg, #e35036, #fd6d2d);
+    padding: 20px 55px;
+    cursor: pointer;
+    position: relative;
+    text-transform: uppercase;
+}
+
+button.xagio-button.xagio-button-purple-normal:hover {
+    cursor: pointer;
+    background:  #3a33e8;
+}
+
+button.xagio-button.xagio-button-orange-normal:hover {
+    cursor: pointer;
+    background: #e35036;
+}
+
+.xagio-buttons-connected {
+    display: flex;
+    gap: 30px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.panel-connected-info {
+    display: flex;
+    gap: 30px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.panel-connected-info p {
+    font-size: 22px;
+    margin: 0;
+    font-weight: bold;
+    line-height: 1.3;
+}
+
+button.xagio-connected-btn {
+    background: #fd1f36;
+    color: white;
+    padding: 10px;
+    border-radius: 100%;
+    border: none;
+    font-size: 14px;
+    margin-left: 10px;
+}
+
+.panel-connected-info img {
+    border-radius: 100%;
+}
+button.xagio-connected-btn:hover {
+    background: #c91c2e;
+    cursor: pointer;
+}
+.xagio-buttons-connected .xagio-button {
+    padding-inline: 80px;
+    width: auto;
+}
+.xagio-person-review a {
+    text-decoration: none !important;
+}
+a.xagio-rounded-btn {
+    padding: 25px 30px;
+    border-radius: 20px;
+    font-size: 20px;
+    text-decoration: none;
+    font-family: "Outfit", sans-serif;
+}
+a.xagio-rounded-btn.xagio-rounded-btn-primary {
+    background: #5944f3;
+    color: white;
+}
+
+a.xagio-rounded-btn.xagio-rounded-btn-primary.whats-new {
+    position: relative;
+    background-color: #5944f3;
+    z-index: 0;
+    width: initial;
+    height: initial;
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+a.xagio-rounded-btn.xagio-rounded-btn-primary.whats-new i {
+    font-size: 23px;
+}
+
+a.xagio-rounded-btn.xagio-rounded-btn-primary.whats-new:before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url("/wp-content/plugins/xagio-seo/assets/img/logo-xagio-white-bg.png");
+    background-size: 100px;
+    background-repeat: no-repeat;
+    opacity: 0.2;
+    z-index: 1;
+    background-position: 90px;
+}
+
+.xagio-button-welcome-play {
+    position: relative;
+    border-radius: 50%;
+    flex-shrink: 0;
+    width: 70px;
+    height: 70px;
+    display: grid;
+    place-content: center;
+}
+
+.xagio-button-welcome-play::before {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    left: 50%;
+    top: 50%;
+    transform: translateX(-50%) translateY(-50%);
+    display: block;
+    width: 56px;
+    height: 56px;
+    background: #20269e;
+    border-radius: 50%;
+    animation: pulse-border 1500ms ease-out infinite;
+}
+
+.xagio-button-welcome-play::after {
+    content: "";
+    z-index: 1;
+    width: 60px;
+    height: 60px;
+    background: #2830c6;
+    border-radius: 50%;
+    transition: all 200ms;
+}
+.xagio-button-welcome-play:hover:before{
+    animation: none;
+}
+.xagio-button-welcome-play:hover{
+    cursor: pointer;
+}
+.xagio-button-welcome-play:hover:after {
+    cursor: pointer;
+    background-color: #4a51ea;
+}
+
+.xagio-button-welcome-play span {
+    z-index: 2;
+    border-left: 17px solid #fff;
+    border-top: 10px solid transparent;
+    border-bottom: 10px solid transparent;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    translate: -50% -50%;
+}
+
+@keyframes pulse-border {
+    0% {
+        transform: translateX(-50%) translateY(-50%) translateZ(0) scale(1);
+        opacity: .75;
+    }
+    100% {
+        transform: translateX(-50%) translateY(-50%) translateZ(0) scale(1.5);
+        opacity: 0;
+    }
+}
+
+pre.changelog {
+    white-space: pre-wrap;
+}
+
+table.xagio-system-status-table {
+    width: 100%;
+    font-size: var(--xagio-panel-label-font-size);
+}
+
+table.xagio-system-status-table tr td:first-child {
+    width: 25%;
+    min-width: 230px;
+}
+table.xagio-system-status-table tr td:last-child {
+    min-width: 540px;
+    width: 75%;
+}
+
+table.xagio-system-status-table tr td {
+    padding: 9px 0;
+}
+
+.xagio-warning {
+    color: red;
+}
+
+.xagio-gird-arrow-bottom-right {
+    grid-template-columns: 1fr 20px;
+}
+
+.xagio-gird-arrow-bottom-right > .xagio-icon {
+    font-size: 32px;
+    place-self: end;
+    color: #383ee2;
+    justify-self: center;
+    transition: rotate 140ms ease-in-out;
+}
+a.xagio-person-review:hover .xagio-icon {
+    rotate: -45deg;
+}
+.xagio-gird-arrow-bottom-right a:hover {
+    text-decoration: underline !important;
+}
+
+.xagio-border-panel.xagio-panel-special::before {
+    content: "";
+    position: absolute;
+    background-image: url(/wp-content/plugins/xagio-seo/assets/img/logo-xagio-white-bg.png);
+    background-size: 350px;
+    background-repeat: no-repeat;
+    opacity: 0.1;
+    z-index: 0;
+    background-position: 117%;
+    inset: 0;
+}
+
+.xagio-border-panel.xagio-panel-special {
+    position: relative;
+    background: linear-gradient(to right, #06009d, #0e1116);
+    text-align: center;
+    justify-content: center;
+    align-items: center;
+}
+
+.xagio-border-panel.xagio-panel-special > * {
+    color: white !important;
+    z-index: 1;
+}
+
+img.xagio-care-logo-img {
+    max-width: 240px;
+    width: 100%;
+}
+
+a.xagio-care-button-orange {
+    background: linear-gradient(to right, #e4552f, #ff7319);
+    padding: 23px 65px;
+    border-radius: var(--xagio-box-border-radius) !important;
+    font-size: 17px;
+    text-decoration: none;
+    transition: none;
+}
+a.xagio-care-button-orange:hover {
+    background: #ff7319;
+}
+a.xagio-person-review.xagio-person-review-gray.xagio-gird-arrow-bottom-right {
+    text-decoration: none;
+}
+
+a:hover.xagio-person-review.xagio-person-review-gray h3 {
+    text-decoration: underline;
+}
+
+.welcome-name {
+    color: #383ee2;
+    font-size: 30px !important;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+p.welcome-email {
+    font-size: 16px;
+    color: #3c434b;
+    font-weight: 300;
+}
+
+.xagio-ranking-holder {
+    display: flex;
+    gap: 20px;
+    position: relative;
+    z-index: 1;
+    flex-direction: column;
+}
+
+.xagio-website-rank {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 20px 35px;
+    border: 1px solid;
+    border-radius: 10px;
+    background: white;
+    z-index: 1;
+    flex-grow: 1;
+}
+
+.xagio-website-rank img {
+    max-width: 60px;
+}
+
+.xagio-ranking-holder > div:nth-child(2) {width: 80%;}
+
+.xagio-ranking-holder > div:nth-child(3) {
+    width: 60%;
+}
+
+.xagio-ranking-holder::before {
+    content: "";
+    position: absolute;
+    background: linear-gradient(to bottom, black, transparent);
+    width: 2px;
+    height: 100%;
+    left: 40px;
+    z-index: 0;
+    bottom: -30px;
+}
+.xagio-ranking-website-profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.xagio-ranking-website-name > div:first-child {
+    font-size: 20px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 26ch;
+}
+
+.xagio-ranking-website-name > div:last-child {
+    font-size: 17px;
+    color: #2607e8;
+    text-decoration: underline;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 26ch;
+}
+
+.website-using-xagio-rank {
+    background: linear-gradient(to right, #fc8434, #fb680d);
+    padding: 10px 30px;
+    border-radius: 100vh;
+    color: white;
+    text-wrap: nowrap;
+}
+
+.xagio-website-rank:first-child {
+    border: 2px solid transparent;
+    border-radius: 20px;
+    background: linear-gradient(to right, white, white), linear-gradient(to right, #1a00df, #9f19ff);
+    background-clip: padding-box, border-box;
+    background-origin: padding-box, border-box;
+}
+.xagio-website-rank:nth-child(2) {
+    border: 2px solid transparent;
+    border-radius: 20px;
+    background: linear-gradient(to right, white, white), linear-gradient(to right, #000000, #888888);
+    background-clip: padding-box, border-box;
+    background-origin: padding-box, border-box;
+}
+.xagio-website-rank:last-child {
+    border: 2px solid transparent;
+    border-radius: 20px;
+    background: linear-gradient(to right, white, white), linear-gradient(to right, #858585, #dbdbdb);
+    background-clip: padding-box, border-box;
+    background-origin: padding-box, border-box;
+}

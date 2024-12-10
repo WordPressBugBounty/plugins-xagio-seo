@@ -1,0 +1,34 @@
+@font-face {
+    font-family: "Outfit";
+    src: url("Outfit-Regular.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "Outfit-Bold";
+    src: url("Outfit-Bold.ttf") format("truetype");
+    font-weight: bold;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "Outfit-Medium";
+    src: url("Outfit-Medium.ttf") format("truetype");
+    font-weight: 500;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "Outfit-SemiBold";
+    src: url("Outfit-SemiBold.ttf") format("truetype");
+    font-weight: 600;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "Outfit-Light";
+    src: url("Outfit-Light.ttf") format("truetype");
+    font-weight: 300;
+    font-style: normal;
+}

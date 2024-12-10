@@ -1,0 +1,74 @@
+@import url('https://fonts.googleapis.com/css?family=Raleway:400,700');
+
+.prs-review-container {
+    padding: 20px;
+    background: #fbfbfb;
+    margin-bottom: 20px;
+    font-family: "Raleway", cursive;
+    width: 100%;
+    position: relative;
+    border-top: 1px solid #e0e0e0;
+    text-shadow: 0 0 !important;
+    color: #626b75;
+    box-sizing: border-box;
+}
+
+.prs-review-container-aggregate {
+    padding: 10px;
+    background: #fbfbfb;
+    margin-bottom: 10px;
+    font-family: "Raleway", cursive;
+    width: 100%;
+    position: relative;
+    border-top: 1px solid #e0e0e0;
+    text-shadow: 0 0 !important;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.prs-review-container .prs-review-body {
+    padding-left: 5px;
+    margin-bottom: 15px;
+    text-shadow: 0 0 !important;
+}
+
+.prs-review-container span.prs-review-date {
+    font-size: 14px;
+    padding-left: 10px;
+    font-family: sans-serif;
+    text-shadow: 0 0 !important;
+}
+
+.prs-review-container .prs-review-spacer {
+    position: absolute;
+    top: -10px;
+    text-align: center;
+    right: 0;
+    left: 0;
+    font-size: 20px;
+    text-shadow: 0 0 !important;
+}
+
+.prs-review-container .prs-review-title {
+    font-weight: 600;
+    margin: 10px 0;
+    padding-left: 5px;
+}
+
+.prs-review-display-heading {
+    text-align: center;
+    margin: 5px 0 25px 0;
+    font-size: 25px;
+}
+
+i.xagio-icon.xagio-icon-star{
+    font-weight: 600;
+    font-size: 23px;
+}
+
+i.xagio-icon.xagio-icon-star-o{
+    display: inline-block;
+    font-size: 23px;
+    text-rendering: auto;
+    -webkit-font-smoothing: antialiased;
+}

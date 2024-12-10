@@ -1,0 +1,548 @@
+ul.uk-tab.uk-tab-big {
+    margin-top: 0;
+}
+
+.paginationAmazon {
+    margin-top: 9px;
+}
+
+div#wpwrap {
+    background: #f5f7fb;
+}
+
+.resultsAmazon .product {
+    margin-bottom: 20px;
+}
+
+.product a.name {
+    font-size: 15px;
+    display: block;
+    margin-top: 6px;
+    margin-bottom: 4px;
+    max-width: 199px;
+    max-height: 20px;
+    overflow: auto;
+}
+
+.product span.price {
+    font-size: 20px;
+    font-weight: 600;
+    display: block;
+    margin-bottom: 10px;
+}
+
+.product .image img {
+    min-width: 136px;
+    max-height: 128px;
+    min-height: 128px;
+    max-width: 197px;
+}
+
+.product .image {
+    min-width: 136px;
+    max-height: 128px;
+    min-height: 128px;
+    max-width: 197px;
+}
+
+.markethealth .loading {
+    font-size: 20px;
+    font-weight: 600;
+    padding-left: 20px;
+}
+
+span.product-name {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+p.product-description {
+    margin: 2px;
+    max-width: 577px;
+    font-size: 10px;
+}
+
+form.clickbank_filters {
+    margin-bottom: 20px;
+}
+
+form.clickbank_filters button.uk-button.uk-button-success {
+    margin-top: 19px;
+}
+
+form.uk-form.uk-form-stacked div.uk-form-row {
+    border: white;
+    padding: 0;
+    background: white;
+}
+
+form.uk-form.uk-form-stacked label.uk-form-label {
+    border: 0 !important;
+    color: #363636;
+    margin-bottom: 0;
+}
+
+.uk-form-controls input[type="text"],
+.uk-form-controls input[type="email"],
+.uk-form-controls input[type="url"] {
+    width: 100%;
+}
+
+.shortcode-preview {
+    min-height: 200px;
+    border-radius: 10px;
+    background: #f5f7fb;
+    display: grid;
+    place-content: center;
+}
+
+.shortcode-preview span.empty {
+    font-size: 20px;
+    color: #545454;
+}
+
+a.generatedShortcode {
+    line-height: 200px;
+    font-size: 26px;
+    display: block;
+    text-align: center;
+}
+
+a.generatedShortcode.hasImage {
+    padding: 10px;
+    max-width: 530px;
+}
+
+small.small-help {
+    color: #9e9e9e;
+}
+
+.shortcode-body h4 {
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 0;
+}
+
+.shortcode-footer {
+    background: #f5f7fb !important;
+    margin-top: 25px;
+}
+
+.shortcode-body .shortcode:hover {
+    color: black;
+}
+
+.shortcode-body .shortcode h5.name {
+    font-weight: 600;
+    font-size: 15px;
+    color: #666666;
+    margin-bottom: 3px;
+}
+
+.shortcode-body .shortcode span.name {
+    font-size: 22px;
+    font-weight: 600;
+    display: inline;
+}
+
+.shortcode-body .shortcode .info {
+    margin-top: 5px;
+    padding: 5px;
+    background: #e2f7fd;
+    border: 1px solid #d0d0d0;
+}
+
+.shortcode-body .shortcode span.url {
+    color: #579c6d;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    font-size: 12px;
+}
+
+.shortcode-body .shortcode .name small {
+    font-weight: 100;
+    color: #adadad;
+}
+
+.shortcode-body .shortcode .image {
+    text-align: center;
+    font-size: 17px;
+}
+
+.tracking-box {
+    text-align: center;
+    border: 1px solid #e6e6e6;
+    border-radius: 4px;
+}
+
+.text-shortcode {
+    font-size: 25px;
+    cursor: pointer;
+    padding-top: 10%;
+}
+
+.tracking-box .tracking-heading {
+    border-bottom: 1px solid #e6e6e6;
+    font-size: 13px;
+    background: #3da2e2;
+    padding: 2px 0;
+    color: white;
+    border-top-right-radius: 4px;
+    border-top-left-radius: 4px;
+}
+
+.tracking-box .tracking-value {
+    font-size: 20px;
+    padding: 8px 0;
+    font-weight: 600;
+    background: white;
+}
+
+.uk-input-icon {
+    position: relative;
+}
+
+.uk-input-icon input.uk-input {
+    width: 100%;
+    padding: 7px 5px 7px 40px;
+    font-size: 14px;
+}
+
+.uk-input-icon .icon {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    background: #dddddd;
+    height: 30px;
+    width: 30px;
+    font-size: 20px;
+    text-align: center;
+    line-height: 29px;
+}
+
+input#shortcode-search {
+    border: 1px solid white;
+}
+
+.info-box {
+    padding: 2px;
+}
+
+.info .info-box + .info-box + .info-box {
+    margin-bottom: 6px;
+}
+
+.info span.info-title {
+    display: block;
+    float: left;
+    width: 65px;
+}
+
+.info span.info-value {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+span.info-value.title {
+    font-weight: 600;
+}
+
+span.info-value.group {
+    font-style: italic;
+}
+
+.shortcode-container {
+    position: relative;
+}
+
+button.filters-button {
+    position: absolute;
+    top: 21px;
+    right: 7px;
+    background: white;
+    border: 0;
+    padding: 7px 11px;
+    font-size: 19px;
+    border-radius: 4px;
+    color: #666;
+    font-weight: 600;
+    border-top: 1px solid;
+    border-bottom: 1px solid;
+    border-left: 1px solid;
+    border-color: #e5e5e5 !important;
+    border-right: 1px solid;
+    cursor: pointer;
+}
+
+button.filters-button:hover {
+    background: #e4e4e4;
+}
+
+.uk-form-controls input[type="checkbox"] {
+    margin-top: 0px;
+    margin-left: 5px;
+}
+
+span.groupName {
+    background: #98ac29;
+    height: 20px;
+    width: 20px;
+    text-align: center;
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 12px;
+    border-radius: 200%;
+    line-height: 20px;
+    color: white;
+    cursor: help;
+}
+
+span.groupName[data-group="Amazon"] {
+    background: #ff8d00;
+}
+
+span.groupName[data-group="Clickbank"] {
+    background: #98ac29;
+}
+
+span.groupName[data-group="Markethealth"] {
+    background: #4f90f1;
+}
+
+span.groupName[data-group="Custom"] {
+    background: #9a9a9a;
+}
+
+.ctr.uk-badge.uk-badge-notification {
+    width: 45px;
+    height: 33px;
+    font-size: 19px;
+    line-height: 27px;
+    cursor: help;
+    margin-right: 10px;
+}
+
+.unique_clicks.uk-badge, .impressions.uk-badge {
+    width: 50px;
+    height: 20px;
+    font-size: 15px;
+    line-height: 20px;
+    cursor: help;
+}
+
+.metrics {
+    display: inline-block;
+    min-width: 60px;
+    text-align: center;
+    font-size: 17px;
+    padding: 6px;
+    font-family: sans-serif;
+}
+
+.metrics span {
+    font-size: 10px;
+    margin-top: -2px;
+    display: block;
+}
+
+.shortcode-actions {
+    /*opacity: 0;*/
+}
+
+.shortcode:hover .shortcode-actions {
+    opacity: 1;
+}
+
+.uk-form-controls #shortcode, .uk-form-controls #title, .uk-form-controls #url, .uk-form-controls #url, .uk-form-controls #image {
+    height: 30px;
+    max-width: 100%;
+    padding: 4px 6px;
+    border: 1px solid #e5e5e5;
+    background: #fff;
+    color: #666;
+    -webkit-transition: all linear .2s;
+    transition: all linear .2s;
+    border-radius: 4px;
+}
+
+.uk-button {
+    background: #082440;
+    border-radius: 5px !important;
+    box-shadow: 0 2px 2px #dddddd;
+    font-weight: normal;
+    padding: 7px 20px !important;
+    border: none;
+}
+
+.uk-pagination-shortcodes > li > span {
+    padding: 6px;
+    background: white !important;
+    color: #292929 !important;
+    border-radius: 5px !important;
+}
+
+.stats-container > button {
+    float: left;
+}
+
+button.uk-button.shortcode-url-tracking, button.uk-button.shortcode-tracking {
+    width: 170px;
+    font-size: 12px;
+    padding: 4px !important;
+    margin-top: 5px;
+    margin-right: 20px;
+    background: #272727;
+}
+
+.shortcode .body {
+    padding: 30px 35px;
+}
+
+.shortcode-actions {
+    margin-top: 12px !important;
+}
+
+span.divider {
+    display: inline-block;
+    margin: 0 5px;
+    color: #dadada;
+}
+
+.shortcode .body img {
+    max-width: 175px;
+    margin: 10px 0;
+    display: block;
+}
+.shortcode-url {
+    margin-block: 33px 25px;
+    font-size: 16px;
+}
+.shortcode-url > a {
+    color: #2830c6;
+}
+table.table-in-table {
+    width: 100%;
+    text-align: left;
+}
+table.table-in-table thead {
+    font-size: 22px;
+}
+table.table-in-table tbody tr td {
+    font-size: 20px;
+    padding: 0 10px 30px 0;
+}
+table.table-in-table tbody tr:last-child td {
+    padding-bottom: 0;
+}
+table.table-in-table tbody tr td:first-child {
+    font-weight: bold;
+}
+table.table-in-table thead tr th {
+    padding-bottom: 33px;
+}
+form#shortcode_setup .xagio-panel-title {
+    font-size: 20px;
+}
+
+.xagio-flex-space-between.xagio-margin-top-medium label {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.xagio-flex-space-between.xagio-margin-top-medium a {
+    font-weight: normal;
+}
+.modal-select-img-row {
+    display: grid;
+    grid-template-columns: 1fr 52px;
+    align-items: center;
+}
+
+.modal-select-img-row input {
+    grid-column: 1 / 3;
+    grid-row: 1;
+    min-height: 46px;
+}
+
+.modal-select-img-row button {
+    grid-column: 2 / 3;
+    grid-row: 3 / -1;
+    width: 39px;
+    justify-content: center;
+    margin: 5px;
+}
+
+.uk-pagination.uk-pagination-shortcodes > li > a, .uk-pagination.uk-pagination-shortcodes > li > span {
+    background: white;
+    font-size: 14px;
+    border-radius: 50% !important;
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+}
+.uk-pagination.uk-pagination-shortcodes > .uk-active > span {
+    color: white !important;
+    text-decoration: none;
+    background: #173d64 !important;
+    padding: 0 !important;
+}
+
+.uk-pagination-shortcodes>li>a:focus, .uk-pagination-shortcodes>li>a:hover {
+    cursor: pointer;
+}
+.upload-drop {
+    font-size: 16px;
+    border: 1px solid #8ca2b9;
+    border-radius: 10px;
+    background: #fbfbfb;
+    padding: 40px;
+    margin: 0;
+}
+.upload-drop > i {
+    display: block;
+    font-size: 52px;
+    color: #1a4674;
+    margin-bottom: 13px;
+}
+
+.upload-drop .uk-form-file {
+    font-size: 16px;
+    margin-top: -4px !important;
+    color: #1a4674;
+    text-decoration: underline;
+}
+
+.filters .xagio-3-columns .modal-label {
+    font-size: var(--xagio-panel-label-font-size);
+    margin-bottom: var(--xagio-gap-small);
+    font-weight: 600;
+}
+form.filters {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    align-items: center;
+}
+.filters .xagio-button {
+    grid-column: 2;
+    place-self: end;
+}
+.shortcode-body {
+    overflow: hidden;
+}
+.shortcode {
+    overflow-x: auto;
+}
+
+@media (max-width: 1200px) {
+    form.filters {
+        grid-template-columns: 1fr;
+    }
+    .filters .xagio-button {
+        grid-column: 1;
+    }
+}
