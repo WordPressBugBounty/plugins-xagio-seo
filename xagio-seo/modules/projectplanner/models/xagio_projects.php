@@ -479,7 +479,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                 if (is_array($result['data']['ranked'])) {
                     foreach ($result['data']['ranked'] as $row) {
                         // Try to get a group
-                        $group = $wpdb->get_results(
+                        $group = $wpdb->get_row(
                             $wpdb->prepare("SELECT * FROM xag_group WHERE url = %s AND project_id = %d", $row['relative_url'], $project_id), ARRAY_A
                         );
                         if ($group == FALSE) {
@@ -973,7 +973,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
             $attach_type = sanitize_text_field(wp_unslash($_POST['attach_type']));
 
             $term  = get_term($taxonomy_id);
-            $group = $wpdb->get_results(
+            $group = $wpdb->get_row(
                 $wpdb->prepare("SELECT * FROM xag_group WHERE id = %d", $group_id), ARRAY_A
             );
 
@@ -1131,7 +1131,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
             $attach_type = sanitize_text_field(wp_unslash($_POST['attach_type']));
 
             $post  = get_post($post_id);
-            $group = $wpdb->get_results(
+            $group = $wpdb->get_row(
                 $wpdb->prepare("SELECT * FROM xag_groups WHERE id = %d", $group_id), ARRAY_A
             );
 

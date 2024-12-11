@@ -191,7 +191,7 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                     $counter++;
 
                     $name   = $newName . $counter;
-                    $exists = $wpdb->get_results($wpdb->prepare('SELECT id FROM xag_shortcodes WHERE shortcode = %s', $name), ARRAY_A);
+                    $exists = $wpdb->get_row($wpdb->prepare('SELECT id FROM xag_shortcodes WHERE shortcode = %s', $name), ARRAY_A);
 
                     if ($exists == FALSE) {
                         $shortcode['shortcode'] = $name;
@@ -538,14 +538,14 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
 
                     $ID = sanitize_text_field(wp_unslash($_GET['xredirect']));
                     if (is_numeric($ID)) {
-                        $shortcode = $wpdb->get_results($wpdb->prepare("SELECT * FROM xag_shortcodes WHERE id = %d", $ID), ARRAY_A);
+                        $shortcode = $wpdb->get_row($wpdb->prepare("SELECT * FROM xag_shortcodes WHERE id = %d", $ID), ARRAY_A);
                     } else {
-                        $shortcode = $wpdb->get_results($wpdb->prepare("SELECT * FROM xag_shortcodes WHERE name = %s", $ID), ARRAY_A);
+                        $shortcode = $wpdb->get_row($wpdb->prepare("SELECT * FROM xag_shortcodes WHERE name = %s", $ID), ARRAY_A);
                     }
 
                     if (!empty($shortcode)) {
 
-                        $shortcode_tracking = $wpdb->get_results(
+                        $shortcode_tracking = $wpdb->get_row(
                             $wpdb->prepare(
                                 "SELECT * FROM xag_shortcodes_url_tracking WHERE date = %s AND shortcode_id = %d AND ip_address = %s", $date, $shortcode['id'], sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']))
                             ), ARRAY_A
@@ -619,7 +619,7 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
             if ($shortcode !== false) {
 
                 // Check if the shortcode tracking already exists for today
-                $shortcode_tracking = $wpdb->get_results(
+                $shortcode_tracking = $wpdb->get_row(
                     $wpdb->prepare(
                         "SELECT * FROM $table WHERE date = %s AND shortcode_id = %d AND ip_address = %s", $date, $shortcode['id'], sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']))
                     ), ARRAY_A
@@ -720,7 +720,7 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                     $isMasked         = 'masked';
                     $shortcode['url'] = '/?' . $redirect_mask . '=' . $shortcode_id;
 
-                    $tracking = $wpdb->get_results(
+                    $tracking = $wpdb->get_row(
                         $wpdb->prepare(
                             "SELECT * FROM xag_shortcodes_url_tracking WHERE ip_address = %s AND date = %s AND shortcode_id = %d", $ip_address, $date, $shortcode_id
                         ), ARRAY_A
@@ -739,7 +739,7 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
 
                 } else {
 
-                    $tracking = $wpdb->get_results(
+                    $tracking = $wpdb->get_row(
                         $wpdb->prepare(
                             "SELECT * FROM xag_shortcodes_tracking WHERE ip_address = %s AND date = %s AND shortcode_id = %d", $ip_address, $date, $shortcode_id
                         ), ARRAY_A

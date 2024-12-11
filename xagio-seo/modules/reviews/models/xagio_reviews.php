@@ -500,7 +500,7 @@ if (!class_exists('XAGIO_MODEL_REVIEWS')) {
                 $post_ids  = explode(',', sanitize_text_field(wp_unslash($_POST['post_ids'])));
                 $review_id = intval($_POST['review_id']);
 
-                $review_data = $wpdb->get_results($wpdb->prepare('SELECT * FROM xag_reviews WHERE id = %d', $review_id), ARRAY_A);
+                $review_data = $wpdb->get_row($wpdb->prepare('SELECT * FROM xag_reviews WHERE id = %d', $review_id), ARRAY_A);
 
                 // remove id
                 unset($review_data['id']);

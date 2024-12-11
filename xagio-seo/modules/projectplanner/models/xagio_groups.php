@@ -202,8 +202,8 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
 
             global $wpdb;
 
-            $project_id = intval($_POST['project_id']);
-            $group_id   = intval($_POST['group_id']);
+            $project_id = sanitize_text_field($_POST['project_id']);
+            $group_id   = sanitize_text_field($_POST['group_id']);
 
             $group_ids = explode(",", $group_id);
 
@@ -983,14 +983,17 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                     }
                 }
 
-                if (!isset($_POST['title']) || !isset($_POST['description']) || !isset($_POST['notes'])) {
+
+                if (!isset($_POST['title']) || !isset($_POST['description'])) {
                     wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
                 }
 
                 // Update SEO Title / Meta
                 update_post_meta($post_id, 'XAGIO_SEO_TITLE', sanitize_text_field(wp_unslash($_POST['title'])));
                 update_post_meta($post_id, 'XAGIO_SEO_DESCRIPTION', sanitize_textarea_field(wp_unslash($_POST['description'])));
-                update_post_meta($post_id, 'XAGIO_SEO_NOTES', sanitize_textarea_field(wp_unslash($_POST['notes'])));
+                if(isset($_POST['notes'])) {
+                    update_post_meta($post_id, 'XAGIO_SEO_NOTES', sanitize_textarea_field(wp_unslash($_POST['notes'])));
+                }
 
             }
 

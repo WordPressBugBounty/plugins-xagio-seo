@@ -5519,9 +5519,8 @@ let cf_template = cf_templates[cf_default_template].data;
                                                                 '<option value="">– Filter Type –</option>' + pTypes +
                                                                 '</select></div>'
                                                                 +
-                                                                '<div><div class="modal-label">Filter Type</div><select class="xagio-input-select xagio-input-select-gray" id="AttachType">' +
-                                                                '<option value="" selected>Import data from ...</option>' +
-                                                                '<option value="page">Page fields (WordPress)</option>' +
+                                                                '<div><div class="modal-label">Import From</div><select class="xagio-input-select xagio-input-select-gray" id="AttachType">' +
+                                                                '<option value="page" selected>Page fields (WordPress)</option>' +
                                                                 '<option value="group">Group fields (Xagio Project Planner)</option>'
                                                                 + '</select></div></div>');
                                                         }
