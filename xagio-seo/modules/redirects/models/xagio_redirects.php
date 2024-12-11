@@ -175,7 +175,7 @@ if (!class_exists('XAGIO_MODEL_REDIRECTS')) {
                     }
 
                     wp_redirect($redirectUrl, 301);
-                    die();
+                    return;
                 }
             }
         }

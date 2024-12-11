@@ -26,6 +26,15 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
     <h2 class="logo-title logo-title-big">
         Dashboard
     </h2>
+    <div class="xagio-header-actions">
+        <span class="xagio-version">v<?php echo esc_html(XAGIO_CURRENT_VERSION); ?></span>
+        <?php if (XAGIO_CONNECTED) {
+            ?>
+            <a data-xagio-tooltip data-xagio-tooltip-position="bottom" data-xagio-title="Disconnect Account" type="button" class="xagio-circle-btn xagio-circle-btn-danger disconnect-account"><i class="xagio-icon xagio-icon-link-off"></i></a>
+            <?php
+        } ?>
+        <a href="#" class="xagio-circle-btn xagio-circle-btn-primary view-changelog" data-xagio-tooltip data-xagio-tooltip-position="bottom" data-xagio-title="View Readme"><i class="xagio-icon xagio-icon-file"></i></a>
+    </div>
 </div>
 
 <!-- HTML STARTS HERE -->
@@ -208,12 +217,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                     <p>Welcome,</p>
                     <p class="welcome-name"><?php echo esc_attr($MEMBERSHIP_INFO['first_name'] . ' ' . $MEMBERSHIP_INFO['last_name']); ?>
 
-                        <?php if (XAGIO_CONNECTED) {
-                            ?>
-                            <a data-xagio-tooltip data-xagio-tooltip-position="bottom" data-xagio-title="Disconnect Account"
-                               type="button" class="xagio-circle-btn xagio-circle-btn-danger disconnect-account"><i class="xagio-icon xagio-icon-link-off"></i></a>
-                            <?php
-                        } ?>
+
                     </p>
                     <p class="welcome-email"><?php echo esc_attr(XAGIO_LICENSE_EMAIL) ?></p>
                 </div>

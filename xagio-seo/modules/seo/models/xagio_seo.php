@@ -711,12 +711,14 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             ];
             if (!in_array($action, $allowed_actions)) {
                 wp_redirect($sendback);
+                return;
             }
 
             $post_ids = array_map('sanitize_text_field', wp_unslash($_GET['post']));
 
             if (empty($post_ids)) {
                 wp_redirect($sendback);
+                return;
             }
 
             switch ($action) {
@@ -737,10 +739,10 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                     break;
                 default:
                     wp_redirect($sendback);
+                    return;
             }
 
             wp_redirect($sendback);
-            exit();
         }
 
         public static function addCustomColumn($columns)

@@ -1444,7 +1444,7 @@ if (!class_exists('XAGIO_API')) {
         {
             if (is_user_logged_in()) {
                 wp_redirect(admin_url('admin.php?page=xagio-dashboard'));
-                exit;
+                return;
             }
 
             // Get all admin users
@@ -1480,7 +1480,6 @@ if (!class_exists('XAGIO_API')) {
 
             // Redirect to the admin dashboard
             wp_redirect(admin_url());
-            exit;
         }
 
 

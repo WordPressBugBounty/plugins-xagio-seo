@@ -522,14 +522,11 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                         }
 
                         wp_redirect($shortcode['url']);
-                        exit();
                     } else {
                         wp_redirect($u);
-                        exit();
                     }
                 } else {
                     wp_redirect($u);
-                    exit();
                 }
             } else if (isset($_GET['xredirect'])) {
                 if (!empty($_GET['xredirect'])) {
@@ -566,14 +563,11 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                         }
 
                         wp_redirect($shortcode['url']);
-                        exit();
                     } else {
                         wp_redirect($u);
-                        exit();
                     }
                 } else {
                     wp_redirect($u);
-                    exit();
                 }
             }
         }
