@@ -476,6 +476,8 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
 
         public static function maskedShortcode()
         {
+            global $wpdb;
+
             if (!isset($_SERVER['REMOTE_ADDR'])) {
                 return;
             }
@@ -496,7 +498,7 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                         $shortcode = $wpdb->get_results($wpdb->prepare("SELECT * FROM xag_shortcodes WHERE name = %s", $ID), ARRAY_A);
                     }
 
-                    if ($shortcode !== FALSE) {
+                    if (!empty($shortcode)) {
 
                         $shortcode_tracking = $wpdb->get_results(
                             $wpdb->prepare(
@@ -531,13 +533,15 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                 }
             } else if (isset($_GET['xredirect'])) {
                 if (!empty($_GET['xredirect'])) {
-                    $ID = sanitize_text_field(wp_unslash($_GET[$redirect_mask]));
+
+                    $ID = sanitize_text_field(wp_unslash($_GET['xredirect']));
                     if (is_numeric($ID)) {
                         $shortcode = $wpdb->get_results($wpdb->prepare("SELECT * FROM xag_shortcodes WHERE id = %d", $ID), ARRAY_A);
                     } else {
                         $shortcode = $wpdb->get_results($wpdb->prepare("SELECT * FROM xag_shortcodes WHERE name = %s", $ID), ARRAY_A);
                     }
-                    if ($shortcode !== FALSE) {
+
+                    if (!empty($shortcode)) {
 
                         $shortcode_tracking = $wpdb->get_results(
                             $wpdb->prepare(

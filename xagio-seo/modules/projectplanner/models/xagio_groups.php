@@ -279,13 +279,13 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
         {
             check_ajax_referer('xagio_nonce', '_xagio_nonce');
 
-            if (!isset($_GET['project'])) {
+            if (!isset($_POST['project'])) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
             global $wpdb;
 
-            $projectID = sanitize_text_field(wp_unslash($_GET['project']));
+            $projectID = sanitize_text_field(wp_unslash($_POST['project']));
 
             if (isset($_FILES['file-import'])) {
                 // Include the necessary WordPress file handling functions
@@ -869,7 +869,7 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
 
             global $wpdb;
 
-            if (!isset($_POST['project_id']) || !isset($_POST['group_id']) && !isset($_POST['oriUrl'])) {
+            if (!isset($_POST['project_id']) || !isset($_POST['group_id']) || !isset($_POST['oriUrl'])) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 

@@ -242,7 +242,7 @@ if (!class_exists('XAGIO_MODEL_REVIEWS')) {
                     }
 
                     $ratingsValue = 0;
-                    $totalRatings = sizeof($ratings);
+                    $totalRatings = is_array($ratings) ? sizeof($ratings) : 0;
 
                     foreach ($ratings as $r) {
                         $ratingsValue = $ratingsValue + $r['rating'];

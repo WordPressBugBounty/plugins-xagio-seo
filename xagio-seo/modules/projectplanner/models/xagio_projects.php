@@ -1976,8 +1976,9 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
 
         public static function exportToCsv($project_id)
         {
+            global $wpdb;
 
-            $projectData = $wpdb->query($wpdb->prepare("SELECT project_name FROM xag_projects WHERE id = %d", $project_id));
+            $projectData = $wpdb->get_row($wpdb->prepare("SELECT project_name FROM xag_projects WHERE id = %d", $project_id), ARRAY_A);
             if (isset($projectData['project_name'])) {
                 $projectName = $projectData['project_name'];
             } else {
@@ -1985,7 +1986,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
             }
             unset($projectData);
 
-            $projectGroups = $wpdb->get_results($wpdb->prepare("SELECT * FROM xag_groups WHERE project_id = %d", $project_id));
+            $projectGroups = $wpdb->get_results($wpdb->prepare("SELECT * FROM xag_groups WHERE project_id = %d", $project_id), ARRAY_A);
 
             $output = '"Project Name","' . $projectName . '",';
             $output .= "\n";
@@ -1993,7 +1994,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
             $output .= "\n";
             foreach ($projectGroups as $group) {
                 $group_id = $group['id'];
-                $keywords = $wpdb->get_results($wpdb->prepare("SELECT * FROM xag_keywords WHERE group_id = %d", $group_id));
+                $keywords = $wpdb->get_results($wpdb->prepare("SELECT * FROM xag_keywords WHERE group_id = %d", $group_id), ARRAY_A);
                 $output   .= "\n";
                 $output   .= 'Group,Title,URL,DESC,H1,';
                 $output   .= "\n";

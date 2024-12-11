@@ -337,11 +337,6 @@ if (!class_exists('XAGIO_API')) {
 
             // Paging
             $sLimit = "LIMIT 0, 50";
-            if (!empty($request->get_param('iDisplayStart')) && !empty($request->get_param('iDisplayLength')) && $request->get_param('iDisplayLength') != '-1') {
-                $sLimit        = "LIMIT %d, %d";
-                $queryParams[] = intval($request->get_param('iDisplayStart'));
-                $queryParams[] = intval($request->get_param('iDisplayLength'));
-            }
 
             // Ordering
             $sOrder = '';
@@ -361,14 +356,14 @@ if (!class_exists('XAGIO_API')) {
                 }
             }
 
-            // Determine Post Types
-            $allowedPostTypes = XAGIO_MODEL_SEO::getAllPostTypes();
-            $sWhere           = " WHERE post_type IN (" . implode(",", array_fill(0, count($allowedPostTypes), '%s')) . ") ";
-            $queryParams      = array_merge($queryParams, $allowedPostTypes);
-
             if (!empty($request->get_param('PostsType'))) {
                 $sWhere        = " WHERE post_type = %s ";
                 $queryParams[] = sanitize_text_field(wp_unslash($request->get_param('PostsType')));
+            } else {
+                // Determine Post Types
+                $allowedPostTypes = XAGIO_MODEL_SEO::getAllPostTypes();
+                $sWhere           = " WHERE post_type IN (" . implode(",", array_fill(0, count($allowedPostTypes), '%s')) . ") ";
+                $queryParams      = array_merge($queryParams, $allowedPostTypes);
             }
 
             // Add post status condition
@@ -376,11 +371,17 @@ if (!class_exists('XAGIO_API')) {
 
             // Search filter
             if (!empty($request->get_param('sSearch'))) {
-                $safeSearch    = '%' . sanitize_text_field(wp_unslash($request->get_param('sSearch'))) . '%';
-                $sWhere        .= " AND (post_title LIKE %s OR ID LIKE %s OR post_name LIKE %s) ";
+                $safeSearch    = sanitize_text_field(wp_unslash($request->get_param('sSearch')));
+                $sWhere        .= " AND (post_title LIKE CONCAT(CHAR(37), %s, CHAR(37)) OR ID LIKE CONCAT(CHAR(37), %s, CHAR(37)) OR post_name LIKE CONCAT(CHAR(37), %s, CHAR(37))) ";
                 $queryParams[] = $safeSearch;
                 $queryParams[] = $safeSearch;
                 $queryParams[] = $safeSearch;
+            }
+
+            if ($request->get_param('iDisplayStart') !== null && !empty($request->get_param('iDisplayLength')) && $request->get_param('iDisplayLength') != '-1') {
+                $sLimit        = "LIMIT %d, %d";
+                $queryParams[] = intval($request->get_param('iDisplayStart'));
+                $queryParams[] = intval($request->get_param('iDisplayLength'));
             }
 
             // Build final SQL query

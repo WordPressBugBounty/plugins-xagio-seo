@@ -6151,7 +6151,7 @@ let cf_template = cf_templates[cf_default_template].data;
             $.post(xagio_data.wp_post, 'action=xagio_getGroups&project_id=' + currentProjectID + '&post_type=' +
                                        $('#filterPostTypes').val(), function (d) {
 
-                if (typeof button !== 'undefined') {
+                if (typeof button === 'object') {
                     button.disable();
                 }
 
