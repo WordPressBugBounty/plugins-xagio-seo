@@ -61,7 +61,7 @@ if (!$redirect_mask) $redirect_mask = 'xredirect';
             <div class="xagio-tab-content">
                 <div class="shortcode-filters xagio-panel hidden">
                     <form class="filters">
-                        <input type="hidden" name="page" id="page" value="1"/>
+                        <input type="hidden" name="page" id="page" value="0"/>
                         <input type="hidden" name="total_entries" id="total_entries" value="10"/>
                         <input type="hidden" name="group" value="all"/>
 

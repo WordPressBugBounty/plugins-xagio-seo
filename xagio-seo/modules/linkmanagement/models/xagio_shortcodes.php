@@ -10,7 +10,8 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
         public static function scriptData()
         {
             $redirect_mask = get_option('XAGIO_REDIRECT_MASK');
-            if (!$redirect_mask) $redirect_mask = 'xredirect';
+            if (!$redirect_mask)
+                $redirect_mask = 'xredirect';
 
             wp_localize_script('xagio_linkmanagement', 'xagio_linkmanagement', [
                 'redirect_mask' => esc_attr($redirect_mask)
@@ -32,7 +33,8 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
 
             self::initShortcodes();
 
-            if (!XAGIO_HAS_ADMIN_PERMISSIONS) return;
+            if (!XAGIO_HAS_ADMIN_PERMISSIONS)
+                return;
 
             add_action('admin_post_xagio_saveShortcode', [
                 'XAGIO_MODEL_SHORTCODES',
@@ -493,14 +495,14 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
 
                     $ID = sanitize_text_field(wp_unslash($_GET[$redirect_mask]));
                     if (is_numeric($ID)) {
-                        $shortcode = $wpdb->get_results($wpdb->prepare("SELECT * FROM xag_shortcodes WHERE id = %d", $ID), ARRAY_A);
+                        $shortcode = $wpdb->get_row($wpdb->prepare("SELECT * FROM xag_shortcodes WHERE id = %d", $ID), ARRAY_A);
                     } else {
-                        $shortcode = $wpdb->get_results($wpdb->prepare("SELECT * FROM xag_shortcodes WHERE name = %s", $ID), ARRAY_A);
+                        $shortcode = $wpdb->get_row($wpdb->prepare("SELECT * FROM xag_shortcodes WHERE name = %s", $ID), ARRAY_A);
                     }
 
                     if (!empty($shortcode)) {
 
-                        $shortcode_tracking = $wpdb->get_results(
+                        $shortcode_tracking = $wpdb->get_row(
                             $wpdb->prepare(
                                 "SELECT * FROM xag_shortcodes_url_tracking WHERE shortcode_id = %d AND ip_address = %s", $shortcode['id'], sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']))
                             ), ARRAY_A
@@ -522,11 +524,14 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                         }
 
                         wp_redirect($shortcode['url']);
+                        exit;
                     } else {
                         wp_redirect($u);
+                        exit;
                     }
                 } else {
                     wp_redirect($u);
+                    exit;
                 }
             } else if (isset($_GET['xredirect'])) {
                 if (!empty($_GET['xredirect'])) {
@@ -563,11 +568,14 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                         }
 
                         wp_redirect($shortcode['url']);
+                        exit;
                     } else {
                         wp_redirect($u);
+                        exit;
                     }
                 } else {
                     wp_redirect($u);
+                    exit;
                 }
             }
         }
@@ -783,8 +791,13 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
             global $wpdb;
 
             // Sanitize and validate input
-            $page   = isset($_POST['page']) ? intval($_POST['page']) : 1;
+            $page   = isset($_POST['page']) ? max(0, intval($_POST['page'])) : 0; // Ensure page is at least 1
             $length = isset($_POST['total_entries']) ? intval($_POST['total_entries']) : 100;
+
+            // Validate and set proper length
+            if ($length <= 0) {
+                $length = 100; // Default to 100 if invalid length
+            }
 
             $group        = isset($_POST['group']) ? sanitize_text_field(wp_unslash($_POST['group'])) : 'all';
             $shortcode    = isset($_POST['shortcode']) ? sanitize_text_field(wp_unslash($_POST['shortcode'])) : '';
@@ -794,11 +807,11 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
             $mask         = isset($_POST['mask']) ? intval($_POST['mask']) : false;
             $nofollow     = isset($_POST['nofollow']) ? intval($_POST['nofollow']) : false;
 
-            if ($length === 0) {
-                $length = 1000; // Default value if input is invalid
+            // Calculate offset with bounds checking
+            $offset = ($page - 1) * $length;
+            if ($offset < 0) {
+                $offset = 0;
             }
-
-            $offset = ($length !== -1) ? ($page - 1) * $length : 0;
 
             // Set group to an empty string if 'all' is selected
             if ($group === 'all') {
@@ -844,20 +857,28 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                 $query_values[]     = $nofollow;
             }
 
-            $placeholder = "";
+            $where_clause = "";
             if (!empty($where_conditions)) {
-                $placeholder .= ' WHERE ' . implode(' AND ', $where_conditions);
+                $where_clause = ' WHERE ' . implode(' AND ', $where_conditions);
             }
 
-            $placeholder    .= " LIMIT %d, %d";
+            // First, get the total count without LIMIT
+            $count_query = "SELECT COUNT(*) as total FROM xag_shortcodes" . $where_clause;
+            $total_items = $wpdb->get_var($wpdb->prepare($count_query, $query_values));
+
+            // Then, get the paginated results
             $query_values[] = $offset;
             $query_values[] = $length;
+            $results = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT * FROM xag_shortcodes {$where_clause} LIMIT %d, %d",
+                    ...$query_values
+                ),
+                ARRAY_A
+            );
 
-            $results = $wpdb->get_results($wpdb->prepare("SELECT * FROM xag_shortcodes {$placeholder}", ...$query_values), ARRAY_A);
-
-            $count = sizeof($results);
-
-            $pages = ($length > 0) ? ceil($count / $length) : 1;
+            // Calculate total pages
+            $pages = ($length > 0) ? ceil($total_items / $length) : 1;
 
             // Ensure results is an array
             if (isset($results['id'])) {
