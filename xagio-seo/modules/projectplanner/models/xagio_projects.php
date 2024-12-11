@@ -1132,7 +1132,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
 
             $post  = get_post($post_id);
             $group = $wpdb->get_results(
-                $wpdb->prepare("SELECT * FROM xag_group WHERE id = %d", $group_id), ARRAY_A
+                $wpdb->prepare("SELECT * FROM xag_groups WHERE id = %d", $group_id), ARRAY_A
             );
 
             $homepage = false;
@@ -1866,7 +1866,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                 $post_note         = sanitize_text_field(wp_unslash($_POST['notes']));
             } else {
 
-                if (!isset($_POST['group_id']) || !isset($_POST['type']) || !isset($_POST['group_name']) || !isset($_POST['title']) || !isset($_POST['url']) || !isset($_POST['description']) || !isset($_POST['h1']) || !isset($_POST['notes'])) {
+                if (!isset($_POST['group_id']) || !isset($_POST['type'])) {
                     wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
                 }
 

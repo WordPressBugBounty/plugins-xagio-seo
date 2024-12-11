@@ -3,7 +3,7 @@ Contributors: xagio
 Tags: SEO, AI, Content Optimization, Schema Markup, XML Sitemaps
 Requires at least: 5.4
 Tested up to: 6.7
-Stable tag: 7.0.0.8
+Stable tag: 7.0.0.9
 Requires PHP: 7.0
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
@@ -81,6 +81,9 @@ For any issues or support inquiries, please visit the [Xagio Support Center](htt
 
 = 7.0.0.8 =
 * Additional bug fixing
+
+= 7.0.0.9 =
+* General stability fixes and additional bug fixing
 
 == Upgrade Notice ==
 

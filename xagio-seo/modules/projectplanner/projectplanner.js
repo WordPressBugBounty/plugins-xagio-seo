@@ -4926,33 +4926,41 @@ let cf_template = cf_templates[cf_default_template].data;
                         if (!allNull) keywords.push(keyword);
                     });
 
-                    let data = [
-                        {
-                            name : 'action',
-                            value: 'xagio_updateKeywords'
-                        },
-                        {
-                            name : 'group_id',
-                            value: group_id
-                        }
-                    ];
+                    if(keywords.length > 1) {
+                        let data = [
+                            {
+                                name : 'action',
+                                value: 'xagio_updateKeywords'
+                            },
+                            {
+                                name : 'group_id',
+                                value: group_id
+                            }
+                        ];
 
-                    keywords.forEach((keyword, index) => {
-                        Object.keys(keyword).forEach(key => {
-                            data.push({
-                                          name : `keywords[${index}][${key}]`,
-                                          value: keyword[key]
-                                      });
+                        keywords.forEach((keyword, index) => {
+                            Object.keys(keyword).forEach(key => {
+                                data.push({
+                                    name : `keywords[${index}][${key}]`,
+                                    value: keyword[key]
+                                });
+                            });
                         });
-                    });
 
-                    $.postq('groupUpdate', xagio_data.wp_post, data, function (d) {
+                        $.postq('groupUpdate', xagio_data.wp_post, data, function (d) {
+                            activeChanges = false;
+                            clearTimeout(groupNoticeTimeout);
+                            groupNoticeTimeout = setTimeout(function () {
+                                xagioNotify("success", "Changes saved successfully.");
+                            }, 300);
+                        });
+                    } else {
                         activeChanges = false;
                         clearTimeout(groupNoticeTimeout);
                         groupNoticeTimeout = setTimeout(function () {
                             xagioNotify("success", "Changes saved successfully.");
                         }, 300);
-                    });
+                    }
 
                 });
 
