@@ -905,7 +905,7 @@ span.xagio-g-editable-url input:focus {
 
 .xagio-search-group-input .xagio-icon-search.g-search-icon {
     position: absolute;
-    top: 5px;
+    top: 12px;
     height: 1.5em;
     right: 14px;
     font-size: 16px;
@@ -1781,7 +1781,7 @@ button.to-target-keyword:hover, button.to-keyword-group:hover {
 }
 
 .keywordInput:empty:after {
-    content: "\f068";
+    content: "-";
 }
 
 .suggestion-keywords .to-target-keyword {

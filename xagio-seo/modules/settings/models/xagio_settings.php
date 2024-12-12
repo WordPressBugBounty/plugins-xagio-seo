@@ -738,7 +738,7 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
             //Fix Keywords stuck in queue
 
             global $wpdb;
-            $wpdb->update('xag_batches', ['queued' => 0], ['queued' => 1]);
+            $wpdb->update('xag_keywords', ['queued' => 0], ['queued' => 1]);
 
             XAGIO_LICENSE::checkLicenseRemote();
         }

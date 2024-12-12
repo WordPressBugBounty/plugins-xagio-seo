@@ -490,10 +490,7 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
             global $wpdb;
 
-            if (!isset($_POST['meta'])) {
-                wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
-            }
-
+            // This needs to work only when meta is present otherwise continue with default function
             if (isset($_POST['meta'])) {
                 $term_meta = map_deep(wp_unslash($_POST['meta']), 'sanitize_text_field');
                 foreach ($term_meta as $key => $value) {
@@ -1147,10 +1144,6 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             }
 
             if (!is_object($object)) {
-                return FALSE;
-            }
-
-            if (!isset($object->ID)) {
                 return FALSE;
             }
 
@@ -1840,19 +1833,10 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             /**
              *  BEGIN THE SAVING PROCESS
              */
-
-            if (!isset($_POST['XAGIO_SEO_TITLE'], $_POST['XAGIO_SEO_DESCRIPTION'], $_POST['XAGIO_SEO_URL'], $_POST['XAGIO_SEO_NOTES'], $_POST['XAGIO_SEO_ORIGINAL_URL'], $_POST['post_name'])) {
-                return $post_id;
-            }
-
-            // Shortcode support
-            $_POST['XAGIO_SEO_TITLE']       = sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_TITLE']));
-            $_POST['XAGIO_SEO_DESCRIPTION'] = sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_DESCRIPTION']));
-
             // Change the URL if modified
-            $newUrl = @sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_URL']));
-            $oriUrl = @sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_ORIGINAL_URL']));
-            $pstUrl = @sanitize_text_field(wp_unslash($_POST['post_name']));
+            $newUrl = isset($_POST['XAGIO_SEO_URL']) ? sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_URL'])) : '';
+            $oriUrl = isset($_POST['XAGIO_SEO_ORIGINAL_URL']) ? sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_ORIGINAL_URL'])) : '';
+            $pstUrl = isset($_POST['post_name']) ? sanitize_text_field(wp_unslash($_POST['post_name'])) : '';
 
             if ($newUrl == $oriUrl && $newUrl != $pstUrl) {
                 $newUrl = $pstUrl;
@@ -1883,9 +1867,9 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 $wpdb->update(
                     'xag_groups', [
                     'url'         => $newUrl,
-                    'title'       => sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_TITLE'])),
-                    'description' => sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_DESCRIPTION'])),
-                    'notes'       => sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_NOTES'])),
+                    'title'       => isset($_POST['XAGIO_SEO_TITLE']) ? sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_TITLE'])) : '',
+                    'description' => isset($_POST['XAGIO_SEO_DESCRIPTION']) ? sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_DESCRIPTION'])) : '',
+                    'notes'       => isset($_POST['XAGIO_SEO_NOTES']) ? sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_NOTES'])) : '',
                     'h1'          => $post_title,
                 ], [
                         'id_page_post' => $post_id,
@@ -2111,16 +2095,44 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             return $tmp;
         }
 
-        public static function extract_url_parts($id)
+        public static function extract_url_parts($id, $check_terms_first = false)
         {
-            $url = get_permalink($id);
+            $url = null;
+            $post = null;
 
-            if (term_exists($id)) {
-                $url = get_term_link($id);
+            if ($check_terms_first) {
+                // Check terms first
+                if (term_exists($id)) {
+                    $url = get_term_link($id);
+                    if (is_wp_error($url)) {
+                        return false;
+                    }
+                } else {
+                    // Fallback to post check
+                    $post = get_post($id);
+                    if ($post) {
+                        $url = get_permalink($id);
+                    }
+                }
+            } else {
+                // Check posts first (default behavior)
+                $post = get_post($id);
+                if ($post) {
+                    $url = get_permalink($id);
+                } else if (term_exists($id)) {
+                    $url = get_term_link($id);
+                    if (is_wp_error($url)) {
+                        return false;
+                    }
+                }
+            }
+
+            // If no valid URL was found, return false
+            if (!$url) {
+                return false;
             }
 
             $url = wp_parse_url($url);
-
             $host = $url['scheme'] . "://" . $url['host'];
 
             $final = [
@@ -2128,31 +2140,23 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             ];
 
             // If post is in draft or pending
-            if (in_array(get_post_status($id), [
-                'draft',
-                'pending'
-            ])) {
+            if ($post && in_array(get_post_status($id), ['draft', 'pending'])) {
                 $sample_permalink = get_sample_permalink($id);
 
-                $url_structure = $sample_permalink[0];
-                $url_structure = wp_parse_url($url_structure);
+                $url_structure = wp_parse_url($sample_permalink[0]);
                 $url_structure = $url_structure['path'];
                 $url_structure = explode("/", $url_structure);
                 $url_structure = array_values(array_filter($url_structure));
                 array_pop($url_structure);
                 $permalink = $sample_permalink[1];
 
-                $final['parts']        = $url_structure;
+                $final['parts'] = $url_structure;
                 $final['editable_url'] = $permalink;
             } else {
                 $path = explode('/', $url['path']);
-
                 $path = array_values(array_filter($path));
 
                 $name = "";
-                $cat  = "";
-
-
                 if (sizeof($path) > 0) {
                     if (sizeof($path) === 1) {
                         $name = $path[0];
@@ -2163,7 +2167,7 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                     }
                 }
 
-                $final['parts']        = $path;
+                $final['parts'] = $path;
                 $final['editable_url'] = $name;
             }
 

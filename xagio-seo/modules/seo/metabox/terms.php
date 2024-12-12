@@ -28,6 +28,7 @@ if (isset($taxonomies[$tax])) {
 </table>
 
 <input type="hidden" name="meta[taxonomy]" value="<?php echo esc_attr($tax); ?>"/>
+<?php wp_nonce_field('xagio_nonce', '_xagio_nonce'); ?>
 
 <div class="xagio-panel xagio-margin-bottom-medium">
     <h3 class="xagio-panel-title"><img class="logo-image-seo" src="<?php echo esc_url(XAGIO_URL); ?>assets/img/logo-xagio-smaller.webp"> Xagio Meta SEO Snippet</h3>

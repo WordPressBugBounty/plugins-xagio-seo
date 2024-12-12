@@ -63,6 +63,57 @@ function xagioModal(title = "Confirm", message, callback = false) {
 
 }
 
+function xagioCustomModal(title = "Confirm", message, buttons = []) {
+    let dialog = jQuery('<dialog class="xagio-modal">');
+
+    dialog.html(`<div class="xagio-modal-header">
+                    <h3 class="xagio-modal-title"><i class="xagio-icon xagio-icon-info"></i> ${title}</h3>
+                    <button class="xagio-modal-close"><i class="xagio-icon xagio-icon-close"></i></button>
+                </div>
+                <div class="xagio-modal-body">
+                    <label class="modal-label">${message}</label>
+                    <div class="xagio-flex-right xagio-flex-gap-medium xagio-margin-top-medium modal-button-holders">
+                    </div>
+                </div>`);
+
+    const buttonHolder = dialog.find('.modal-button-holders');
+
+    // Add cancel button by default
+    let cancelBtn = jQuery('<button class="xagio-button xagio-button-outline" type="button"><i class="xagio-icon xagio-icon-close"></i> Cancel</button>')
+        .appendTo(buttonHolder);
+
+    // Add custom buttons
+    buttons.forEach(button => {
+        const { label, icon, callback, className = 'xagio-button-primary' } = button;
+        const btnElement = jQuery(`<button type="button" class="xagio-button ${className}">
+            ${icon ? `<i class="xagio-icon ${icon}"></i> ` : ''}${label}
+        </button>`).appendTo(buttonHolder);
+
+        btnElement.on('click', function() {
+            if (typeof callback === 'function') {
+                callback();
+            }
+            dialog.get(0).close();
+            dialog.remove();
+        });
+    });
+
+    // Handle cancel button click
+    cancelBtn.on('click', function() {
+        dialog.get(0).close();
+        dialog.remove();
+    });
+
+    // Handle close button in header
+    dialog.find('.xagio-modal-close').on('click', function() {
+        dialog.get(0).close();
+        dialog.remove();
+    });
+
+    dialog.appendTo('body');
+    dialog.get(0).showModal();
+}
+
 function xagioPromptModal(title = "Confirm", message, callback) {
     let dialog = jQuery('<dialog class="xagio-modal">');
 

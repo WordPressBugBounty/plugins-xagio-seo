@@ -864,7 +864,7 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
 
             // First, get the total count without LIMIT
             $count_query = "SELECT COUNT(*) as total FROM xag_shortcodes" . $where_clause;
-            $total_items = $wpdb->get_var($wpdb->prepare($count_query, $query_values));
+            $total_items = $wpdb->get_var($wpdb->prepare("$count_query", $query_values));
 
             // Then, get the paginated results
             $query_values[] = $offset;

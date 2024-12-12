@@ -480,7 +480,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                     foreach ($result['data']['ranked'] as $row) {
                         // Try to get a group
                         $group = $wpdb->get_row(
-                            $wpdb->prepare("SELECT * FROM xag_group WHERE url = %s AND project_id = %d", $row['relative_url'], $project_id), ARRAY_A
+                            $wpdb->prepare("SELECT * FROM xag_groups WHERE url = %s AND project_id = %d", $row['relative_url'], $project_id), ARRAY_A
                         );
                         if ($group == FALSE) {
                             $group_name = $row['title'];
@@ -622,10 +622,8 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
             // Prepare and execute the query
             $updateKeywords = $wpdb->get_results(
                 $wpdb->prepare(
-                    "SELECT id FROM xag_keywords WHERE group_id IN ($groupIdsPlaceholders) AND %s",
-                    ...$queryParams
-                ),
-                ARRAY_A
+                    "SELECT id FROM xag_keywords WHERE group_id IN ($groupIdsPlaceholders) AND %s", ...$queryParams
+                ), ARRAY_A
             );
 
             unset($likeKeywords);
@@ -642,19 +640,27 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                 'id' => $keywordIDs
             ]);
 
-            // Delete all group IDs in this project
-            // Delete all keywords from this project
+            // Ensure $project_group_ids is an array of integers
+            $project_group_ids = array_map('absint', (array) $project_group_ids);
+
+            // Create a comma-separated list of placeholders (%d) based on the number of IDs
+            $group_placeholders = implode(',', array_fill(0, count($project_group_ids), '%d'));
+
+            // Prepare and execute the queries using the generated placeholders
             $wpdb->query(
                 $wpdb->prepare(
-                    "DELETE FROM xag_groups WHERE id IN (%s)", $project_group_ids
+                    "DELETE FROM xag_groups WHERE id IN ($group_placeholders)",
+                    $project_group_ids
                 )
             );
 
             $wpdb->query(
                 $wpdb->prepare(
-                    "DELETE FROM xag_keywords WHERE group_id IN (%s)", $project_group_ids
+                    "DELETE FROM xag_keywords WHERE group_id IN ($group_placeholders)",
+                    $project_group_ids
                 )
             );
+
 
 
             xagio_jsonc([
@@ -680,7 +686,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
 
             $wordSimilarity = 80;
             if (!empty($_POST['word_similarity'])) {
-                $wordSimilarity      = absint(wp_unslash($_POST['word_similarity']));
+                $wordSimilarity = absint(wp_unslash($_POST['word_similarity']));
             }
 
             if (!empty($excludedWords)) {
@@ -974,7 +980,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
 
             $term  = get_term($taxonomy_id);
             $group = $wpdb->get_row(
-                $wpdb->prepare("SELECT * FROM xag_group WHERE id = %d", $group_id), ARRAY_A
+                $wpdb->prepare("SELECT * FROM xag_groups WHERE id = %d", $group_id), ARRAY_A
             );
 
 
@@ -1081,24 +1087,87 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
 
             global $wpdb;
 
-            if (!isset($_POST['post_id']) || !isset($_POST['group_id']) || !isset($_POST['h1']) || !isset($_POST['url']) || !isset($_POST['title']) || !isset($_POST['desc'])) {
+            if (!isset($_POST['post_id']) || !isset($_POST['group_id']) || !isset($_POST['type'])) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $post_id  = intval($_POST['post_id']);
-            $group_id = intval($_POST['group_id']);
-            $h1       = sanitize_text_field(wp_unslash($_POST['h1']));
-            $url      = sanitize_url(wp_unslash($_POST['url']));
-            $title    = sanitize_text_field(wp_unslash($_POST['title']));
-            $desc     = sanitize_text_field(wp_unslash($_POST['desc']));
+            $post_id     = intval($_POST['post_id']);
+            $group_id    = intval($_POST['group_id']);
+            $attach_type = sanitize_text_field(wp_unslash($_POST['type']));
 
+            $post  = get_post($post_id);
+            $group = $wpdb->get_row(
+                $wpdb->prepare("SELECT * FROM xag_groups WHERE id = %d", $group_id), ARRAY_A
+            );
 
+            $homepage = false;
+            if (get_option('page_on_front') === $post_id) {
+                $homepage = true;
+            }
+
+            $h1                     = NULL;
+            $title                  = NULL;
+            $desc                   = NULL;
+            $notes                  = NULL;
+            $url                    = NULL;
+            $page_url               = XAGIO_MODEL_SEO::extract_url($post_id);
+            $redirect_added_message = "";
+
+            if ($attach_type == 'page') {
+                $h1    = isset($_POST['h1']) ? sanitize_text_field(wp_unslash($_POST['h1'])) : $post->post_title;
+                $title = isset($_POST['title']) ? sanitize_text_field(wp_unslash($_POST['title'])) : get_post_meta($post_id, 'XAGIO_SEO_TITLE', TRUE);
+                $desc  = isset($_POST['desc']) ? sanitize_text_field(wp_unslash($_POST['desc'])) : get_post_meta($post_id, 'XAGIO_SEO_DESCRIPTION', TRUE);
+                $notes = isset($_POST['notes']) ? sanitize_text_field(wp_unslash($_POST['notes'])) : get_post_meta($post_id, 'XAGIO_SEO_NOTES', TRUE);
+                $url   = isset($_POST['url']) ? sanitize_url(wp_unslash($_POST['url'])) : $page_url;
+
+            } else if ($attach_type == 'group') {
+                $h1    = $group['h1'];
+                $title = $group['title'];
+                $desc  = $group['description'];
+                $notes = $group['notes'];
+                $url   = $group['url'];
+
+                if (!$homepage) {
+                    if ($page_url !== $url) {
+                        $redirect_added_message = "Added automatic redirect from: $page_url to new URL: $url in 301 Management";
+                        XAGIO_MODEL_REDIRECTS::add($page_url, $url);
+                    }
+                } else {
+                    $url = "/";
+                }
+            }
+
+            // Validate required fields
+            if (empty($title)) {
+                xagio_json('error', "SEO Title from your $attach_type is empty! Please set it up, or choose a different import data source!");
+                return;
+            }
+
+            if (empty($desc)) {
+                xagio_json('error', "SEO Description from your $attach_type is empty! Please set it up, or choose a different import data source!");
+                return;
+            }
+
+            if (empty($h1)) {
+                xagio_json('error', "H1 from your $attach_type is empty! Please set it up, or choose a different import data source!");
+                return;
+            }
+
+            if (!$homepage) {
+                if (empty($url)) {
+                    xagio_json('error', "Slug/URL from your $attach_type is empty! Please set it up, or choose a different import data source!");
+                    return;
+                }
+            }
+
+            // Clear any existing group associations
             $wpdb->update('xag_groups', [
                 'id_page_post' => 0
             ], [
                 'id_page_post' => $post_id,
             ]);
 
+            // Update group data
             $wpdb->update('xag_groups', [
                 'id_taxonomy'     => 0,
                 'id_page_post'    => $post_id,
@@ -1106,13 +1175,26 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                 'url'             => $url,
                 'title'           => $title,
                 'description'     => $desc,
-                'external_domain' => ''
+                'external_domain' => '',
+                'notes'           => $notes
             ], [
                 'id' => $group_id,
             ]);
 
+            // Update post meta
+            update_post_meta($post_id, 'XAGIO_SEO_TITLE', $title);
+            update_post_meta($post_id, 'XAGIO_SEO_DESCRIPTION', $desc);
+            update_post_meta($post_id, 'XAGIO_SEO_NOTES', $notes);
 
-            xagio_json('success', 'Successfully attached page/post.');
+            // Update post data
+            $post_data = [
+                'ID'         => $post_id,
+                'post_title' => $h1,
+                'post_name'  => sanitize_title($url),
+            ];
+            wp_update_post($post_data);
+
+            xagio_json('success', 'Successfully attached page/post to group. ' . $redirect_added_message);
         }
 
         // Attach to Page/Post
@@ -1136,16 +1218,16 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
             );
 
             $homepage = false;
-            if(get_option('page_on_front') === $post_id) {
+            if (get_option('page_on_front') === $post_id) {
                 $homepage = true;
             }
 
-            $h1    = NULL;
-            $title = NULL;
-            $desc  = NULL;
-            $notes = NULL;
-            $url   = NULL;
-            $page_url = XAGIO_MODEL_SEO::extract_url($post_id);
+            $h1                     = NULL;
+            $title                  = NULL;
+            $desc                   = NULL;
+            $notes                  = NULL;
+            $url                    = NULL;
+            $page_url               = XAGIO_MODEL_SEO::extract_url($post_id);
             $redirect_added_message = "";
 
             if ($attach_type == 'page') {
@@ -1164,13 +1246,13 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                 $notes = $group['notes'];
                 $url   = $group['url'];
 
-                if(!$homepage) {
-                    if($page_url !== $url) {
+                if (!$homepage) {
+                    if ($page_url !== $url) {
                         $redirect_added_message = "Added automatic redirect from: $page_url to new URL: $url in 301 Management";
                         XAGIO_MODEL_REDIRECTS::add($page_url, $url);
                     }
                 } else {
-                    $url  = "/";
+                    $url = "/";
                 }
             }
 
@@ -1189,7 +1271,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                 return;
             }
 
-            if(!$homepage) {
+            if (!$homepage) {
                 if (empty($url)) {
                     xagio_json('error', "Slug/URL from your $attach_type is empty! Please set it up, or choose a different import data source!");
                     return;
@@ -1346,7 +1428,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
             if (isset($groups['id']))
                 return [
                     'project_id' => (int)@$groups['project_id'],
-                    'group_id' => (int)@$groups['id']
+                    'group_id'   => (int)@$groups['id']
                 ];
 
             if (is_array($groups))
@@ -1355,7 +1437,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
 
             return [
                 'project_id' => (int)@$groups['project_id'],
-                'group_id' => (int)@$groups['id']
+                'group_id'   => (int)@$groups['id']
             ];
         }
 
@@ -1664,8 +1746,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                             // Prepare and execute the query
                             $wpdb->query(
                                 $wpdb->prepare(
-                                    "UPDATE xag_keywords SET rank = '0' WHERE keyword IN ($placeholders)",
-                                    ...array_map('sanitize_text_field', $updateKeywordsString)
+                                    "UPDATE xag_keywords SET rank = '0' WHERE keyword IN ($placeholders)", ...array_map('sanitize_text_field', $updateKeywordsString)
                                 )
                             );
 

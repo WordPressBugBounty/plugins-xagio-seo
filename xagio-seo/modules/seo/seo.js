@@ -1,15 +1,11 @@
 let target_keyword = '';
 let aiStatusTimeout = null;
 let aiSchemaStatusTimeout = null;
-let isBlockEditor = false;
-
 
 (function ($) {
     'use strict';
 
     $(document).ready(function () {
-        if ($('body.block-editor-page').length > 0) isBlockEditor = true;
-
         if (actions.allowedToRun()) {
             helpers();
             search_preview.init();
@@ -567,7 +563,7 @@ let isBlockEditor = false;
             });
         },
         saveEditors   : function () {
-            if (isBlockEditor) {
+            if (search_preview.isGuteberg()) {
                 wp.data.subscribe(function () {
                     cm_settings.e1.codemirror.save();
                     cm_settings.e2.codemirror.save();
@@ -2521,8 +2517,8 @@ let isBlockEditor = false;
                                 }
 
                             } else {
-                                if (isBlockEditor) {
-                                    seoTitle = $('.wp-block-post-title').text();
+                                if (search_preview.isGuteberg()) {
+                                    seoTitle = $('.editor-document-bar__post-title').html().trim()
                                 } else {
                                     seoTitle = $('[name="post_title"]').val();
                                 }
@@ -2803,8 +2799,8 @@ let isBlockEditor = false;
                                 }
 
                             } else {
-                                if (isBlockEditor) {
-                                    seoTitle = $('.wp-block-post-title').text();
+                                if (search_preview.isGuteberg()) {
+                                    seoTitle = $('.editor-document-bar__post-title').html().trim()
                                 } else {
                                     seoTitle = $('[name="post_title"]').val();
                                 }
@@ -3799,11 +3795,20 @@ let isBlockEditor = false;
                 let group_id = selection.data('group-id');
                 let post_id = $('#xagio_post_id').val();
                 let h1 = $('input[name="post_title"]').val();
-                if (isBlockEditor) {
-                    h1 = $('.wp-block-post-title').text();
+                let url = $('input[name="XAGIO_SEO_URL"]').val();
+
+                if (search_preview.isGuteberg()) {
+                    h1 = $('.editor-document-bar__post-title').html().trim();
                 }
 
-                let url = $('input[name="XAGIO_SEO_URL"]').val();
+                if (url == '' || url == '/' || typeof url == 'undefined') {
+                    if (search_preview.isGuteberg()) {
+                        url = $('.editor-post-url__panel-dropdown').text().trim();
+                    } else {
+                        url = $('#sample-permalink #editable-post-name').text().trim();
+                    }
+                 }
+
                 let title = $('input[name="XAGIO_SEO_TITLE"]').val();
                 let desc = $('input[name="XAGIO_SEO_DESCRIPTION"]').val();
 
@@ -3812,12 +3817,14 @@ let isBlockEditor = false;
                 if (relative_url_part !== "/") {
                     url = relative_url_part + url + "/";
                 } else {
-                    if (url !== undefined) {
+                    if (typeof url != 'undefined') {
                         url = "/" + url + "/";
                     } else {
                         url = "/";
                     }
                 }
+
+                url = url.replace('//', '/');
 
                 let data = [
                     {
@@ -3850,12 +3857,68 @@ let isBlockEditor = false;
                     }
                 ];
 
-                $.post(xagio_data.wp_post, data, function (d) {
-                    $('.xagio-group-container').attr('data-group-id', group_id).removeClass('xagio-hidden');
-                    $('.xagio-g-tabs-extended').addClass('xagio-hidden');
-                    $('table.keywords').removeClass('xagio-hidden');
-                    search_preview.generateKeywordsTable();
-                });
+                xagioCustomModal(
+                    "Attach to a Group",
+                    'You are about to attach this page to a group "' + selection.text().trim() + '". Do you want import data from Page fields (WordPress) or from the Group fields (Xagio Project Planner)?',
+                    [
+                        {
+                            label: "Page fields (WordPress)",
+                            icon: "xagio-icon-save",
+                            callback: function(){
+
+                                data.push({
+                                              name : "type",
+                                              value: 'page'
+                                          });
+
+                                $.post(xagio_data.wp_post, data, function (d) {
+
+                                    if (d.status == 'error') {
+                                        xagioNotify('error', d.message);
+                                        return;
+                                    }
+
+                                    xagioNotify('success', d.message);
+
+                                    $('.xagio-group-container').attr('data-group-id', group_id).removeClass('xagio-hidden');
+                                    $('.xagio-g-tabs-extended').addClass('xagio-hidden');
+                                    $('table.keywords').removeClass('xagio-hidden');
+                                    search_preview.generateKeywordsTable();
+                                });
+
+                            },
+                            className: "xagio-button-primary"
+                        },
+                        {
+                            label: "Group fields (Xagio Project Planner)",
+                            icon: "xagio-icon-save",
+                            callback: function(){
+
+                                data.push({
+                                              name : "type",
+                                              value: 'group'
+                                          });
+
+                                $.post(xagio_data.wp_post, data, function (d) {
+
+                                    if (d.status == 'error') {
+                                        xagioNotify('error', d.message);
+                                        return;
+                                    }
+
+                                    xagioNotify('success', d.message);
+
+                                    $('.xagio-group-container').attr('data-group-id', group_id).removeClass('xagio-hidden');
+                                    $('.xagio-g-tabs-extended').addClass('xagio-hidden');
+                                    $('table.keywords').removeClass('xagio-hidden');
+                                    search_preview.generateKeywordsTable();
+                                });
+
+                            },
+                            className: "xagio-button-primary"
+                        }
+                    ]
+                );
 
             });
 

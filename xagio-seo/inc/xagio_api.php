@@ -9,6 +9,8 @@ if (!class_exists('XAGIO_API')) {
 
         public static function initialize()
         {
+            self::checkWordfenceAndEnableAppPasswords();
+
             add_action('rest_api_init', [
                 'XAGIO_API',
                 'registerXagioRoutes'
@@ -34,6 +36,98 @@ if (!class_exists('XAGIO_API')) {
                 'XAGIO_API',
                 'themeSwitch'
             ]);
+
+            self::forceEnableAppPasswords();
+        }
+
+        public static function checkWordfenceAndEnableAppPasswords()
+        {
+            // Check if Wordfence is installed and active
+            if (!function_exists('is_plugin_active')) {
+                require_once(ABSPATH . 'wp-admin/includes/plugin.php');
+            }
+
+            // Check for both possible Wordfence plugin slugs
+            $wordfence_slugs = [
+                'wordfence/wordfence.php',
+                'wordfence-security/wordfence.php'  // Alternative slug
+            ];
+
+            $wordfence_active = false;
+            foreach ($wordfence_slugs as $slug) {
+                if (is_plugin_active($slug)) {
+                    $wordfence_active = true;
+                    break;
+                }
+            }
+
+            if (!$wordfence_active) {
+                return false;
+            }
+
+            return self::checkAndForceEnableAppPasswords();
+        }
+
+        public static function checkAndForceEnableAppPasswords()
+        {
+            global $wpdb;
+
+            // Check if application passwords are disabled
+            $wfconfig_table = $wpdb->prefix . 'wfconfig';
+            $disabled = $wpdb->get_var($wpdb->prepare(
+                "SELECT val FROM $wfconfig_table WHERE name = %s",
+                'loginSec_disableApplicationPasswords'
+            ));
+
+            // Only proceed if application passwords are disabled (val = 1)
+            if ($disabled == 1) {
+                // Try to enable application passwords
+                return self::forceEnableAppPasswords();
+            }
+
+            return true;
+        }
+
+        public static function forceEnableAppPasswords()
+        {
+            global $wpdb;
+
+            // Update the wp_wfconfig table
+            $wfconfig_table = $wpdb->prefix . 'wfconfig';
+            $wfconfig_name  = 'loginSec_disableApplicationPasswords';
+
+            $result1 = $wpdb->update(
+                $wfconfig_table,
+                ['val' => 0],
+                ['name' => $wfconfig_name],
+                ['%d'], // Value format
+                ['%s']  // Where clause format
+            );
+
+            // Check for errors in the first update
+            if ($result1 === false) {
+                return false;
+            }
+
+            // Update the wp_options table
+            $options_table = $wpdb->prefix . 'options';
+            $option_name   = 'using_application_passwords';
+
+            $result2 = $wpdb->update(
+                $options_table,
+                ['option_value' => 1],
+                ['option_name' => $option_name],
+                ['%d'], // Value format
+                ['%s']  // Where clause format
+            );
+
+            // Check for errors in the second update
+            if ($result2 === false) {
+                return false;
+            }
+
+            // If both updates succeed
+            return true;
         }
 
         public static function registerXagioRoutes()
@@ -1177,13 +1271,13 @@ if (!class_exists('XAGIO_API')) {
                 }
 
                 $plugin_slug_with_file = sanitize_text_field(wp_unslash($request->get_param('plugin')));
-                $plugin_slug_parts = explode('/', $plugin_slug_with_file); // Split by '/' to extract the directory
-                $plugin_slug = $plugin_slug_parts[0]; // The first part is the directory name
+                $plugin_slug_parts     = explode('/', $plugin_slug_with_file); // Split by '/' to extract the directory
+                $plugin_slug           = $plugin_slug_parts[0]; // The first part is the directory name
 
-                $temp_dir    = XAGIO_PATH . '/tmp/';
-                $plugin_dir  = WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . $plugin_slug . DIRECTORY_SEPARATOR;
-                $zip_name    = basename($plugin_slug);
-                $zip_path    = $temp_dir . $zip_name . '.zip';
+                $temp_dir   = XAGIO_PATH . '/tmp/';
+                $plugin_dir = WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . $plugin_slug . DIRECTORY_SEPARATOR;
+                $zip_name   = basename($plugin_slug);
+                $zip_path   = $temp_dir . $zip_name . '.zip';
 
 
                 // Check if temp dir exists, create if not
@@ -1209,12 +1303,11 @@ if (!class_exists('XAGIO_API')) {
 
                 // Add plugin files to the ZIP archive
                 $files = new RecursiveIteratorIterator(
-                    new RecursiveDirectoryIterator($plugin_dir, RecursiveDirectoryIterator::SKIP_DOTS),
-                    RecursiveIteratorIterator::SELF_FIRST
+                    new RecursiveDirectoryIterator($plugin_dir, RecursiveDirectoryIterator::SKIP_DOTS), RecursiveIteratorIterator::SELF_FIRST
                 );
 
                 foreach ($files as $file) {
-                    $file_path = $file->getRealPath();
+                    $file_path     = $file->getRealPath();
                     $relative_path = substr($file_path, strlen($plugin_dir));
                     if ($file->isDir()) {
                         $archive->addEmptyDir($plugin_slug . '/' . $relative_path);
@@ -1382,9 +1475,9 @@ if (!class_exists('XAGIO_API')) {
                     xagio_mkdir($temp_dir, 0777, true);
                 }
 
-                $theme_dir   = get_theme_root() . DIRECTORY_SEPARATOR . $theme_slug . DIRECTORY_SEPARATOR;
-                $zip_name    = basename($theme_slug);
-                $zip_path    = $temp_dir . $zip_name . '.zip';
+                $theme_dir = get_theme_root() . DIRECTORY_SEPARATOR . $theme_slug . DIRECTORY_SEPARATOR;
+                $zip_name  = basename($theme_slug);
+                $zip_path  = $temp_dir . $zip_name . '.zip';
 
                 // Validate theme directory
                 if (!file_exists($theme_dir) || !is_dir($theme_dir)) {
@@ -1403,12 +1496,11 @@ if (!class_exists('XAGIO_API')) {
 
                 // Add theme files to the ZIP archive
                 $files = new RecursiveIteratorIterator(
-                    new RecursiveDirectoryIterator($theme_dir, RecursiveDirectoryIterator::SKIP_DOTS),
-                    RecursiveIteratorIterator::SELF_FIRST
+                    new RecursiveDirectoryIterator($theme_dir, RecursiveDirectoryIterator::SKIP_DOTS), RecursiveIteratorIterator::SELF_FIRST
                 );
 
                 foreach ($files as $file) {
-                    $file_path = $file->getRealPath();
+                    $file_path     = $file->getRealPath();
                     $relative_path = substr($file_path, strlen($theme_dir));
                     if ($file->isDir()) {
                         $archive->addEmptyDir($theme_slug . '/' . $relative_path);
@@ -3267,7 +3359,10 @@ if (!class_exists('XAGIO_API')) {
             }
 
             if (empty($_SERVER['SERVER_NAME'])) {
-                return ['status' => 'error', 'message'=> 'Required parameters are missing.'];
+                return [
+                    'status'  => 'error',
+                    'message' => 'Required parameters are missing.'
+                ];
             }
 
             // Set the domain name
@@ -3276,7 +3371,10 @@ if (!class_exists('XAGIO_API')) {
 
             // Ensure the file exists
             if (!file_exists($fileToUpload)) {
-                return ['status' => 'error', 'message'=> 'File to upload does not exist.'];
+                return [
+                    'status'  => 'error',
+                    'message' => 'File to upload does not exist.'
+                ];
             }
 
             // Prepare the file data for multipart/form-data
@@ -3284,24 +3382,24 @@ if (!class_exists('XAGIO_API')) {
             $file_data = xagio_file_get_contents($fileToUpload);
             $boundary  = wp_generate_password(24, false); // Unique boundary string for multipart
             $body      = "--$boundary\r\n";
-            $body     .= "Content-Disposition: form-data; name=\"license_email\"\r\n\r\n$license_email\r\n";
-            $body     .= "--$boundary\r\n";
-            $body     .= "Content-Disposition: form-data; name=\"license_key\"\r\n\r\n$license_key\r\n";
-            $body     .= "--$boundary\r\n";
-            $body     .= "Content-Disposition: form-data; name=\"file_contents\"; filename=\"$file_name\"\r\n";
-            $body     .= "Content-Type: " . mime_content_type($fileToUpload) . "\r\n\r\n";
-            $body     .= $file_data . "\r\n";
-            $body     .= "--$boundary--\r\n";
+            $body      .= "Content-Disposition: form-data; name=\"license_email\"\r\n\r\n$license_email\r\n";
+            $body      .= "--$boundary\r\n";
+            $body      .= "Content-Disposition: form-data; name=\"license_key\"\r\n\r\n$license_key\r\n";
+            $body      .= "--$boundary\r\n";
+            $body      .= "Content-Disposition: form-data; name=\"file_contents\"; filename=\"$file_name\"\r\n";
+            $body      .= "Content-Type: " . mime_content_type($fileToUpload) . "\r\n\r\n";
+            $body      .= $file_data . "\r\n";
+            $body      .= "--$boundary--\r\n";
 
             // Make the request
             $response = wp_remote_post(XAGIO_PANEL_URL . "/api/" . $apiEndpoint, [
-                'method'    => 'POST',
-                'timeout'   => 60,
-                'headers'   => [
-                    'User-Agent'    => $user_agent,
-                    'Content-Type'  => "multipart/form-data; boundary=$boundary",
+                'method'  => 'POST',
+                'timeout' => 60,
+                'headers' => [
+                    'User-Agent'   => $user_agent,
+                    'Content-Type' => "multipart/form-data; boundary=$boundary",
                 ],
-                'body'      => $body,
+                'body'    => $body,
             ]);
 
             // Clean up temporary file after upload

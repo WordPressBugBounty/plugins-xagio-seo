@@ -141,13 +141,12 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
         {
             global $wpdb;
 
-            $projectName    = '';
+            $projectName          = '';
             $groupIdsPlaceholders = implode(", ", array_fill(0, count($group_ids), '%d'));
 
             $selectedGroups = $wpdb->get_results(
                 $wpdb->prepare(
-                    "SELECT * FROM xag_groups WHERE id IN ($groupIdsPlaceholders)",
-                    ...array_map('absint', $group_ids)
+                    "SELECT * FROM xag_groups WHERE id IN ($groupIdsPlaceholders)", ...array_map('absint', $group_ids)
                 ), ARRAY_A
             );
 
@@ -156,7 +155,7 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
 
             if (isset($selectedGroups[0]['project_id'])) {
                 $project_id  = $selectedGroups[0]['project_id'];
-                $projectData = $wpdb->query($wpdb->prepare("SELECT project_name FROM xag_projects WHERE id = %d", $project_id));
+                $projectData = $wpdb->get_row($wpdb->prepare("SELECT project_name FROM xag_projects WHERE id = %d", $project_id), ARRAY_A);
                 if (isset($projectData['project_name'])) {
                     $projectName = $projectData['project_name'];
                 }
@@ -583,14 +582,13 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
             $skipGroups = false;
-            if(isset($_POST['skipGroups'])) {
+            if (isset($_POST['skipGroups'])) {
                 $skipGroups = filter_var(wp_unslash($_POST['skipGroups']), FILTER_VALIDATE_BOOLEAN);
             }
 
             global $wpdb;
 
             $project_id = intval($_POST['project_id']);
-
 
 
             $groups = $wpdb->get_results($wpdb->prepare("SELECT g.id, COUNT(k.id) as count, g.title, g.description, g.h1 FROM xag_groups as g LEFT JOIN xag_keywords as k ON k.group_id = g.id WHERE g.project_id = %d GROUP BY g.id", $project_id), ARRAY_A);
@@ -641,7 +639,10 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
             global $wpdb;
 
             if ($return !== TRUE) {
-                $group_ids   = intval($_POST['group_ids']);
+                $group_ids    = explode(',', sanitize_text_field(wp_unslash($_POST['group_ids'])));
+                $group_ids    = array_map('absint', $group_ids);
+                $placeholders = implode(',', array_fill(0, count($group_ids), '%d'));
+
                 $deleteRanks = filter_var(wp_unslash($_POST['deleteRanks']), FILTER_VALIDATE_BOOLEAN);
                 if ($deleteRanks) {
                     $rankedKeywords = $wpdb->get_results($wpdb->prepare("SELECT `keyword` FROM xag_keywords WHERE `group_id` IN (%s) AND `rank` != '0'", $group_ids), ARRAY_A);
@@ -655,7 +656,7 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                 }
             }
 
-            $r = $wpdb->query($wpdb->prepare("DELETE g, k FROM xag_groups g LEFT JOIN xag_keywords k ON g.id = k.group_id WHERE g.id IN (%s)", $group_ids));
+            $r = $wpdb->query($wpdb->prepare("DELETE g, k FROM xag_groups g LEFT JOIN xag_keywords k ON g.id = k.group_id WHERE g.id IN ($placeholders)", $group_ids));
 
             if ($return !== TRUE) {
                 xagio_json('success', 'Groups successfully deleted!');
@@ -733,10 +734,8 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                 // Prepare the query with placeholders and variables
                 $rankedKeywords = $wpdb->get_results(
                     $wpdb->prepare(
-                        "SELECT `keyword` FROM xag_keywords WHERE `id` IN ($kwSelectPlaceholders) AND `rank` != '0'",
-                        ...$keywords
-                    ),
-                    ARRAY_A
+                        "SELECT `keyword` FROM xag_keywords WHERE `id` IN ($kwSelectPlaceholders) AND `rank` != '0'", ...$keywords
+                    ), ARRAY_A
                 );
 
                 if (!empty($rankedKeywords)) {
@@ -782,7 +781,7 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                     WHERE group_id IN (SELECT id FROM xag_groups WHERE project_id = %d) 
                     GROUP BY keyword 
                     HAVING COUNT(*) > 1", $project_id
-                )
+                ), ARRAY_A
             );
 
             $duplicatekeywordIds = [];
@@ -797,7 +796,7 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                         WHERE keyword = %s 
                         AND group_id IN (SELECT id FROM xag_groups WHERE project_id = %d) 
                         ORDER BY volume DESC, cpc DESC", $keyword_value, $project_id
-                    )
+                    ), ARRAY_A
                 );
 
                 // Keep the highest volume and cpc keyword and collect the rest for deletion
@@ -856,7 +855,7 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
              JOIN xag_projects p ON g.project_id = p.id 
              WHERE g.`title` LIKE %s OR g.`group_name` LIKE %s 
              LIMIT 50", $like_search_term, $like_search_term
-                    )
+                    ), ARRAY_A
                 );
             }
 
@@ -903,23 +902,27 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                 // If post-ID is attached to a multiple group, update all groups with the same info
                 $attached_groups = $wpdb->get_results($wpdb->prepare("SELECT * FROM xag_groups WHERE id_page_post = %d", $post_id), ARRAY_A);
 
-                if (sizeof($attached_groups) == 1) {
-                    $attached_groups = $attached_groups[0];
-                }
+                if (!empty($attached_groups)) {
 
-                if (isset($attached_groups['id'])) {
-                    $wpdb->update('xag_groups', $update_data, [
-                        'id'         => $attached_groups['id'],
-                        'project_id' => $attached_groups['project_id'],
-                    ]);
-                } else {
-                    foreach ($attached_groups as $attached) {
-                        $wpdb->update('xag_groups', $update_data, [
-                            'id'           => $attached['id'],
-                            'project_id'   => $attached['project_id'],
-                            'id_page_post' => $attached['id_page_post'],
-                        ]);
+                    if (sizeof($attached_groups) == 1) {
+                        $attached_groups = $attached_groups[0];
                     }
+
+                    if (isset($attached_groups['id'])) {
+                        $wpdb->update('xag_groups', $update_data, [
+                            'id'         => $attached_groups['id'],
+                            'project_id' => $attached_groups['project_id'],
+                        ]);
+                    } else {
+                        foreach ($attached_groups as $attached) {
+                            $wpdb->update('xag_groups', $update_data, [
+                                'id'           => $attached['id'],
+                                'project_id'   => $attached['project_id'],
+                                'id_page_post' => $attached['id_page_post'],
+                            ]);
+                        }
+                    }
+
                 }
 
             } else {
@@ -991,7 +994,7 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                 // Update SEO Title / Meta
                 update_post_meta($post_id, 'XAGIO_SEO_TITLE', sanitize_text_field(wp_unslash($_POST['title'])));
                 update_post_meta($post_id, 'XAGIO_SEO_DESCRIPTION', sanitize_textarea_field(wp_unslash($_POST['description'])));
-                if(isset($_POST['notes'])) {
+                if (isset($_POST['notes'])) {
                     update_post_meta($post_id, 'XAGIO_SEO_NOTES', sanitize_textarea_field(wp_unslash($_POST['notes'])));
                 }
 

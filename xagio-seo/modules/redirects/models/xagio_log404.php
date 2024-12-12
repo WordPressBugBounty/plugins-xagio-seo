@@ -555,7 +555,7 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
 
             if (isset($chkExistsUrl['id']) && $chkExistsUrl['status'] === TRUE) {
 
-                $wpdb->update(
+                $wpdb->update('xag_redirects',
                     [
                         'old' => $old,
                         'new' => $new,
@@ -566,7 +566,7 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
 
             } else {
 
-                $wpdb->insert([
+                $wpdb->insert('xag_redirects', [
                     'old'          => $old,
                     'new'          => $new,
                     'date_created' => gmdate('Y-m-d H:i:s'),

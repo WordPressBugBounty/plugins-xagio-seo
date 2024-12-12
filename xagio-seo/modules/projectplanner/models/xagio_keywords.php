@@ -37,7 +37,7 @@ if (!class_exists('XAGIO_MODEL_KEYWORDS')) {
                 'XAGIO_MODEL_KEYWORDS',
                 'getKeyword'
             ]);
-            add_action('admin_post_xagio_getKeyword', [
+            add_action('admin_post_xagio_getKeywords', [
                 'XAGIO_MODEL_KEYWORDS',
                 'getKeywords'
             ]);
