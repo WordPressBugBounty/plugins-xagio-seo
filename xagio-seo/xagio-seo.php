@@ -3,7 +3,7 @@
  * Plugin Name: Xagio SEO
  * Plugin URI: https://xagio.net/
  * Description: WordPress Management & AI Search Engine Optimization combined. Do everything from a single location with one software.
- * Version: 7.0.0.13
+ * Version: 7.0.0.14
  * Author: Xagio
  * Author URI: https://xagio.com
  * License: GPLv3 or later

@@ -54,6 +54,11 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                     'savePost'
                 ]);
 
+                add_action('quick_edit_custom_box', [
+                    'XAGIO_MODEL_SEO',
+                    'extendQuickEdit'
+                ], 10, 2);
+
                 // Magic Page URL
                 add_action('update_option__magic_page_url', [
                     'XAGIO_MODEL_SEO',
@@ -235,6 +240,11 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 'XAGIO_MODEL_SEO',
                 'localizeJS'
             ], 10, 1);
+        }
+
+        public static function extendQuickEdit($column_name, $post_type)
+        {
+            wp_nonce_field('xagio_nonce', '_xagio_nonce');
         }
 
         // Enqueues admin
@@ -763,19 +773,19 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 include XAGIO_PATH . '/modules/seo/metabox/column.php';
 
                 $accepted_tags = array(
-                    'div' => array(
+                    'div'   => array(
                         'class' => array()
                     ),
                     'input' => array(
-                        'type' => array(),
-                        'name' => array(),
+                        'type'  => array(),
+                        'name'  => array(),
                         'class' => array(),
                         'value' => array()
                     ),
-                    'span' => array(
-                        'class' => array(),
+                    'span'  => array(
+                        'class'        => array(),
                         'data-element' => array(),
-                        'data-page' => array()
+                        'data-page'    => array()
                     )
                 );
 
@@ -907,7 +917,7 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 wp_enqueue_script('google-tag-manager-body'); // Enqueue the script
 
                 $xagio_comment_start = '';
-                $xagio_comment_end = '';
+                $xagio_comment_end   = '';
                 if (defined('XAGIO_DISABLE_HTML_FOOTPRINT') && XAGIO_DISABLE_HTML_FOOTPRINT == false) {
                     $xagio_comment_start = "\n<!-- xagio – Webmaster Verification -->\n";
                 }
@@ -929,11 +939,11 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                     $noscript = $xagio_comment_start . '<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=' . esc_attr($google_tag) . '" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>' . $xagio_comment_end;
                     echo wp_kses(stripslashes_deep($noscript), [
                         'noscript' => [],
-                        'iframe' => [
-                            'src' => [],
+                        'iframe'   => [
+                            'src'    => [],
                             'height' => [],
-                            'width' => [],
-                            'style' => [],
+                            'width'  => [],
+                            'style'  => [],
                         ]
                     ]);
                 }
@@ -1221,9 +1231,9 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 return false;
             }
 
-            $robots = [];
+            $robots        = [];
             $global_robots = false;
-            $post_type = 'homepage';
+            $post_type     = 'homepage';
 
             // Load all variables
             $meta = XAGIO_MODEL_SEO::formatMetaVariables(get_post_meta($object->ID));
@@ -1232,20 +1242,22 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             if (!empty($meta['XAGIO_SEO_META_ROBOTS_ENABLE'])) {
 
                 // First check the global settings and apply changes
-                $post_type  = $object->post_type ?? $object->query_var;
-                $page_id = $object->ID;
+                $post_type     = $object->post_type ?? $object->query_var;
+                $page_id       = $object->ID;
                 $front_page_id = get_option('page_on_front');
                 $front_page_id = intval($front_page_id);
 
-                if(is_front_page()) $post_type = 'homepage';
-                if($front_page_id === $page_id) $post_type = 'homepage';
+                if (is_front_page())
+                    $post_type = 'homepage';
+                if ($front_page_id === $page_id)
+                    $post_type = 'homepage';
 
 
                 $post_types = get_option('XAGIO_SEO_DEFAULT_POST_TYPES');
 
                 if (!empty($post_types[$post_type]['XAGIO_SEO_ROBOTS'])) {
-                    $robots[] = 'noindex';
-                    $robots[] = 'follow';
+                    $robots[]      = 'noindex';
+                    $robots[]      = 'follow';
                     $global_robots = true;
                 }
 
@@ -1275,10 +1287,10 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 $robots = implode(',', array_filter($robots));
             }
 
-            if($output) {
+            if ($output) {
                 return [
-                    'robots' => $robots,
-                    'global' => $global_robots,
+                    'robots'    => $robots,
+                    'global'    => $global_robots,
                     'post_type' => $post_type
                 ];
             }
@@ -1799,8 +1811,6 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 return $post_id;
             }
 
-            check_ajax_referer('xagio_nonce', '_xagio_nonce');
-
             // Fix for Fusion Builder page ID
             if ($_POST['post_ID'] != $post_id) {
                 $post_id = intval($_POST['post_ID']);
@@ -1814,92 +1824,100 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 return $post_id;
             }
 
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             // Check the user's permissions.
             $post_type = isset($_POST['post_type']) ? sanitize_text_field(wp_unslash($_POST['post_type'])) : false;
             if ($post_type == 'page') {
-
                 if (!current_user_can('edit_page', $post_id)) {
                     return $post_id;
                 }
-
             } else {
-
                 if (!current_user_can('edit_post', $post_id)) {
                     return $post_id;
                 }
             }
 
-
             /**
              *  BEGIN THE SAVING PROCESS
              */
-            // Change the URL if modified
-            $newUrl = isset($_POST['XAGIO_SEO_URL']) ? sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_URL'])) : '';
-            $oriUrl = isset($_POST['XAGIO_SEO_ORIGINAL_URL']) ? sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_ORIGINAL_URL'])) : '';
-            $pstUrl = isset($_POST['post_name']) ? sanitize_text_field(wp_unslash($_POST['post_name'])) : '';
+            // Handle URL changes only if the relevant fields are set
+            if (isset($_POST['XAGIO_SEO_URL']) && isset($_POST['XAGIO_SEO_ORIGINAL_URL']) && isset($_POST['post_name'])) {
+                $newUrl = sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_URL']));
+                $oriUrl = sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_ORIGINAL_URL']));
+                $pstUrl = sanitize_text_field(wp_unslash($_POST['post_name']));
 
-            if ($newUrl == $oriUrl && $newUrl != $pstUrl) {
-                $newUrl = $pstUrl;
-            }
-
-            // ONLY PERFORM ON UPDATES
-            if (class_exists('XAGIO_MODEL_REDIRECTS') && !empty($newUrl) && !empty($oriUrl) && isset($_POST['post_status']) && isset($_POST['original_post_status']) && isset($_POST['save'])) {
-
-                $post_status          = sanitize_text_field(wp_unslash($_POST['post_status']));
-                $original_post_status = sanitize_text_field(wp_unslash($_POST['original_post_status']));
-                $save                 = sanitize_text_field(wp_unslash($_POST['save']));
-
-                if ($post_status === 'publish' && $original_post_status === 'publish' && $save === 'Update' && !get_option('XAGIO_DISABLE_AUTOMATIC_REDIRECTS')) {
-                    if ($newUrl != $oriUrl) {
-                        if (!XAGIO_DISABLE_AUTOMATIC_REDIRECTS) {
-                            XAGIO_MODEL_REDIRECTS::add($oriUrl, $newUrl);
-                        }
-                    }
+                if ($newUrl == $oriUrl && $newUrl != $pstUrl) {
+                    $newUrl = $pstUrl;
                 }
-            }
 
-            if (class_exists('XAGIO_MODEL_GROUPS')) {
+                // Handle redirects only if all required fields are present
+                if (class_exists('XAGIO_MODEL_REDIRECTS') && !empty($newUrl) && !empty($oriUrl) && isset($_POST['post_status']) && isset($_POST['original_post_status']) && isset($_POST['save'])) {
 
-                // get post title from ID
-                $post_title = get_the_title($post_id);
+                    $post_status          = sanitize_text_field(wp_unslash($_POST['post_status']));
+                    $original_post_status = sanitize_text_field(wp_unslash($_POST['original_post_status']));
+                    $save                 = sanitize_text_field(wp_unslash($_POST['save']));
 
-                // Update the URL in Group
-                $wpdb->update(
-                    'xag_groups', [
-                    'url'         => $newUrl,
-                    'title'       => isset($_POST['XAGIO_SEO_TITLE']) ? sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_TITLE'])) : '',
-                    'description' => isset($_POST['XAGIO_SEO_DESCRIPTION']) ? sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_DESCRIPTION'])) : '',
-                    'notes'       => isset($_POST['XAGIO_SEO_NOTES']) ? sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_NOTES'])) : '',
-                    'h1'          => $post_title,
-                ], [
-                        'id_page_post' => $post_id,
-                    ]
-                );
-            }
-
-            /** Schema */
-            if (class_exists('XAGIO_MODEL_SCHEMA')) {
-                if (isset($_POST['XAGIO_SEO_SCHEMAS'])) {
-                    $empty_schema = TRUE;
-                    if (!empty($_POST['XAGIO_SEO_SCHEMAS'])) {
-                        $schemaIDs = explode(',', sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_SCHEMAS'])));
-                        unset($_POST['XAGIO_SEO_SCHEMAS']);
-                        if (!empty($schemaIDs)) {
-                            $renderedSchemas = XAGIO_MODEL_SCHEMA::getRemoteRenderedSchemas($schemaIDs, $post_id);
-                            if ($renderedSchemas !== FALSE) {
-                                $empty_schema = FALSE;
-                                update_post_meta($post_id, 'XAGIO_SEO_SCHEMA_META', @$renderedSchemas['meta']);
-                                update_post_meta($post_id, 'XAGIO_SEO_SCHEMA_DATA', @$renderedSchemas['data']);
+                    if ($post_status === 'publish' && $original_post_status === 'publish' && $save === 'Update' && !get_option('XAGIO_DISABLE_AUTOMATIC_REDIRECTS')) {
+                        if ($newUrl != $oriUrl) {
+                            if (!XAGIO_DISABLE_AUTOMATIC_REDIRECTS) {
+                                XAGIO_MODEL_REDIRECTS::add($oriUrl, $newUrl);
                             }
                         }
                     }
+                }
+            } else if (isset($_POST['post_name'])) {
+                $newUrl = sanitize_text_field(wp_unslash($_POST['post_name']));
+            } else {
+                $newUrl = get_post_field('post_name', $post_id);
+            }
 
-                    if ($empty_schema) {
-                        update_post_meta($post_id, 'XAGIO_SEO_SCHEMA_META', FALSE);
-                        update_post_meta($post_id, 'XAGIO_SEO_SCHEMA_DATA', FALSE);
+            // Update groups if the class exists
+            if (class_exists('XAGIO_MODEL_GROUPS')) {
+                $post_title = get_the_title($post_id);
+
+                $update_data = [
+                    'url' => $newUrl,
+                    'h1'  => $post_title
+                ];
+
+                // Only add fields that are set in $_POST
+                if (isset($_POST['post_title'])) {
+                    $update_data['h1'] = sanitize_text_field(wp_unslash($_POST['post_title']));
+                }
+                if (isset($_POST['XAGIO_SEO_TITLE'])) {
+                    $update_data['title'] = sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_TITLE']));
+                }
+                if (isset($_POST['XAGIO_SEO_DESCRIPTION'])) {
+                    $update_data['description'] = sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_DESCRIPTION']));
+                }
+                if (isset($_POST['XAGIO_SEO_NOTES'])) {
+                    $update_data['notes'] = sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_NOTES']));
+                }
+
+                $wpdb->update('xag_groups', $update_data, ['id_page_post' => $post_id]);
+            }
+
+            /** Schema */
+            if (class_exists('XAGIO_MODEL_SCHEMA') && isset($_POST['XAGIO_SEO_SCHEMAS'])) {
+                $empty_schema = TRUE;
+                if (!empty($_POST['XAGIO_SEO_SCHEMAS'])) {
+                    $schemaIDs = explode(',', sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_SCHEMAS'])));
+                    unset($_POST['XAGIO_SEO_SCHEMAS']);
+                    if (!empty($schemaIDs)) {
+                        $renderedSchemas = XAGIO_MODEL_SCHEMA::getRemoteRenderedSchemas($schemaIDs, $post_id);
+                        if ($renderedSchemas !== FALSE) {
+                            $empty_schema = FALSE;
+                            update_post_meta($post_id, 'XAGIO_SEO_SCHEMA_META', @$renderedSchemas['meta']);
+                            update_post_meta($post_id, 'XAGIO_SEO_SCHEMA_DATA', @$renderedSchemas['data']);
+                        }
                     }
                 }
 
+                if ($empty_schema) {
+                    update_post_meta($post_id, 'XAGIO_SEO_SCHEMA_META', FALSE);
+                    update_post_meta($post_id, 'XAGIO_SEO_SCHEMA_DATA', FALSE);
+                }
             }
 
             $allowed_tags = [
@@ -1909,124 +1927,201 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 ]
             ];
 
-            /** SEO */
-            // Extract individual variables from $_POST, sanitize and wp_unslash them
-            $XAGIO_SEO_TARGET_KEYWORD                    = isset($_POST['XAGIO_SEO_TARGET_KEYWORD']) ? sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_TARGET_KEYWORD'])) : '';
-            $XAGIO_SEO_SEARCH_PREVIEW_ENABLE             = isset($_POST['XAGIO_SEO_SEARCH_PREVIEW_ENABLE']) ? absint(wp_unslash($_POST['XAGIO_SEO_SEARCH_PREVIEW_ENABLE'])) : 0;
-            $XAGIO_SEO_ORIGINAL_URL                      = isset($_POST['XAGIO_SEO_ORIGINAL_URL']) ? sanitize_url(wp_unslash($_POST['XAGIO_SEO_ORIGINAL_URL'])) : '';
-            $XAGIO_SEO_URL                               = isset($_POST['XAGIO_SEO_URL']) ? sanitize_url(wp_unslash($_POST['XAGIO_SEO_URL'])) : '';
-            $XAGIO_SEO_TITLE                             = isset($_POST['XAGIO_SEO_TITLE']) ? sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_TITLE'])) : '';
-            $XAGIO_SEO_DESCRIPTION                       = isset($_POST['XAGIO_SEO_DESCRIPTION']) ? sanitize_textarea_field(wp_unslash($_POST['XAGIO_SEO_DESCRIPTION'])) : '';
-            $XAGIO_SEO_SOCIAL_ENABLE                     = isset($_POST['XAGIO_SEO_SOCIAL_ENABLE']) ? absint(wp_unslash($_POST['XAGIO_SEO_SOCIAL_ENABLE'])) : 0;
-            $XAGIO_SEO_FACEBOOK_TITLE_USE_FROM_SEO       = isset($_POST['XAGIO_SEO_FACEBOOK_TITLE_USE_FROM_SEO']) ? filter_var(wp_unslash($_POST['XAGIO_SEO_FACEBOOK_TITLE_USE_FROM_SEO']), FILTER_VALIDATE_BOOLEAN) : false;
-            $XAGIO_SEO_FACEBOOK_DESCRIPTION_USE_FROM_SEO = isset($_POST['XAGIO_SEO_FACEBOOK_DESCRIPTION_USE_FROM_SEO']) ? filter_var(wp_unslash($_POST['XAGIO_SEO_FACEBOOK_DESCRIPTION_USE_FROM_SEO']), FILTER_VALIDATE_BOOLEAN) : false;
-            $XAGIO_SEO_FACEBOOK_USE_FEATURED_IMAGE       = isset($_POST['XAGIO_SEO_FACEBOOK_USE_FEATURED_IMAGE']) ? filter_var(wp_unslash($_POST['XAGIO_SEO_FACEBOOK_USE_FEATURED_IMAGE']), FILTER_VALIDATE_BOOLEAN) : false;
-            $XAGIO_SEO_TWITTER_TITLE_USE_FROM_SEO        = isset($_POST['XAGIO_SEO_TWITTER_TITLE_USE_FROM_SEO']) ? filter_var(wp_unslash($_POST['XAGIO_SEO_TWITTER_TITLE_USE_FROM_SEO']), FILTER_VALIDATE_BOOLEAN) : false;
-            $XAGIO_SEO_TWITTER_DESCRIPTION_USE_FROM_SEO  = isset($_POST['XAGIO_SEO_TWITTER_DESCRIPTION_USE_FROM_SEO']) ? filter_var(wp_unslash($_POST['XAGIO_SEO_TWITTER_DESCRIPTION_USE_FROM_SEO']), FILTER_VALIDATE_BOOLEAN) : false;
-            $XAGIO_SEO_TWITTER_USE_FEATURED_IMAGE        = isset($_POST['XAGIO_SEO_TWITTER_USE_FEATURED_IMAGE']) ? filter_var(wp_unslash($_POST['XAGIO_SEO_TWITTER_USE_FEATURED_IMAGE']), FILTER_VALIDATE_BOOLEAN) : false;
-            $XAGIO_SEO_FACEBOOK_TITLE                    = isset($_POST['XAGIO_SEO_FACEBOOK_TITLE']) ? sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_FACEBOOK_TITLE'])) : '';
-            $XAGIO_SEO_FACEBOOK_DESCRIPTION              = isset($_POST['XAGIO_SEO_FACEBOOK_DESCRIPTION']) ? sanitize_textarea_field(wp_unslash($_POST['XAGIO_SEO_FACEBOOK_DESCRIPTION'])) : '';
-            $XAGIO_SEO_FACEBOOK_IMAGE                    = isset($_POST['XAGIO_SEO_FACEBOOK_IMAGE']) ? sanitize_url(wp_unslash($_POST['XAGIO_SEO_FACEBOOK_IMAGE'])) : '';
-            $XAGIO_SEO_FACEBOOK_APP_ID                   = isset($_POST['XAGIO_SEO_FACEBOOK_APP_ID']) ? sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_FACEBOOK_APP_ID'])) : '';
-            $XAGIO_SEO_TWITTER_TITLE                     = isset($_POST['XAGIO_SEO_TWITTER_TITLE']) ? sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_TWITTER_TITLE'])) : '';
-            $XAGIO_SEO_TWITTER_DESCRIPTION               = isset($_POST['XAGIO_SEO_TWITTER_DESCRIPTION']) ? sanitize_textarea_field(wp_unslash($_POST['XAGIO_SEO_TWITTER_DESCRIPTION'])) : '';
-            $XAGIO_SEO_TWITTER_IMAGE                     = isset($_POST['XAGIO_SEO_TWITTER_IMAGE']) ? sanitize_url(wp_unslash($_POST['XAGIO_SEO_TWITTER_IMAGE'])) : '';
-            $XAGIO_SEO_META_ROBOTS_ENABLE                = isset($_POST['XAGIO_SEO_META_ROBOTS_ENABLE']) ? absint(wp_unslash($_POST['XAGIO_SEO_META_ROBOTS_ENABLE'])) : 0;
-            $XAGIO_SEO_META_ROBOTS_ADVANCED              = isset($_POST['XAGIO_SEO_META_ROBOTS_ADVANCED']) ? map_deep(wp_unslash($_POST['XAGIO_SEO_META_ROBOTS_ADVANCED']), 'sanitize_text_field') : '';
-            $XAGIO_SEO_META_ROBOTS_INDEX                 = isset($_POST['XAGIO_SEO_META_ROBOTS_INDEX']) ? sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_META_ROBOTS_INDEX'])) : 'default';
-            $XAGIO_SEO_META_ROBOTS_FOLLOW                = isset($_POST['XAGIO_SEO_META_ROBOTS_FOLLOW']) ? sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_META_ROBOTS_FOLLOW'])) : 'default';
-            $XAGIO_SEO_CANONICAL_URL                     = isset($_POST['XAGIO_SEO_CANONICAL_URL']) ? sanitize_url(wp_unslash($_POST['XAGIO_SEO_CANONICAL_URL'])) : '';
-            $XAGIO_SEO_SCHEMA_ENABLE                     = isset($_POST['XAGIO_SEO_SCHEMA_ENABLE']) ? absint(wp_unslash($_POST['XAGIO_SEO_SCHEMA_ENABLE'])) : 0;
-            $XAGIO_SEO_SCHEMAS                           = isset($_POST['XAGIO_SEO_SCHEMAS']) ? sanitize_textarea_field(wp_unslash($_POST['XAGIO_SEO_SCHEMAS'])) : '';
-            $XAGIO_SEO_SCRIPTS_ENABLE                    = isset($_POST['XAGIO_SEO_SCRIPTS_ENABLE']) ? absint(wp_unslash($_POST['XAGIO_SEO_SCRIPTS_ENABLE'])) : 0;
-            $XAGIO_SEO_SCRIPTS_HEADER                    = isset($_POST['XAGIO_SEO_SCRIPTS_HEADER']) ? wp_kses(wp_unslash($_POST['XAGIO_SEO_SCRIPTS_HEADER']), $allowed_tags) : '';
-            $XAGIO_SEO_SCRIPTS_BODY                      = isset($_POST['XAGIO_SEO_SCRIPTS_BODY']) ? wp_kses(wp_unslash($_POST['XAGIO_SEO_SCRIPTS_BODY']), $allowed_tags) : '';
-            $XAGIO_SEO_SCRIPTS_FOOTER                    = isset($_POST['XAGIO_SEO_SCRIPTS_FOOTER']) ? wp_kses(wp_unslash($_POST['XAGIO_SEO_SCRIPTS_FOOTER']), $allowed_tags) : '';
-            $XAGIO_SEO_NOTES                             = isset($_POST['XAGIO_SEO_NOTES']) ? sanitize_textarea_field(wp_unslash($_POST['XAGIO_SEO_NOTES'])) : '';
-
-            // Now process the values that were extracted and sanitized
-            $seo_values = [
-                'XAGIO_SEO_TARGET_KEYWORD'                    => $XAGIO_SEO_TARGET_KEYWORD,
-                'XAGIO_SEO_SEARCH_PREVIEW_ENABLE'             => $XAGIO_SEO_SEARCH_PREVIEW_ENABLE,
-                'XAGIO_SEO_ORIGINAL_URL'                      => $XAGIO_SEO_ORIGINAL_URL,
-                'XAGIO_SEO_URL'                               => $XAGIO_SEO_URL,
-                'XAGIO_SEO_TITLE'                             => $XAGIO_SEO_TITLE,
-                'XAGIO_SEO_DESCRIPTION'                       => $XAGIO_SEO_DESCRIPTION,
-                'XAGIO_SEO_SOCIAL_ENABLE'                     => $XAGIO_SEO_SOCIAL_ENABLE,
-                'XAGIO_SEO_FACEBOOK_TITLE_USE_FROM_SEO'       => $XAGIO_SEO_FACEBOOK_TITLE_USE_FROM_SEO,
-                'XAGIO_SEO_FACEBOOK_DESCRIPTION_USE_FROM_SEO' => $XAGIO_SEO_FACEBOOK_DESCRIPTION_USE_FROM_SEO,
-                'XAGIO_SEO_FACEBOOK_USE_FEATURED_IMAGE'       => $XAGIO_SEO_FACEBOOK_USE_FEATURED_IMAGE,
-                'XAGIO_SEO_TWITTER_TITLE_USE_FROM_SEO'        => $XAGIO_SEO_TWITTER_TITLE_USE_FROM_SEO,
-                'XAGIO_SEO_TWITTER_DESCRIPTION_USE_FROM_SEO'  => $XAGIO_SEO_TWITTER_DESCRIPTION_USE_FROM_SEO,
-                'XAGIO_SEO_TWITTER_USE_FEATURED_IMAGE'        => $XAGIO_SEO_TWITTER_USE_FEATURED_IMAGE,
-                'XAGIO_SEO_FACEBOOK_TITLE'                    => $XAGIO_SEO_FACEBOOK_TITLE,
-                'XAGIO_SEO_FACEBOOK_DESCRIPTION'              => $XAGIO_SEO_FACEBOOK_DESCRIPTION,
-                'XAGIO_SEO_FACEBOOK_IMAGE'                    => $XAGIO_SEO_FACEBOOK_IMAGE,
-                'XAGIO_SEO_FACEBOOK_APP_ID'                   => $XAGIO_SEO_FACEBOOK_APP_ID,
-                'XAGIO_SEO_TWITTER_TITLE'                     => $XAGIO_SEO_TWITTER_TITLE,
-                'XAGIO_SEO_TWITTER_DESCRIPTION'               => $XAGIO_SEO_TWITTER_DESCRIPTION,
-                'XAGIO_SEO_TWITTER_IMAGE'                     => $XAGIO_SEO_TWITTER_IMAGE,
-                'XAGIO_SEO_META_ROBOTS_ENABLE'                => $XAGIO_SEO_META_ROBOTS_ENABLE,
-                'XAGIO_SEO_META_ROBOTS_ADVANCED'              => $XAGIO_SEO_META_ROBOTS_ADVANCED,
-                'XAGIO_SEO_META_ROBOTS_INDEX'                 => $XAGIO_SEO_META_ROBOTS_INDEX,
-                'XAGIO_SEO_META_ROBOTS_FOLLOW'                => $XAGIO_SEO_META_ROBOTS_FOLLOW,
-                'XAGIO_SEO_CANONICAL_URL'                     => $XAGIO_SEO_CANONICAL_URL,
-                'XAGIO_SEO_SCHEMA_ENABLE'                     => $XAGIO_SEO_SCHEMA_ENABLE,
-                'XAGIO_SEO_SCHEMAS'                           => $XAGIO_SEO_SCHEMAS,
-                'XAGIO_SEO_SCRIPTS_ENABLE'                    => $XAGIO_SEO_SCRIPTS_ENABLE,
-                'XAGIO_SEO_SCRIPTS_HEADER'                    => $XAGIO_SEO_SCRIPTS_HEADER,
-                'XAGIO_SEO_SCRIPTS_BODY'                      => $XAGIO_SEO_SCRIPTS_BODY,
-                'XAGIO_SEO_SCRIPTS_FOOTER'                    => $XAGIO_SEO_SCRIPTS_FOOTER,
-                'XAGIO_SEO_NOTES'                             => $XAGIO_SEO_NOTES
+            // Define field configurations with their sanitization functions
+            $field_configs = [
+                'XAGIO_SEO_TARGET_KEYWORD' => [
+                    'sanitize_text_field',
+                    false
+                ],
+                'XAGIO_SEO_SEARCH_PREVIEW_ENABLE' => [
+                    'absint',
+                    false
+                ],
+                'XAGIO_SEO_ORIGINAL_URL' => [
+                    'sanitize_url',
+                    false
+                ],
+                'XAGIO_SEO_URL' => [
+                    'sanitize_url',
+                    false
+                ],
+                'XAGIO_SEO_TITLE' => [
+                    'sanitize_text_field',
+                    false
+                ],
+                'XAGIO_SEO_DESCRIPTION' => [
+                    'sanitize_textarea_field',
+                    false
+                ],
+                'XAGIO_SEO_SOCIAL_ENABLE' => [
+                    'absint',
+                    false
+                ],
+                'XAGIO_SEO_FACEBOOK_TITLE_USE_FROM_SEO' => [
+                    'filter_var',
+                    FILTER_VALIDATE_BOOLEAN
+                ],
+                'XAGIO_SEO_FACEBOOK_DESCRIPTION_USE_FROM_SEO' => [
+                    'filter_var',
+                    FILTER_VALIDATE_BOOLEAN
+                ],
+                'XAGIO_SEO_FACEBOOK_USE_FEATURED_IMAGE' => [
+                    'filter_var',
+                    FILTER_VALIDATE_BOOLEAN
+                ],
+                'XAGIO_SEO_TWITTER_TITLE_USE_FROM_SEO' => [
+                    'filter_var',
+                    FILTER_VALIDATE_BOOLEAN
+                ],
+                'XAGIO_SEO_TWITTER_DESCRIPTION_USE_FROM_SEO' => [
+                    'filter_var',
+                    FILTER_VALIDATE_BOOLEAN
+                ],
+                'XAGIO_SEO_TWITTER_USE_FEATURED_IMAGE' => [
+                    'filter_var',
+                    FILTER_VALIDATE_BOOLEAN
+                ],
+                'XAGIO_SEO_FACEBOOK_TITLE' => [
+                    'sanitize_text_field',
+                    false
+                ],
+                'XAGIO_SEO_FACEBOOK_DESCRIPTION' => [
+                    'sanitize_textarea_field',
+                    false
+                ],
+                'XAGIO_SEO_FACEBOOK_IMAGE' => [
+                    'sanitize_url',
+                    false
+                ],
+                'XAGIO_SEO_FACEBOOK_APP_ID' => [
+                    'sanitize_text_field',
+                    false
+                ],
+                'XAGIO_SEO_TWITTER_TITLE' => [
+                    'sanitize_text_field',
+                    false
+                ],
+                'XAGIO_SEO_TWITTER_DESCRIPTION' => [
+                    'sanitize_textarea_field',
+                    false
+                ],
+                'XAGIO_SEO_TWITTER_IMAGE' => [
+                    'sanitize_url',
+                    false
+                ],
+                'XAGIO_SEO_META_ROBOTS_ENABLE' => [
+                    'absint',
+                    false
+                ],
+                'XAGIO_SEO_META_ROBOTS_INDEX' => [
+                    'sanitize_text_field',
+                    false
+                ],
+                'XAGIO_SEO_META_ROBOTS_FOLLOW' => [
+                    'sanitize_text_field',
+                    false
+                ],
+                'XAGIO_SEO_CANONICAL_URL' => [
+                    'sanitize_url',
+                    false
+                ],
+                'XAGIO_SEO_SCHEMA_ENABLE' => [
+                    'absint',
+                    false
+                ],
+                'XAGIO_SEO_SCHEMAS' => [
+                    'sanitize_textarea_field',
+                    false
+                ],
+                'XAGIO_SEO_SCRIPTS_ENABLE' => [
+                    'absint',
+                    false
+                ],
+                'XAGIO_SEO_SCRIPTS_HEADER' => [
+                    'wp_kses',
+                    $allowed_tags
+                ],
+                'XAGIO_SEO_DISABLE_PAGE_HEADER_SCRIPTS' => [
+                    'filter_var',
+                    FILTER_VALIDATE_BOOLEAN
+                ],
+                'XAGIO_SEO_DISABLE_GLOBAL_HEADER_SCRIPTS' => [
+                    'filter_var',
+                    FILTER_VALIDATE_BOOLEAN
+                ],
+                'XAGIO_SEO_SCRIPTS_BODY' => [
+                    'wp_kses',
+                    $allowed_tags
+                ],
+                'XAGIO_SEO_DISABLE_PAGE_BODY_SCRIPTS' => [
+                    'filter_var',
+                    FILTER_VALIDATE_BOOLEAN
+                ],
+                'XAGIO_SEO_DISABLE_GLOBAL_BODY_SCRIPTS' => [
+                    'filter_var',
+                    FILTER_VALIDATE_BOOLEAN
+                ],
+                'XAGIO_SEO_SCRIPTS_FOOTER' => [
+                    'wp_kses',
+                    $allowed_tags
+                ],
+                'XAGIO_SEO_DISABLE_PAGE_FOOTER_SCRIPTS' => [
+                    'filter_var',
+                    FILTER_VALIDATE_BOOLEAN
+                ],
+                'XAGIO_SEO_DISABLE_GLOBAL_FOOTER_SCRIPTS' => [
+                    'filter_var',
+                    FILTER_VALIDATE_BOOLEAN
+                ],
+                'XAGIO_SEO_NOTES' => [
+                    'sanitize_textarea_field',
+                    false
+                ]
             ];
 
-            // Now iterate through the sanitized variables and update the post meta
-            foreach ($seo_values as $key => $value) {
-                if ($key !== 'XAGIO_SEO_META_ROBOTS_ADVANCED') {
-                    // Parse boolean if needed
-                    $update_value = xagio_parse_bool($value);
-                    if (in_array($key, [
-                        'XAGIO_SEO_SCRIPTS_HEADER',
-                        'XAGIO_SEO_SCRIPTS_BODY',
-                        'XAGIO_SEO_SCRIPTS_FOOTER'
-                    ])) {
+            // Only process fields that are actually set in $_POST
+            foreach ($field_configs as $field => $config) {
+                if (isset($_POST[$field])) {
+                    $value = wp_unslash($_POST[$field]);
+
+                    // Handle special cases for filter_var and wp_kses
+                    if ($config[0] === 'filter_var') {
+                        $value = filter_var($value, $config[1]);
+                    } elseif ($config[0] === 'wp_kses') {
+                        $value = wp_kses($value, $config[1]);
                         // Keep slashes for script fields
-                        $update_value = wp_slash($value);
+                        $value = wp_slash($value);
+                    } else {
+                        $value = $config[0]($value);
                     }
-                    update_post_meta($post_id, $key, $update_value);
-                } else {
-                    update_post_meta($post_id, $key, $value);
+
+                    update_post_meta($post_id, $field, $value);
                 }
             }
 
+            // Handle META_ROBOTS_ADVANCED separately as it's an array
+            if (isset($_POST['XAGIO_SEO_META_ROBOTS_ADVANCED'])) {
+                $robots_advanced = map_deep(wp_unslash($_POST['XAGIO_SEO_META_ROBOTS_ADVANCED']), 'sanitize_text_field');
+                update_post_meta($post_id, 'XAGIO_SEO_META_ROBOTS_ADVANCED', $robots_advanced);
+            } else {
+                update_post_meta($post_id, 'XAGIO_SEO_META_ROBOTS_ADVANCED', []);
+            }
 
-            /** IDK WHY I USE THIS, BUT IT HAS TO BE HERE */
-            if (!wp_is_post_revision($post_id)) {
+            /** Handle post URL update */
+            if (isset($newUrl)) {
                 remove_action('save_post', [
                     'XAGIO_MODEL_SEO',
                     'savePost'
+                ]);
+                wp_update_post([
+                    'ID'        => $post_id,
+                    'post_name' => $newUrl
                 ]);
                 add_action('save_post', [
                     'XAGIO_MODEL_SEO',
                     'savePost'
                 ]);
             }
-
-
-            remove_action('save_post', [
-                'XAGIO_MODEL_SEO',
-                'savePost'
-            ]);
-
-            wp_update_post([
-                'ID'        => $post_id,
-                'post_name' => $newUrl
-            ]);
-
-            add_action('save_post', [
-                'XAGIO_MODEL_SEO',
-                'savePost'
-            ]);
 
             return $post_id;
         }
@@ -2058,12 +2153,12 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                     ], $post_type, 'advanced', 'core'
                     );
 
-//                    add_meta_box(
-//                        'xagio_seo_side', '<img class="logo-image-seo" src="' . XAGIO_URL . 'assets/img/logo-xagio-smaller.webp"> <b class="xagio-bold">Xagio</b>', [
-//                        'XAGIO_MODEL_SEO',
-//                        'renderOptimizationSEO'
-//                    ], $post_type, 'side', 'high'
-//                    );
+                    //                    add_meta_box(
+                    //                        'xagio_seo_side', '<img class="logo-image-seo" src="' . XAGIO_URL . 'assets/img/logo-xagio-smaller.webp"> <b class="xagio-bold">Xagio</b>', [
+                    //                        'XAGIO_MODEL_SEO',
+                    //                        'renderOptimizationSEO'
+                    //                    ], $post_type, 'side', 'high'
+                    //                    );
                 }
             }
         }
@@ -2097,7 +2192,7 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
         public static function extract_url_parts($id, $check_terms_first = false)
         {
-            $url = null;
+            $url  = null;
             $post = null;
 
             if ($check_terms_first) {
@@ -2132,7 +2227,7 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 return false;
             }
 
-            $url = wp_parse_url($url);
+            $url  = wp_parse_url($url);
             $host = $url['scheme'] . "://" . $url['host'];
 
             $final = [
@@ -2140,7 +2235,10 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             ];
 
             // If post is in draft or pending
-            if ($post && in_array(get_post_status($id), ['draft', 'pending'])) {
+            if ($post && in_array(get_post_status($id), [
+                    'draft',
+                    'pending'
+                ])) {
                 $sample_permalink = get_sample_permalink($id);
 
                 $url_structure = wp_parse_url($sample_permalink[0]);
@@ -2150,7 +2248,7 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 array_pop($url_structure);
                 $permalink = $sample_permalink[1];
 
-                $final['parts'] = $url_structure;
+                $final['parts']        = $url_structure;
                 $final['editable_url'] = $permalink;
             } else {
                 $path = explode('/', $url['path']);
@@ -2167,7 +2265,7 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                     }
                 }
 
-                $final['parts'] = $path;
+                $final['parts']        = $path;
                 $final['editable_url'] = $name;
             }
 
