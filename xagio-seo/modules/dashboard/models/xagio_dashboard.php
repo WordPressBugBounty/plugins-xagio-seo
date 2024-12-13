@@ -204,7 +204,7 @@ if (!class_exists('XAGIO_MODEL_DASHBOARD')) {
                 'PHP Max Upload Size is too low'                      => self::convertToBytes(ini_get('upload_max_filesize')) >= 2 * 1024 * 1024,
                 'PHP Time Limit is too low'                           => ini_get('max_execution_time') == 0 || ini_get('max_execution_time') >= 15,
                 'PHP Max Input Vars is too low'                       => ini_get('max_input_vars') >= 500,
-                'PHP Memory Limit is too low'                         => self::convertToBytes(ini_get('memory_limit')) >= 64 * 1024 * 1024,
+                'PHP Memory Limit is too low'                         => self::convertToBytes(ini_get('memory_limit')) >= 64 * 1024 * 1024 || ini_get('memory_limit') == -1,
                 'OpenSSL not installed'                               => extension_loaded('openssl'),
                 'cURL not installed'                                  => extension_loaded('curl'),
                 'ZipArchive not installed'                            => class_exists('ZipArchive'),

@@ -7157,6 +7157,11 @@ let cf_template = cf_templates[cf_default_template].data;
                             // Remove b tag from keywords
                             for (let m = 0; m < 15; m++) {
                                 p.find('.keywordInput[data-target="keyword"]').each(function () {
+                                    let tr = $(this).parents(".ui-sortable-handle");
+                                    let checkbox = tr.find("input.keyword-selection");
+
+                                    checkbox.prop('checked', false);
+                                    tr.removeClass("selected");
                                     $(this).html($(this).html().replace(/<b class="highlightCloud">(.+)<\/b>/gi, "$1"));
                                 });
                             }
@@ -7209,13 +7214,22 @@ let cf_template = cf_templates[cf_default_template].data;
                                 }
 
                                 p.find('.keywordInput[data-target="keyword"]').each(function () {
-                                    let keyword_matches = $(this).html().match(new RegExp(t, 'gi'));
+                                    let tr = $(this).parents(".ui-sortable-handle");
+                                    let checkbox = tr.find("input.keyword-selection");
+
+                                    let keywordReg = new RegExp(`\\b${t}\\b`, 'gi');
+
+                                    let keyword_matches = $(this).html().match(keywordReg);
                                     if (keyword_matches != null) {
                                         for (let j = 0; j < keyword_matches.length; j++) {
                                             const keywordMatch = keyword_matches[j];
-                                            const keywordReg = new RegExp(`\\b(${keywordMatch})\\b`, "g");
-                                            $(this).html($(this).html().replace(keywordReg, '<b class="highlightCloud">' +
-                                                                                            keywordMatch + '</b>'));
+
+                                            $(this).html($(this).html().replace(new RegExp(`\\b${keywordMatch}\\b`, "g"), '<b class="highlightCloud">' + keywordMatch + '</b>'));
+
+                                            if (!checkbox.is(':checked')) {
+                                                checkbox.prop('checked', true);
+                                                tr.addClass("selected");
+                                            }
                                         }
                                     }
                                 });

@@ -9,7 +9,10 @@ if (!class_exists('XAGIO_API')) {
 
         public static function initialize()
         {
+            // Fixes for plugins that disable App Passwords
+            // and cause Xagio issues with communication
             self::checkWordfenceAndEnableAppPasswords();
+            self::checkAllInOneSecurityAndEnableAppPasswords();
 
             add_action('rest_api_init', [
                 'XAGIO_API',
@@ -37,11 +40,35 @@ if (!class_exists('XAGIO_API')) {
                 'themeSwitch'
             ]);
 
-            self::forceEnableAppPasswords();
+        }
+
+        public static function checkAllInOneSecurityAndEnableAppPasswords()
+        {
+
+            if (is_plugin_active('all-in-one-wp-security-and-firewall/wp-security.php')) {
+                // Get AIOWPS settings
+                $aiowps_settings = get_option('aio_wp_security_configs');
+
+                // Check if settings exist and is array
+                if ($aiowps_settings && is_array($aiowps_settings)) {
+                    // Check if specific setting exists and is set to 1
+                    if (isset($aiowps_settings['aiowps_disable_application_password']) && $aiowps_settings['aiowps_disable_application_password'] == 1) {
+
+                        // Modify the setting
+                        $aiowps_settings['aiowps_disable_application_password'] = 0;
+
+                        // Update the option in database
+                        update_option('aio_wp_security_configs', $aiowps_settings);
+                    }
+                }
+            }
+
         }
 
         public static function checkWordfenceAndEnableAppPasswords()
         {
+            global $wpdb;
+
             // Check if Wordfence is installed and active
             if (!function_exists('is_plugin_active')) {
                 require_once(ABSPATH . 'wp-admin/includes/plugin.php');
@@ -50,7 +77,8 @@ if (!class_exists('XAGIO_API')) {
             // Check for both possible Wordfence plugin slugs
             $wordfence_slugs = [
                 'wordfence/wordfence.php',
-                'wordfence-security/wordfence.php'  // Alternative slug
+                'wordfence-security/wordfence.php'
+                // Alternative slug
             ];
 
             $wordfence_active = false;
@@ -65,68 +93,49 @@ if (!class_exists('XAGIO_API')) {
                 return false;
             }
 
-            return self::checkAndForceEnableAppPasswords();
-        }
-
-        public static function checkAndForceEnableAppPasswords()
-        {
-            global $wpdb;
-
             // Check if application passwords are disabled
             $wfconfig_table = $wpdb->prefix . 'wfconfig';
-            $disabled = $wpdb->get_var($wpdb->prepare(
-                "SELECT val FROM $wfconfig_table WHERE name = %s",
-                'loginSec_disableApplicationPasswords'
-            ));
+            $disabled       = $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT val FROM $wfconfig_table WHERE name = %s", 'loginSec_disableApplicationPasswords'
+                )
+            );
 
             // Only proceed if application passwords are disabled (val = 1)
             if ($disabled == 1) {
                 // Try to enable application passwords
-                return self::forceEnableAppPasswords();
+                // Update the wp_wfconfig table
+                $wfconfig_table = $wpdb->prefix . 'wfconfig';
+                $wfconfig_name  = 'loginSec_disableApplicationPasswords';
+
+                $result1 = $wpdb->update(
+                    $wfconfig_table, ['val' => 0], ['name' => $wfconfig_name], ['%d'], // Value format
+                    ['%s']  // Where clause format
+                );
+
+                // Check for errors in the first update
+                if ($result1 === false) {
+                    return false;
+                }
+
+                // Update the wp_options table
+                $options_table = $wpdb->prefix . 'options';
+                $option_name   = 'using_application_passwords';
+
+                $result2 = $wpdb->update(
+                    $options_table, ['option_value' => 1], ['option_name' => $option_name], ['%d'], // Value format
+                    ['%s']  // Where clause format
+                );
+
+                // Check for errors in the second update
+                if ($result2 === false) {
+                    return false;
+                }
+
+                // If both updates succeed
+                return true;
             }
 
-            return true;
-        }
-
-        public static function forceEnableAppPasswords()
-        {
-            global $wpdb;
-
-            // Update the wp_wfconfig table
-            $wfconfig_table = $wpdb->prefix . 'wfconfig';
-            $wfconfig_name  = 'loginSec_disableApplicationPasswords';
-
-            $result1 = $wpdb->update(
-                $wfconfig_table,
-                ['val' => 0],
-                ['name' => $wfconfig_name],
-                ['%d'], // Value format
-                ['%s']  // Where clause format
-            );
-
-            // Check for errors in the first update
-            if ($result1 === false) {
-                return false;
-            }
-
-            // Update the wp_options table
-            $options_table = $wpdb->prefix . 'options';
-            $option_name   = 'using_application_passwords';
-
-            $result2 = $wpdb->update(
-                $options_table,
-                ['option_value' => 1],
-                ['option_name' => $option_name],
-                ['%d'], // Value format
-                ['%s']  // Where clause format
-            );
-
-            // Check for errors in the second update
-            if ($result2 === false) {
-                return false;
-            }
-
-            // If both updates succeed
             return true;
         }
 

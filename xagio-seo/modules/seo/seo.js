@@ -4559,8 +4559,7 @@ let aiSchemaStatusTimeout = null;
             return words;
         },
         isGuteberg                  : function () {
-            return typeof wp !== 'undefined' && typeof wp.blocks !== 'undefined' &&
-                   $('.edit-post-visual-editor').length > 0;
+            return typeof wp !== 'undefined' && typeof wp.blocks !== 'undefined';
         },
         getH1                       : function () {
             let title = '';

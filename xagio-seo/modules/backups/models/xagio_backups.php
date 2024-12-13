@@ -2246,38 +2246,66 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
             foreach ($tables as $table) {
                 $table = $table[0];
-
                 $i_file = str_pad($i, 6, "0", STR_PAD_LEFT);
 
+                // Create table structure file
                 $tableDump = "DROP TABLE IF EXISTS `{$table}`;\n";
-
-                // Get the table creation statement
                 $createTable = $wpdb->get_row("SHOW CREATE TABLE `$table`", ARRAY_N);
-                $tableDump   .= $createTable[1] . ";\n\n";
+                $tableDump .= $createTable[1] . ";\n\n";
 
                 $wp_filesystem->put_contents(
-                    $backupFolder . "/" . $i_file . "_" . $table . ".sql", $tableDump, 777
+                    $backupFolder . "/" . $i_file . "_" . $table . ".sql",
+                    $tableDump,
+                    777
                 );
 
-                // Prepare the CSV content
+                // Create data file and handle rows in batches
                 $sqlFilePath = $backupFolder . "/" . $i_file . "_" . $table . "_data.sql";
+                $batchSize = 1000; // Adjust based on your needs
+                $offset = 0;
 
-                $rows = $wpdb->get_results("SELECT * FROM `$table`", ARRAY_A);
+                // Initialize the file
+                $wp_filesystem->put_contents($sqlFilePath, '', 777);
 
-                $insertData = "";
-                foreach ($rows as $row) {
-                    $values = array_map(function ($value) use ($wpdb) {
-                        return isset($value) ? "'" . addslashes($value) . "'" : "NULL";
-                    }, array_values($row));
+                while (true) {
+                    // Get a batch of rows
+                    $rows = $wpdb->get_results(
+                        $wpdb->prepare(
+                            "SELECT * FROM `$table` LIMIT %d OFFSET %d",
+                            $batchSize,
+                            $offset
+                        ),
+                        ARRAY_A
+                    );
 
-                    $insertData .= "INSERT INTO `$table` VALUES (" . implode(", ", $values) . ");\n";
+                    if (empty($rows)) {
+                        break;
+                    }
+
+                    $insertData = '';
+                    foreach ($rows as $row) {
+                        $values = array_map(function ($value) use ($wpdb) {
+                            return isset($value) ? "'" . addslashes($value) . "'" : "NULL";
+                        }, array_values($row));
+
+                        $insertData .= "INSERT INTO `$table` VALUES (" . implode(", ", $values) . ");\n";
+
+                        // Write to file when batch reaches 1MB to prevent memory buildup
+                        if (strlen($insertData) > 1024 * 1024) {
+                            $wp_filesystem->put_contents($sqlFilePath, $insertData, FILE_APPEND | 777);
+                            $insertData = '';
+                        }
+                    }
+
+                    // Write any remaining data
+                    if (!empty($insertData)) {
+                        $wp_filesystem->put_contents($sqlFilePath, $insertData, FILE_APPEND | 777);
+                    }
+
+                    $offset += $batchSize;
                 }
 
-                // Append data to the file
-                $wp_filesystem->put_contents($sqlFilePath, $insertData, 777);
-
                 $i++;
-
             }
 
             $listOfFilesAndFolders = glob($backupFolder . "/*");
