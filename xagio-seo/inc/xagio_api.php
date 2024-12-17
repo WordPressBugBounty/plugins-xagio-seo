@@ -612,6 +612,10 @@ if (!class_exists('XAGIO_API')) {
                 $commentState  = sanitize_text_field(wp_unslash($request->get_param('CommentState')));
                 $sWhere        .= " AND comment_approved = %s";
                 $queryParams[] = $commentState;
+            } elseif ($request->get_param('CommentState') === "0") {
+                $commentState  = $request->get_param('CommentState');
+                $sWhere        .= " AND comment_approved = %s";
+                $queryParams[] = $commentState;
             }
 
             // Search filter
@@ -1620,6 +1624,9 @@ if (!class_exists('XAGIO_API')) {
                 require_once(ABSPATH . 'wp-admin/includes/update.php');
             }
 
+            set_site_transient('update_plugins', null);
+            set_site_transient('update_themes', null);
+
             wp_update_plugins(array());
             wp_update_themes(array());
 
@@ -1633,9 +1640,7 @@ if (!class_exists('XAGIO_API')) {
             foreach ($plugins_raw as $plugin => $data) {
                 if (!empty($data->update)) {
                     if (!empty($data->update->package)) {
-                        if (strpos($data->update->package, 'downloads.wordpress.org') !== false) {
-                            $plugins[$plugin] = $data;
-                        }
+                        $plugins[$plugin] = $data;
                     }
                 }
             }
@@ -1643,9 +1648,7 @@ if (!class_exists('XAGIO_API')) {
             foreach ($themes_raw as $theme => $data) {
                 if (!empty($data->update)) {
                     if (!empty($data->update['package'])) {
-                        if (strpos($data->update['package'], 'downloads.wordpress.org') !== false) {
-                            $themes[$theme] = $data;
-                        }
+                        $themes[$theme] = $data;
                     }
                 }
             }
@@ -1802,29 +1805,13 @@ if (!class_exists('XAGIO_API')) {
             global $wpdb;
 
             // Fetch pending comments
-            $pending_comments = get_comments([
-                'status' => 'hold',
+            $comments_to_delete = get_comments([
+                'status' => '',
                 'number' => 10000
             ]);
 
-            // Determine whether to fetch spam or trash comments based on count
-            $spam_comments = [];
-            if (count($pending_comments) <= 5000) {
-                $spam_comments = get_comments([
-                    'status' => 'spam',
-                    'number' => 5000
-                ]);
-
-                if (empty($spam_comments)) {
-                    $spam_comments = get_comments([
-                        'status' => 'trash',
-                        'number' => 5000
-                    ]);
-                }
-            }
-
             // Merge comments to delete
-            $comments_to_delete = array_merge($pending_comments, $spam_comments);
+//            $comments_to_delete = array_merge($pending_comments, $spam_comments);
 
             // If there are comments to delete, proceed with deletion
             if (!empty($comments_to_delete)) {

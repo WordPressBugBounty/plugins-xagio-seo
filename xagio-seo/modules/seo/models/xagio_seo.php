@@ -755,7 +755,7 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
         public static function addCustomColumn($columns)
         {
-            if (!get_option('xagio_hidden')) {
+            if (!get_option('XAGIO_HIDDEN')) {
                 return array_merge($columns, [
                     'xagio_seo_column' => '<img title="Indicates the status of Xagio SEO on this post." src="' . XAGIO_URL . 'assets/img/logo-menu-xagio.webp"/> Xagio SEO',
                 ]);
@@ -1806,6 +1806,10 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
         {
             global $wpdb;
 
+            if(get_option('XAGIO_HIDDEN')) {
+                return $post_id;
+            }
+
             // Fix for trashing posts/pages
             if (!isset($_POST['post_ID'])) {
                 return $post_id;
@@ -1922,8 +1926,18 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
             $allowed_tags = [
                 'script' => [
-                    'type' => true,
-                    'src'  => true
+                    'src'            => true,
+                    'type'           => true,
+                    'async'          => true,
+                    'defer'          => true,
+                    'crossorigin'    => true,
+                    'integrity'      => true,
+                    'nomodule'       => true,
+                    'charset'        => true,
+                    'referrerpolicy' => true,
+                    'id'             => true,
+                    'class'          => true,
+                    'data-*'         => true
                 ]
             ];
 
@@ -2143,23 +2157,13 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
         public static function addMetaBoxes($post_type)
         {
-            if (!get_option('xagio_hidden')) {
-                if (in_array($post_type, self::getAllPostTypes())) {
-
-                    add_meta_box(
-                        'xagio_seo', '<img class="logo-image-seo" src="' . XAGIO_URL . 'assets/img/logo-xagio-smaller.webp"> <b class="xagio-bold">Xagio</b>', [
-                        'XAGIO_MODEL_SEO',
-                        'renderSEO'
-                    ], $post_type, 'advanced', 'core'
-                    );
-
-                    //                    add_meta_box(
-                    //                        'xagio_seo_side', '<img class="logo-image-seo" src="' . XAGIO_URL . 'assets/img/logo-xagio-smaller.webp"> <b class="xagio-bold">Xagio</b>', [
-                    //                        'XAGIO_MODEL_SEO',
-                    //                        'renderOptimizationSEO'
-                    //                    ], $post_type, 'side', 'high'
-                    //                    );
-                }
+            if (!get_option('XAGIO_HIDDEN')) {
+                add_meta_box(
+                    'xagio_seo', '<img class="logo-image-seo" src="' . XAGIO_URL . 'assets/img/logo-xagio-smaller.webp"> <b class="xagio-bold">Xagio</b>', [
+                    'XAGIO_MODEL_SEO',
+                    'renderSEO'
+                ], $post_type, 'advanced', 'core'
+                );
             }
         }
 
