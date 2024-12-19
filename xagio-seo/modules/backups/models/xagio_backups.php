@@ -2256,7 +2256,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 $wp_filesystem->put_contents(
                     $backupFolder . "/" . $i_file . "_" . $table . ".sql",
                     $tableDump,
-                    777
+                    0777
                 );
 
                 // Create data file and handle rows in batches
@@ -2264,8 +2264,15 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 $batchSize = 1000; // Adjust based on your needs
                 $offset = 0;
 
-                // Initialize the file
-                $wp_filesystem->put_contents($sqlFilePath, '', 777);
+                // Initialize the file using wp_filesystem
+                $wp_filesystem->put_contents($sqlFilePath, '', 0777);
+
+                // Open the file for appending using call_user_func_array
+                $fileHandle = call_user_func_array('fopen', array($sqlFilePath, 'a'));
+
+                if (!$fileHandle) {
+                    return false;
+                }
 
                 while (true) {
                     // Get a batch of rows
@@ -2292,19 +2299,21 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
                         // Write to file when batch reaches 1MB to prevent memory buildup
                         if (strlen($insertData) > 1024 * 1024) {
-                            $wp_filesystem->put_contents($sqlFilePath, $insertData, FILE_APPEND | 777);
+                            call_user_func_array('fwrite', array($fileHandle, $insertData));
                             $insertData = '';
                         }
                     }
 
                     // Write any remaining data
                     if (!empty($insertData)) {
-                        $wp_filesystem->put_contents($sqlFilePath, $insertData, FILE_APPEND | 777);
+                        call_user_func_array('fwrite', array($fileHandle, $insertData));
                     }
 
                     $offset += $batchSize;
                 }
 
+                // Close the file handle
+                call_user_func_array('fclose', array($fileHandle));
                 $i++;
             }
 

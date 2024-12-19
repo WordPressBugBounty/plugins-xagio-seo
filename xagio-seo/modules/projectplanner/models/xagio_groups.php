@@ -614,15 +614,10 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                 }
             }
 
-            $where_in = '';
+            $placeholders = implode(',', array_fill(0, count($deleteGroupIds), '%d'));
 
-            foreach ($deleteGroupIds as $deleteGroupId) {
-                $where_in .= "$deleteGroupId,";
-            }
-            $where_in = rtrim($where_in, ',');
-
-            if (!empty($where_in)) {
-                $wpdb->query($wpdb->prepare("DELETE FROM xag_groups WHERE project_id = %d AND id IN (%s)", $project_id, $where_in));
+            if(sizeof($deleteGroupIds) > 0) {
+                $wpdb->query($wpdb->prepare("DELETE FROM xag_groups WHERE project_id = %d AND id IN ($placeholders)", $project_id, ...$deleteGroupIds));
             }
 
             xagio_json('success', 'Empty groups successfully deleted!');
@@ -645,7 +640,7 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
 
                 $deleteRanks = filter_var(wp_unslash($_POST['deleteRanks']), FILTER_VALIDATE_BOOLEAN);
                 if ($deleteRanks) {
-                    $rankedKeywords = $wpdb->get_results($wpdb->prepare("SELECT `keyword` FROM xag_keywords WHERE `group_id` IN (%s) AND `rank` != '0'", $group_ids), ARRAY_A);
+                    $rankedKeywords = $wpdb->get_results($wpdb->prepare("SELECT `keyword` FROM xag_keywords WHERE `group_id` IN ($placeholders) AND `rank` != '0'", ...$group_ids), ARRAY_A);
 
                     if (!empty($rankedKeywords)) {
                         $keywordsToDelete = [];
@@ -656,7 +651,7 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                 }
             }
 
-            $r = $wpdb->query($wpdb->prepare("DELETE g, k FROM xag_groups g LEFT JOIN xag_keywords k ON g.id = k.group_id WHERE g.id IN ($placeholders)", $group_ids));
+            $r = $wpdb->query($wpdb->prepare("DELETE g, k FROM xag_groups g LEFT JOIN xag_keywords k ON g.id = k.group_id WHERE g.id IN ($placeholders)", ...$group_ids));
 
             if ($return !== TRUE) {
                 xagio_json('success', 'Groups successfully deleted!');

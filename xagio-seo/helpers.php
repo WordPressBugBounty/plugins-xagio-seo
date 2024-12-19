@@ -583,7 +583,7 @@ if (!function_exists('xagio_log')) {
         }
 
         // Append the log message to the log file
-        $wp_filesystem->put_contents($log_path, $log_message, FS_CHMOD_FILE | FILE_APPEND);
+        $wp_filesystem->put_contents($log_path, $log_message, 0777);
     }
 }
 

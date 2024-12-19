@@ -2051,7 +2051,7 @@ if (!class_exists('XAGIO_API')) {
                     $placeholders = implode(',', array_fill(0, count($comment_ids), '%d'));
                     $result       = $wpdb->query(
                         $wpdb->prepare(
-                            "UPDATE {$wpdb->prefix}comments SET comment_approved = %s WHERE comment_ID IN ($placeholders)", array_merge([$status], $comment_ids)
+                            "UPDATE {$wpdb->prefix}comments SET comment_approved = %s WHERE comment_ID IN ($placeholders)", ...array_merge([$status], $comment_ids)
                         )
                     );
                 } else {
@@ -2252,7 +2252,9 @@ if (!class_exists('XAGIO_API')) {
 
                 // Deactivate on panel if license not set
                 if (!XAGIO_LICENSE::isLicenseSet()) {
-                    XAGIO_CORE::deactivate();
+                    XAGIO_API::apiRequest(
+                        $apiEndpoint = 'license', $method = 'DELETE', $args = [], $http_code, $without_license = FALSE
+                    );
                 }
 
                 xagio_json('success', 'Successfully retrieved blog description.', [

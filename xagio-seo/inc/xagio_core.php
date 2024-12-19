@@ -48,15 +48,6 @@ if (!class_exists('XAGIO_CORE')) {
         // Init hooks
         public static function registerHooks()
         {
-            register_activation_hook(XAGIO_SLUG, [
-                'XAGIO_CORE',
-                'activate'
-            ]);
-            register_uninstall_hook(XAGIO_SLUG, [
-                'XAGIO_CORE',
-                'uninstall'
-            ]);
-
             add_action('admin_init', [
                 'XAGIO_CORE',
                 'registerAssets'
@@ -65,7 +56,6 @@ if (!class_exists('XAGIO_CORE')) {
                 'XAGIO_CORE',
                 'createPages'
             ]);
-
             add_action('admin_enqueue_scripts', [
                 'XAGIO_CORE',
                 'loadAdminAssets'
@@ -253,6 +243,11 @@ if (!class_exists('XAGIO_CORE')) {
 
                 // Update the new version
                 update_option('XAGIO_CURRENT_VERSION', $current_version);
+            }
+
+            // If Xagio is not connected / remove hidden
+            if (XAGIO_HIDDEN && !XAGIO_CONNECTED) {
+                update_option('XAGIO_HIDDEN', false);
             }
         }
 

@@ -1912,6 +1912,10 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                         $renderedSchemas = XAGIO_MODEL_SCHEMA::getRemoteRenderedSchemas($schemaIDs, $post_id);
                         if ($renderedSchemas !== FALSE) {
                             $empty_schema = FALSE;
+                            if (XAGIO_MODEL_SEO::is_homepage($post_id)) {
+                                update_option('XAGIO_SEO_SCHEMA_META', @$renderedSchemas['meta']);
+                                update_option('XAGIO_SEO_SCHEMA_DATA', @$renderedSchemas['data']);
+                            }
                             update_post_meta($post_id, 'XAGIO_SEO_SCHEMA_META', @$renderedSchemas['meta']);
                             update_post_meta($post_id, 'XAGIO_SEO_SCHEMA_DATA', @$renderedSchemas['data']);
                         }
@@ -2309,19 +2313,33 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             return $url;
         }
 
+        public static function is_homepage($post_id = null) {
+            $show_on_front = get_option('show_on_front');
+
+            if ($post_id === null) {
+                return (is_front_page() && 'page' == $show_on_front && is_page(get_option('page_on_front'))) || // static homepage
+                       (is_home() && 'page' == $show_on_front) || // posts page
+                       (is_home() && 'posts' == $show_on_front);  // blog homepage
+            }
+
+            return ('page' == $show_on_front && $post_id == get_option('page_on_front')) || // static homepage
+                   ('page' == $show_on_front && $post_id == get_option('page_for_posts')) || // posts page
+                   ('posts' == $show_on_front && $post_id == get_option('page_on_front'));   // blog homepage
+        }
+
         public static function is_home_static_page()
         {
-            return (is_front_page() && 'page' == get_option('show_on_front') && is_page(get_option('page_on_front')));
+            return self::is_homepage();
         }
 
         public static function is_posts_page()
         {
-            return (is_home() && 'page' == get_option('show_on_front'));
+            return self::is_homepage();
         }
 
         public static function is_home_posts_page()
         {
-            return (is_home() && 'posts' == get_option('show_on_front'));
+            return self::is_homepage();
         }
 
         public static function is_sub_page()
@@ -2468,7 +2486,7 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             // Execute the query
             $out = $wpdb->get_results(
                 $wpdb->prepare(
-                    "SELECT * FROM $wpdb->posts WHERE post_status = %s AND post_type IN ($placeholders)", array_merge(['publish'], $post_types)
+                    "SELECT * FROM $wpdb->posts WHERE post_status = %s AND post_type IN ($placeholders)", ...array_merge(['publish'], $post_types)
                 ), ARRAY_A
             );
 

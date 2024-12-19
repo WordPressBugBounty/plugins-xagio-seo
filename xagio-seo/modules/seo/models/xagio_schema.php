@@ -72,8 +72,12 @@ if (!class_exists('XAGIO_MODEL_SCHEMA')) {
                 if ($post_id == NULL) {
                     $schemas = get_option('XAGIO_SEO_SCHEMA_META');
                 } else {
-                    $schemas = get_post_meta($post_id, 'XAGIO_SEO_SCHEMA_META', TRUE);
-                    $schemas = maybe_unserialize($schemas);
+                    if (XAGIO_MODEL_SEO::is_homepage($post_id)) {
+                        $schemas = get_option('XAGIO_SEO_SCHEMA_META');
+                    } else {
+                        $schemas = get_post_meta($post_id, 'XAGIO_SEO_SCHEMA_META', TRUE);
+                        $schemas = maybe_unserialize($schemas);
+                    }
                 }
             } else if ($type == 'term') {
 
@@ -352,7 +356,7 @@ if (!class_exists('XAGIO_MODEL_SCHEMA')) {
                 if ($post_id == NULL) {
                     $schemas = get_option('XAGIO_SEO_SCHEMA_META');
                 } else {
-                    if ($post_id == get_option('page_on_front')) {
+                    if (XAGIO_MODEL_SEO::is_homepage($post_id)) {
                         $schemas = get_option('XAGIO_SEO_SCHEMA_META');
                     } else {
                         $schemas = get_post_meta($post_id, 'XAGIO_SEO_SCHEMA_META', TRUE);
@@ -580,12 +584,9 @@ if (!class_exists('XAGIO_MODEL_SCHEMA')) {
                 $ps_review = get_option('XAGIO_REVIEW');
 
                 // Homepage Schema
-                if (XAGIO_MODEL_SEO::is_home_posts_page() || XAGIO_MODEL_SEO::is_posts_page() || XAGIO_MODEL_SEO::is_home_static_page()) {
-                    $schemas = get_option('XAGIO_SEO_SCHEMA_DATA');
+                if (XAGIO_MODEL_SEO::is_homepage()) {
 
-                    if (empty($schemas)) {
-                        $schemas = get_post_meta($post->ID, 'XAGIO_SEO_SCHEMA_DATA', TRUE);
-                    }
+                    $schemas = get_option('XAGIO_SEO_SCHEMA_DATA');
 
                     // Taxonomy Schema
                 } else if (is_category() || is_tag() || is_tax()) {

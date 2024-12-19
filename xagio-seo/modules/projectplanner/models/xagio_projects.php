@@ -404,55 +404,11 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
 
 
             $domain       = $website;
-            $limit        = 1000;
-            $skip_empty   = 'on';
             $project_id   = $insert_id;
-            $ignore_local = 'on';
 
 
             $groups   = [];
             $keywords = [];
-
-            // Ignore local pages
-            if ($ignore_local !== 'on') {
-                // Find all Posts & Pages
-                $args  = [
-                    'posts_per_page' => -1,
-                    'orderby'        => 'ID',
-                    'order'          => 'ASC',
-                    'post_type'      => [
-                        'post',
-                        'page',
-                    ],
-                    'post_status'    => [
-                        'publish',
-                    ],
-                ];
-                $posts = get_posts($args);
-
-                // The Loop
-                foreach ($posts as $post) {
-                    $local_relative_path = XAGIO_MODEL_SEO::extract_url($post->ID);
-                    $group_name          = $post->post_title;
-                    if ($local_relative_path === "/") {
-                        $group_name = "1. HOMEPAGE " . $group_name;
-                    }
-
-                    $wpdb->insert('xag_groups', [
-                        'group_name'   => $group_name,
-                        'h1'           => $post->post_title,
-                        'project_id'   => $project_id,
-                        'date_created' => gmdate('Y-m-d H:i:s'),
-                        'id_page_post' => $post->ID,
-                        'url'          => $local_relative_path,
-                        'title'        => get_post_meta($post->ID, 'XAGIO_SEO_TITLE', TRUE),
-                        'description'  => get_post_meta($post->ID, 'XAGIO_SEO_DESCRIPTION', TRUE),
-                    ]);
-
-                    $groups[] = $wpdb->insert_id;
-
-                }
-            }
 
             $http_code = 0;
             $result    = XAGIO_API::apiRequest(
@@ -460,7 +416,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                 'domain'    => $domain,
                 'lang'      => $lang,
                 'lang_code' => $lang_code,
-                'limit'     => $limit,
+                'limit'     => 1000,
                 'filters'   => $filters,
                 'type'      => $type
             ], $http_code
@@ -523,6 +479,17 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                         $keywords[]         = $keyword_data;
 
                     }
+
+
+                    // Remove empty groups
+                    foreach ($groups as $group_id) {
+                        $no_keywords = XAGIO_MODEL_KEYWORDS::getKeywords(TRUE, $group_id);
+                        if (empty($no_keywords)) {
+                            XAGIO_MODEL_GROUPS::deleteGroup($group_id, TRUE);
+                        }
+                    }
+
+
                 } else {
                     $wpdb->delete('xag_projects', [
                         'id' => $project_id
@@ -536,18 +503,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                 xagio_json('error', $result['message']);
             }
 
-            // Remove empty groups
-            if ($skip_empty == 'on') {
-                foreach ($groups as $group_id) {
 
-                    $no_keywords = XAGIO_MODEL_KEYWORDS::getKeywords(TRUE, $group_id);
-
-                    if (empty($no_keywords)) {
-                        XAGIO_MODEL_GROUPS::deleteGroup($group_id, TRUE);
-                    }
-
-                }
-            }
             xagio_jsonc([
                 'project_id' => $project_id
             ]);
@@ -639,29 +595,6 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
             ], [
                 'id' => $keywordIDs
             ]);
-
-            // Ensure $project_group_ids is an array of integers
-            $project_group_ids = array_map('absint', (array) $project_group_ids);
-
-            // Create a comma-separated list of placeholders (%d) based on the number of IDs
-            $group_placeholders = implode(',', array_fill(0, count($project_group_ids), '%d'));
-
-            // Prepare and execute the queries using the generated placeholders
-            $wpdb->query(
-                $wpdb->prepare(
-                    "DELETE FROM xag_groups WHERE id IN ($group_placeholders)",
-                    $project_group_ids
-                )
-            );
-
-            $wpdb->query(
-                $wpdb->prepare(
-                    "DELETE FROM xag_keywords WHERE group_id IN ($group_placeholders)",
-                    $project_group_ids
-                )
-            );
-
-
 
             xagio_jsonc([
                 'project_id' => $project_id
@@ -851,7 +784,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $project_ids = intval($_POST['project_ids']);
+            $project_ids = sanitize_text_field(wp_unslash($_POST['project_ids']));
             $project_ids = explode(',', $project_ids);
             if (sizeof($project_ids) > 0) {
 

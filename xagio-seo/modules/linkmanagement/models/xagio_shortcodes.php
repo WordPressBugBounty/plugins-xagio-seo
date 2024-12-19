@@ -321,7 +321,7 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                 // Ensure that each ID is an integer to prevent SQL injection
                 $link_ids     = array_map('absint', $link_ids);
                 $placeholders = implode(',', array_fill(0, count($link_ids), '%d'));
-                $links        = $wpdb->get_results($wpdb->prepare("SELECT * FROM xag_shortcodes WHERE id IN ($placeholders)", $link_ids));
+                $links        = $wpdb->get_results($wpdb->prepare("SELECT * FROM xag_shortcodes WHERE id IN ($placeholders)", ...$link_ids));
             }
 
             $projectName = 'Link Manager Export - ' . gmdate('H:i:s');

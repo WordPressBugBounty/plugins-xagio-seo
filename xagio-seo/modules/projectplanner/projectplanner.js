@@ -1503,7 +1503,7 @@ let cf_template = cf_templates[cf_default_template].data;
             function redirectToProject(project_id) {
                 setTimeout(function () {
                     window.location = xagio_data.wp_admin +
-                                      'admin.php?page=xagio-projectplanner&project_id=' +
+                                      'admin.php?page=xagio-projectplanner&pid=' +
                                       project_id;
                 }, 2000); // Delay for UI effect or final processing
             }
@@ -6797,7 +6797,7 @@ let cf_template = cf_templates[cf_default_template].data;
                                                            "iDisplayLength": 10,
                                                            "language"      : {
                                                                "emptyTable": "<div class='xagio-buttons-flex xagio-flex-align-center'><a href='#' class='xagio-button xagio-button-primary new-project'><i class='xagio-icon xagio-icon-plus'></i> Create My First Project</a>" +
-                                                                             "<a href='#importProject' data-uk-modal class='xagio-button xagio-button-primary'><i class='xagio-icon xagio-icon-download'></i> Import Existing Project</a></div>"
+                                                                             "<a class='xagio-button xagio-button-primary' data-xagio-modal='importProject'><i class='xagio-icon xagio-icon-download'></i> Import Existing Project</a></div>"
                                                            },
                                                            "aLengthMenu"   : [
                                                                [

@@ -360,7 +360,7 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
 
                     $getGlobal301RdirectUrl = get_option('XAGIO_GLOBAL_404_REDIRECTION_URL');
 
-                    if (isset($getGlobal301RdirectUrl) && !empty($getGlobal301RdirectUrl)) {
+                    if (isset($getGlobal301RdirectUrl) && !empty($getGlobal301RdirectUrl) && !XAGIO_MODEL_SHARED_PROJECT::is_shared_project_page()) {
                         wp_redirect($getGlobal301RdirectUrl);
                         exit;
                     }

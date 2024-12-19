@@ -611,7 +611,7 @@ if (!class_exists('XAGIO_MODEL_KEYWORDS')) {
             // Prepare and execute the query securely
             $wpdb->query(
                 $wpdb->prepare(
-                    "UPDATE xag_keywords SET group_id = %d WHERE group_id IN ($placeholders)", $prepare_values
+                    "UPDATE xag_keywords SET group_id = %d WHERE group_id IN ($placeholders)", ...$prepare_values
                 )
             );
 
@@ -1738,7 +1738,7 @@ if (!class_exists('XAGIO_MODEL_KEYWORDS')) {
             JOIN xag_groups g ON k.group_id = g.id
             WHERE g.project_id = %d
             AND k.id NOT IN ($placeholders)
-            ", $prepare_args
+            ", ...$prepare_args
                 )
             );
         }

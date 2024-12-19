@@ -731,7 +731,7 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
             // updateSharedScripts
             XAGIO_SYNC::getSharedScripts();
             // updateServerAPI
-            do_action('xagio_LicenseCheck');
+            do_action('XAGIO_CHECK_LICENSE');
 
             // Regenerate table structure
             XAGIO_CORE::loadModels('createTable');

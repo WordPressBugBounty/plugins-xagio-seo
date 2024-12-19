@@ -1794,7 +1794,7 @@ table.xagio-table-modal {
     display: none;
     position: absolute;
     margin-top: 4px;
-    z-index: 10;
+    z-index: 101;
     border-radius: 10px !important;
     background: white;
     border: 1px solid #ebebeb;
@@ -2195,6 +2195,9 @@ span.xagio-version {
 .xagio-upload-drop .xagio-file-names {
     font-size: 14px;
     min-width: 240px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .xagio-upload-drop .xagio-file-names > div > i {

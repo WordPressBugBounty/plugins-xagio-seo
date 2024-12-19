@@ -76,5 +76,16 @@ foreach ($files as $file) {
     }
 }
 
+register_activation_hook(XAGIO_SLUG, [
+    'XAGIO_CORE',
+    'activate'
+]);
+register_uninstall_hook(XAGIO_SLUG, [
+    'XAGIO_CORE',
+    'uninstall'
+]);
+
 /** Load the plugin core */
-XAGIO_CORE::init();
+add_action('init', [
+    'XAGIO_CORE', 'init'
+]);

@@ -69,6 +69,7 @@ if (!class_exists('XAGIO_LICENSE')) {
                     'blocking'    => TRUE,
                 ]);
 
+
             // Verify the response
             if (is_wp_error($response)) {
                 xagio_json('error', 'There was a problem while communicating with our server. Make sure your server meets all the requirements.');
