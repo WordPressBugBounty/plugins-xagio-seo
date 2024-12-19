@@ -177,55 +177,124 @@ if (!class_exists('xagio_ZipArchiveX') && class_exists('ZipArchive')) {
         }
 
         // Custom packing method with the provided logic
-        public function pack($files = [], $rootDirectory = '')
+        public function pack($files = [], $rootDirectory = '', array $excludedPaths = [
+            'error_log',
+            'wp-cron.php',
+            'wp-links-opml.php',
+            'wp-load.php',
+            'wp-login.php',
+            'wp-mail.php',
+            'wp-settings.php',
+            'wp-signup.php',
+            'wp-trackback.php',
+            'xmlrpc.php',
+            'wp-config-sample.php',
+            'wp-comments-post.php',
+            'wp-blog-header.php',
+            'wp-activate.php',
+            'readme.html',
+            'license.txt',
+            'index.php',
+        ], array             $excludedExtensions = [
+            'zip',
+            'rar',
+            '7z',
+            'tar.gz',
+            'tar',
+            'gz'
+        ], array             $excludedFolders = [
+            '.git',
+            '.svn',
+            'node_modules',
+            'vendor',
+            'wp-content/cache',
+            'wp-content/upgrade',
+            'wp-content/backup',
+            'wp-content/uploads/backups',
+            'wp-content/plugins/xagio-seo/backups',
+            'nc_assets',
+            '.well-known',
+            'wp-admin',
+            'wp-includes'
+        ])
         {
-            // Make sure $rootDirectory has a trailing slash
+            // Normalize root directory (ensure trailing slash)
             $rootDirectory = rtrim($rootDirectory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
 
-            // Ensure $files is an array
-            if (is_string($files))
+            // Ensure $files is array
+            if (is_string($files)) {
                 $files = [$files];
-            if (is_bool($files))
+            } elseif (is_bool($files)) {
                 $files = [];
+            }
+
+            // Convert excluded lists to sets for O(1) lookups
+            $excludedPathsSet      = array_flip($excludedPaths);
+            $excludedFoldersSet    = array_flip($excludedFolders);
+            $excludedExtensionsSet = array_flip($excludedExtensions);
 
             foreach ($files as $file) {
-                $file = str_replace($rootDirectory, '', $file);
-
-                $fullPath     = $rootDirectory . ltrim($file, DIRECTORY_SEPARATOR);
+                // Normalize full path
+                $fullPath     = $rootDirectory . ltrim(str_replace($rootDirectory, '', $file), DIRECTORY_SEPARATOR);
                 $relativePath = str_replace($rootDirectory, '', $fullPath);
 
+                // Check if the current path is excluded
+                if (isset($excludedPathsSet[$relativePath])) {
+                    continue;
+                }
+
+                // If it's a directory, iterate through its contents
                 if (is_dir($fullPath)) {
-                    // Use RecursiveIteratorIterator to include all subfiles in the directory
-                    $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($fullPath), RecursiveIteratorIterator::SELF_FIRST);
+                    if (isset($excludedFoldersSet[$relativePath])) {
+                        continue;
+                    }
+
+                    $iterator = new RecursiveIteratorIterator(
+                        new RecursiveDirectoryIterator($fullPath, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::SELF_FIRST
+                    );
+
                     foreach ($iterator as $f) {
-                        $trimmedName = str_replace($rootDirectory, '', $f->getPathname());
-                        if (substr($trimmedName, -1) == '.' || substr($trimmedName, -1) == '..') {
+                        $subPath = str_replace($rootDirectory, '', $f->getPathname());
+
+                        // Check for path exclusions
+                        if (isset($excludedPathsSet[$subPath])) {
                             continue;
                         }
 
+                        // Check for folder exclusions
                         if ($f->isDir()) {
-                            $this->zipArchive->addEmptyDir($trimmedName);
-                        } else if ($f->isFile()) {
-                            // Check if the file is not a compressed type that should be excluded
-                            $fileInfo = pathinfo($f->getPathname());
-                            if (!in_array($fileInfo['extension'] ?? '', [
-                                'zip',
-                                'rar',
-                                '7z',
-                                'tar.gz',
-                                'tar',
-                                'gz'
-                            ])) {
-                                $this->zipArchive->addFile($f->getPathname(), $trimmedName);
+                            // Check if this directory is in excludedFolders
+                            if (isset($excludedFoldersSet[$subPath])) {
+                                // Skip entire directory subtree
+                                $iterator->next();
+                                continue;
                             }
+
+                            $this->zipArchive->addEmptyDir($subPath);
+                        } else if ($f->isFile()) {
+                            // Get file extension
+                            $extension = $f->getExtension();
+
+                            // Check if extension is excluded
+                            if (isset($excludedExtensionsSet[$extension])) {
+                                continue;
+                            }
+
+                            // Add the file to the ZIP
+                            $this->zipArchive->addFile($f->getPathname(), $subPath);
                         }
                     }
-                } else if (is_file($fullPath)) {
-                    // Add individual files to the ZIP archive
-                    $this->zipArchive->addFile($fullPath, $relativePath);
+
+                } elseif (is_file($fullPath)) {
+                    // Add individual file if not excluded
+                    $extension = pathinfo($fullPath, PATHINFO_EXTENSION);
+                    if (!isset($excludedExtensionsSet[$extension]) || basename($relativePath) == 'mysql.zip') {
+                        $this->zipArchive->addFile($fullPath, $relativePath);
+                    }
                 }
             }
         }
+
 
     }
 

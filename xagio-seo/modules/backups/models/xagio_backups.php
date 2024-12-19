@@ -1523,31 +1523,16 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
             // Check the file structure
             $core_files = [
-                "wp-admin",
                 "wp-content",
-                "wp-includes",
-                "index.php",
                 "mysql.zip",
-                "wp-activate.php",
-                "wp-blog-header.php",
-                "wp-comments-post.php",
-                "wp-config.php",
-                "wp-cron.php",
-                "wp-links-opml.php",
-                "wp-load.php",
-                "wp-login.php",
-                "wp-mail.php",
-                "wp-settings.php",
-                "wp-signup.php",
-                "wp-trackback.php",
-                "xmlrpc.php",
+                "wp-config.php"
             ];
 
             foreach ($core_files as $core_file) {
                 if (!file_exists($restoreFolder . "/" . $core_file)) {
                     xagio_jsonc([
                         "status"  => "error",
-                        "message" => "Backup archive is damaged! Backup core file " . $core_file . " is missing from this archive. Either add it back in, or use a different valid backup archive!",
+                        "message" => "Backup archive is damaged! Backup core file << " . $core_file . " >> is missing from this archive. Either add it back in, or use a different valid backup archive!",
                     ]);
                 }
             }
@@ -1989,16 +1974,10 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
         // Function that handles the overall backup process
         public static function doBackup($type = "full")
         {
-            check_ajax_referer('xagio_nonce', '_xagio_nonce');
-
-            if (!isset($_POST['create_id'])) {
-                wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
-            }
-
             // Update keys first
             XAGIO_SYNC::getBackupSettings();
 
-            $createID       = intval($_POST["create_id"]);
+            $createID       = isset($_POST['create_id']) ? intval($_POST["create_id"]) : 0;
             $backupLocation = get_option("XAGIO_BACKUP_LOCATION");
             $tokens         = get_option("XAGIO_BACKUP_SETTINGS");
 
@@ -2061,6 +2040,8 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 xagio_rename($backupSQL, $backupFile);
 
             }
+
+
 
             if (!file_exists($backupFile)) {
                 return self::handleError($createID, "Failed to create a backup. Could not zip the files.");
