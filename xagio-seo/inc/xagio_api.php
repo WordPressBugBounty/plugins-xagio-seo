@@ -142,16 +142,102 @@ if (!class_exists('XAGIO_API')) {
         public static function registerXagioRoutes()
         {
             // General API request route
-            register_rest_route('xagio-seo/v1', '/api', [
-                'methods'             => 'POST',
-                'callback'            => [
-                    'XAGIO_API',
-                    'handleRequest'
-                ],
-                'permission_callback' => function ($request = null) {
-                    return is_user_logged_in() && is_super_admin();
-                }
-            ]);
+            register_rest_route(
+                'xagio-seo/v1',
+                '/api',
+                [
+                    'methods'  => 'POST',
+                    'callback' => ['XAGIO_API', 'handleRequest'],
+
+                    // Permission callback to verify either:
+                    //  - The user is already logged in (and is super admin), OR
+                    //  - Valid credentials are passed in the X-Xagio-Auth header.
+                    'permission_callback' => function ($request) {
+
+                        // 1. OLD LOGIC: Check if user is logged in and is super admin
+                        if (is_user_logged_in() && is_super_admin()) {
+                            return true;
+                        }
+
+                        // 2. NEW LOGIC: Otherwise, check for X-Xagio-Auth header
+                        $authHeader = $request->get_header('x-xagio-auth');
+                        if (empty($authHeader)) {
+                            return new WP_Error(
+                                'missing_auth_header',
+                                'X-Xagio-Auth header is missing.',
+                                ['status' => 401]
+                            );
+                        }
+
+                        // Decode the header from Base64 (using strict mode)
+                        $decoded = base64_decode($authHeader, true);
+                        if ($decoded === false) {
+                            return new WP_Error(
+                                'invalid_base64',
+                                'Invalid X-Xagio-Auth header (not valid Base64).',
+                                ['status' => 401]
+                            );
+                        }
+
+                        // Expect credentials in "username:password" format
+                        $parts = explode(':', $decoded, 2);
+                        if (count($parts) !== 2) {
+                            return new WP_Error(
+                                'invalid_credentials_format',
+                                'Could not parse username:password from X-Xagio-Auth header.',
+                                ['status' => 401]
+                            );
+                        }
+
+                        list($username, $password) = $parts;
+
+                        // 3. Attempt to authenticate the user with normal credentials
+                        $user = wp_authenticate($username, $password);
+
+                        // If normal credential check fails, try application passwords (if available)
+                        if (is_wp_error($user)) {
+                            // Check if WordPress Application Passwords are enabled (introduced in WP 5.6+)
+                            if (
+                                function_exists('wp_is_application_passwords_available') &&
+                                wp_is_application_passwords_available()
+                            ) {
+                                $app_user = wp_authenticate_application_password(null, $username, $password);
+                                if (is_wp_error($app_user)) {
+                                    return new WP_Error(
+                                        'authentication_failed',
+                                        'Invalid username or password (normal or app password).',
+                                        ['status' => 401]
+                                    );
+                                }
+                                // If we get here, the user is authenticated using an app password
+                                $user = $app_user;
+                            } else {
+                                // App passwords not available or also invalid
+                                return new WP_Error(
+                                    'authentication_failed',
+                                    'Invalid username or password (normal credentials).',
+                                    ['status' => 401]
+                                );
+                            }
+                        }
+
+                        // 4. At this point, $user is authenticated either via normal password or app password
+                        wp_set_current_user($user->ID);
+
+                        // 5. Check if the newly authenticated user is a super admin
+                        if (!is_super_admin($user->ID)) {
+                            return new WP_Error(
+                                'permission_denied',
+                                'You do not have the required privileges.',
+                                ['status' => 403]
+                            );
+                        }
+
+                        // If we reach this point, the user is valid and has super admin privileges
+                        return true;
+                    },
+                ]
+            );
 
             // General API request route
             register_rest_route('xagio-seo/v1', '/ping', [
@@ -3149,6 +3235,10 @@ if (!class_exists('XAGIO_API')) {
                 if ($renderedSchemas !== false) {
                     if ($TYPE === 'post') {
                         if ($ID !== 0) {
+                            if(XAGIO_MODEL_SEO::is_homepage($ID)) {
+                                update_option('XAGIO_SEO_SCHEMA_META', $renderedSchemas['meta']);
+                                update_option('XAGIO_SEO_SCHEMA_DATA', $renderedSchemas['data']);
+                            }
                             update_post_meta($ID, 'XAGIO_SEO_SCHEMA_META', $renderedSchemas['meta']);
                             update_post_meta($ID, 'XAGIO_SEO_SCHEMA_DATA', $renderedSchemas['data']);
                         } else {

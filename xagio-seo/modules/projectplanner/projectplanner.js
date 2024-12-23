@@ -1413,7 +1413,7 @@ let cf_template = cf_templates[cf_default_template].data;
                             if (d.status === 'credits') {
                                 $.ajaxq.clear('ProjectQueue');
                                 generating_el.html(d.message);
-                                xagioNotify("warning", d.message, 15);
+                                xagioNotify("warning", d.message, false, 15);
                                 setTimeout(function(){
                                     document.location.reload();
                                 }, 5000);
@@ -1442,26 +1442,17 @@ let cf_template = cf_templates[cf_default_template].data;
                 $.ajaxq('ProjectQueue', {
                     type   : 'POST',
                     url    : xagio_data.wp_post,
-                    data   : `action=xagio_generate_seed&project_id=${project_id}`,
-                    success: function (d) {
-                        if (d.status !== 'error') {
-                            $.ajaxq('ProjectQueue', {
-                                type   : 'POST',
-                                url    : xagio_data.wp_post,
-                                data   : `action=xagio_generate_phrasematch&project_id=${d.project_id}`,
-                                success: function (dd) {
-                                    project_id = dd.project_id;
-                                    project_ids.push(project_id);
-                                }
-                            });
-                        }
+                    data   : `action=xagio_generate_phrasematch&project_id=${project_id}`,
+                    success: function (dd) {
+                        project_id = dd.project_id;
+                        project_ids.push(project_id);
                     }
                 });
             }
 
             function finalProcessing() {
                 if (domains_length > 1) {
-                    if (project_ids == 0) {
+                    if (project_ids.length < 1) {
                         let generating_el = $('.generating-project-loading');
                         generating_el.html(`No keywords found for any of selected websites.`);
                         return;
@@ -1476,18 +1467,9 @@ let cf_template = cf_templates[cf_default_template].data;
                                 $.ajaxq('ProjectQueue', {
                                     type   : 'POST',
                                     url    : xagio_data.wp_post,
-                                    data   : `action=xagio_generate_seed&project_id=${final_project_id}`,
-                                    success: function (d) {
-                                        if (d.status !== 'error') {
-                                            $.ajaxq('ProjectQueue', {
-                                                type   : 'POST',
-                                                url    : xagio_data.wp_post,
-                                                data   : `action=xagio_generate_phrasematch&project_id=${final_project_id}`,
-                                                success: function (dd) {
-                                                    redirectToProject(dd.project_id);
-                                                }
-                                            });
-                                        }
+                                    data   : `action=xagio_generate_phrasematch&project_id=${final_project_id}`,
+                                    success: function (dd) {
+                                        redirectToProject(dd.project_id);
                                     }
                                 });
                             } else {

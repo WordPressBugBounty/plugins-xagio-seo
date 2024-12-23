@@ -1923,6 +1923,11 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 }
 
                 if ($empty_schema) {
+                    if (XAGIO_MODEL_SEO::is_homepage($post_id)) {
+                        update_option('XAGIO_SEO_SCHEMA_META', FALSE);
+                        update_option('XAGIO_SEO_SCHEMA_DATA', FALSE);
+                    }
+
                     update_post_meta($post_id, 'XAGIO_SEO_SCHEMA_META', FALSE);
                     update_post_meta($post_id, 'XAGIO_SEO_SCHEMA_DATA', FALSE);
                 }
