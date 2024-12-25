@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 ?>
-<div class="xagio-main-header">
+<div class="xagio-main-header xagio-main-header-big-gaps">
     <img class="logo-image repo-xagio" src="<?php echo   esc_url(XAGIO_URL); ?>assets/img/logo-xagio.webp"/>
     <h2 class="logo-title logo-title-big">
         301 & 404 Management

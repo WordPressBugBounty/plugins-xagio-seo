@@ -631,33 +631,9 @@ if (!class_exists('XAGIO_MODEL_KEYWORDS')) {
 
             $project_id = intval($_POST['project_id']);
             $group_id   = intval($_POST['group_id']);
-
-            $keywords = false;
-            if (!empty($_POST['seed_keywords'])) {
-                $keywords = sanitize_text_field(wp_unslash($_POST['seed_keywords']));
-            }
-
-            $group_name = false;
-            if (!empty($_POST['seed_group_name'])) {
-                $group_name = sanitize_text_field(wp_unslash($_POST['seed_group_name']));
-            }
-
             $word_match = false;
             if (!empty($_POST['word_match'])) {
                 $word_match = filter_var(wp_unslash($_POST['word_match']), FILTER_VALIDATE_BOOLEAN);
-            }
-
-            if (empty($keywords)) {
-                xagio_json('error', 'Please enter any keyword!');
-            }
-
-            $keywords = explode(",", $keywords);
-
-            if (empty($group_name)) {
-                $group_name = "Seed Group";
-
-                if (isset($keywords[0]))
-                    $group_name = $keywords[0];
             }
 
             if ($group_id === 0) {
@@ -670,61 +646,96 @@ if (!class_exists('XAGIO_MODEL_KEYWORDS')) {
                 );
             }
 
-
             $project_group_ids = [];
             foreach ($group_ids as $group_id) {
                 $project_group_ids[] = $group_id['id'];
             }
 
-            $likeKeywords = [];
-            $likeValues   = [];
+            $keywords_array = false;
+            if (!empty($_POST['seed_keywords'])) {
+                $keywords_array = $_POST['seed_keywords'];
+            }
 
-            foreach ($keywords as $keyword) {
-                $keyword = trim($keyword);
-                if (isset($word_match) && $word_match) {
-                    $likeKeywords[] = "keyword REGEXP %s";
-                    $likeValues[]   = "\\b{$keyword}\\b";
-                } else {
-                    // Use CHAR(37) to represent '%'
-                    $likeKeywords[] = "keyword LIKE CONCAT(CHAR(37), %s, CHAR(37))";
-                    $likeValues[]   = $wpdb->esc_like($keyword);
+            $group_name_array = false;
+            if (!empty($_POST['seed_group_name'])) {
+                $group_name_array = $_POST['seed_group_name'];
+            }
+
+            if (empty(array_filter($keywords_array))) {
+                xagio_json('error', 'Please enter any keyword in input fields!');
+                return;
+            }
+
+            foreach ($group_name_array as $index => $group_name) {
+                $keywords = $keywords_array[$index];
+
+                if (empty($keywords)) {
+                    continue;
+                }
+
+                $keywords = explode(",", $keywords);
+
+                if (sizeof($keywords) < 1) {
+                    continue;
+                }
+
+                if (empty($group_name)) {
+                    $group_name = "Seed Group";
+
+                    if (isset($keywords[0]))
+                        $group_name = $keywords[0];
+                }
+
+
+                $likeKeywords = [];
+                $likeValues   = [];
+
+                foreach ($keywords as $keyword) {
+                    $keyword = trim($keyword);
+                    if (isset($word_match) && $word_match) {
+                        $likeKeywords[] = "keyword REGEXP %s";
+                        $likeValues[]   = "\\b{$keyword}\\b";
+                    } else {
+                        // Use CHAR(37) to represent '%'
+                        $likeKeywords[] = "keyword LIKE CONCAT(CHAR(37), %s, CHAR(37))";
+                        $likeValues[]   = $wpdb->esc_like($keyword);
+                    }
+                }
+                $likeKeywords = implode(" OR ", $likeKeywords);
+
+                $groupIdsPlaceholders = implode(", ", array_fill(0, count($project_group_ids), '%d'));
+                $sql                  = "SELECT id FROM xag_keywords WHERE group_id IN ($groupIdsPlaceholders)";
+                if (!empty($likeKeywords)) {
+                    $sql .= " AND ($likeKeywords)";
+                }
+
+                $queryParams    = array_merge(array_map('absint', $project_group_ids), $likeValues);
+                $updateKeywords = $wpdb->get_results($wpdb->prepare("$sql", ...$queryParams), ARRAY_A);
+
+                $keywordIDs = [];
+                foreach ($updateKeywords as $uk) {
+                    $keywordIDs[] = $uk['id'];
+                }
+
+                if (sizeof($keywordIDs) < 1) {
+                    continue;
+                }
+
+                $wpdb->insert('xag_groups', [
+                    'project_id' => $project_id,
+                    'group_name' => $group_name
+                ]);
+
+                $group_id = $wpdb->insert_id;
+
+                foreach ($keywordIDs as $kwid) {
+                    $wpdb->update('xag_keywords', [
+                        'group_id' => $group_id
+                    ], [
+                        'id' => $kwid
+                    ]);
                 }
             }
-            $likeKeywords = implode(" OR ", $likeKeywords);
-
-            $groupIdsPlaceholders = implode(", ", array_fill(0, count($project_group_ids), '%d'));
-            $sql                  = "SELECT id FROM xag_keywords WHERE group_id IN ($groupIdsPlaceholders)";
-            if (!empty($likeKeywords)) {
-                $sql .= " AND ($likeKeywords)";
-            }
-
-            $queryParams    = array_merge(array_map('absint', $project_group_ids), $likeValues);
-            $updateKeywords = $wpdb->get_results($wpdb->prepare("$sql", ...$queryParams), ARRAY_A);
-
-            $keywordIDs = [];
-            foreach ($updateKeywords as $uk) {
-                $keywordIDs[] = $uk['id'];
-            }
-
-            if (sizeof($keywordIDs) < 1) {
-                xagio_json('error', 'No keywords found in this project. Please change your seed keywords.');
-            }
-
-            $wpdb->insert('xag_groups', [
-                'project_id' => $project_id,
-                'group_name' => $group_name
-            ]);
-
-            $group_id = $wpdb->insert_id;
-
-            foreach ($keywordIDs as $kwid) {
-                $wpdb->update('xag_keywords', [
-                    'group_id' => $group_id
-                ], [
-                    'id' => $kwid
-                ]);
-            }
-
             xagio_json('success', 'Successfully created new group with seed keyword(s) found in this Project');
         }
 

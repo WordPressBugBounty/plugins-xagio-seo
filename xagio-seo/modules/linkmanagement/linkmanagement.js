@@ -301,25 +301,25 @@
 
                          if (data.nofollow == 1) {
                              modal.find('#nofollow').val(data.nofollow);
-                             modal.find('#nofollow').next().find('.slider-button').removeClass('on').addClass('on').html('<i class="xagio-icon xagio-icon-check"></i>');
+                             modal.find('#nofollow').next().find('.xagio-slider-button').addClass('on');
                          } else {
                              modal.find('#nofollow').val(0);
-                             modal.find('#nofollow').next().find('.slider-button').removeClass('on').html('<i class="xagio-icon xagio-icon-close"></i>');
+                             modal.find('#nofollow').next().find('.xagio-slider-button').removeClass('on');
                          }
                          if (data.target_blank == 1) {
                              modal.find('#target_blank').val(data.target_blank);
-                             modal.find('#target_blank').next().find('.slider-button').removeClass('on').addClass('on').html('<i class="xagio-icon xagio-icon-check"></i>');
+                             modal.find('#target_blank').next().find('.xagio-slider-button').addClass('on');
                          } else {
                              modal.find('#target_blank').val(0);
-                             modal.find('#target_blank').next().find('.slider-button').removeClass('on').html('<i class="xagio-icon xagio-icon-close"></i>');
+                             modal.find('#target_blank').next().find('.xagio-slider-button').removeClass('on');
                          }
 
                          if (data.mask == 1) {
                              modal.find('#mask').val(data.mask);
-                             modal.find('#mask').next().find('.slider-button').removeClass('on').addClass('on').html('<i class="xagio-icon xagio-icon-check"></i>');
+                             modal.find('#mask').next().find('.xagio-slider-button').addClass('on');
                          } else {
                              modal.find('#mask').val(0);
-                             modal.find('#mask').next().find('.slider-button').removeClass('on').html('<i class="xagio-icon xagio-icon-close"></i>');
+                             modal.find('#mask').next().find('.xagio-slider-button').removeClass('on');
                          }
 
                          modal.find('#image').trigger('change');
@@ -505,10 +505,26 @@
                 var url = $(this).data('url');
                 var group = $(this).data('group');
 
-                modal.find('h2').html('<i class="xagio-icon xagio-icon-plus"></i> Create Shortcode');
+                modal.find('h3').html('<i class="xagio-icon xagio-icon-plus"></i> Create Shortcode');
                 modal.find('.id').val(0);
                 modal.find('.group').val(group);
-                modal.find('input#url').val(url).trigger('change');
+
+                modal.find('.shortcode-preview').html('<span class="empty">Fill in the fields to preview</span>');
+
+                modal.find('#title').val("");
+                modal.find('#shortcode').val("");
+                modal.find('input#url').val(url);
+                modal.find('#name').val("");
+                modal.find('#image').val("");
+
+                modal.find('#nofollow').val(0);
+                modal.find('#nofollow').next().find('.xagio-slider-button').removeClass('on');
+
+                modal.find('#target_blank').val(0);
+                modal.find('#target_blank').next().find('.xagio-slider-button').removeClass('on');
+
+                modal.find('#mask').val(0);
+                modal.find('#mask').next().find('.xagio-slider-button').removeClass('on');
 
                 // modal.show();
             });

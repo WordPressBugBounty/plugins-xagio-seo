@@ -328,6 +328,12 @@ h3.xagio-info-box-accordion-title > i:first-child {
     color: var(--color-xagio-deep-blue);
 }
 
+.xagio-flex-column {
+    display: flex;
+    flex-direction: column;
+    gap: var(--xagio-gap-small);
+}
+
 .xagio-flex-row {
     display: flex;
     justify-content: space-between;
@@ -450,7 +456,7 @@ button.xagio-button.xagio-button-padding-small {
 }
 
 button.xagio-button.xagio-button-small {
-    padding: 10px 13px;
+    padding: 10px;
     border-radius: 5px;
 }
 

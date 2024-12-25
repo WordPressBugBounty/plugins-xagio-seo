@@ -538,6 +538,14 @@ form.filters {
     overflow-x: auto;
 }
 
+.shortcode-link-holder .img {
+    margin: 20px 0 0;
+}
+
+.shortcode-link-holder .img img {
+    height: 90px;
+}
+
 @media (max-width: 1200px) {
     form.filters {
         grid-template-columns: 1fr;

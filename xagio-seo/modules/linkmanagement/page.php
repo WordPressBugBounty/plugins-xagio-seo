@@ -18,7 +18,7 @@ $redirect_mask = get_option('XAGIO_REDIRECT_MASK');
 $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 if (!$redirect_mask) $redirect_mask = 'xredirect';
 ?>
-<div class="xagio-main-header">
+<div class="xagio-main-header xagio-main-header-big-gaps">
     <img class="logo-image repo-xagio" src="<?php echo  esc_url(XAGIO_URL); ?>assets/img/logo-xagio.webp"/>
     <h2 class="logo-title logo-title-big">
         Link Manager
@@ -88,7 +88,7 @@ if (!$redirect_mask) $redirect_mask = 'xredirect';
                             <div>
                                 <div class="modal-label">Open in New Tab</div>
                                 <div class="xagio-slider-container">
-                                    <input type="hidden" name="target_blank" id="filter_target_blank"/>
+                                    <input type="hidden" name="target_blank" id="filter_target_blank" value="0"/>
                                     <div class="xagio-slider-frame">
                                         <span class="xagio-slider-button" data-element="filter_target_blank"></span>
                                     </div>
@@ -97,7 +97,7 @@ if (!$redirect_mask) $redirect_mask = 'xredirect';
                             <div>
                                 <div class="modal-label">Mask URL</div>
                                 <div class="xagio-slider-container">
-                                    <input type="hidden" name="mask" id="filter_mask"/>
+                                    <input type="hidden" name="mask" id="filter_mask" value="0"/>
                                     <div class="xagio-slider-frame">
                                         <span class="xagio-slider-button" data-element="filter_mask"></span>
                                     </div>
@@ -106,7 +106,7 @@ if (!$redirect_mask) $redirect_mask = 'xredirect';
                             <div>
                                 <div class="modal-label">No Follow Link</div>
                                 <div class="xagio-slider-container">
-                                    <input type="hidden" name="nofollow" id="filter_nofollow"/>
+                                    <input type="hidden" name="nofollow" id="filter_nofollow" value="0"/>
                                     <div class="xagio-slider-frame">
                                         <span class="xagio-slider-button" data-element="filter_nofollow"></span>
                                     </div>
@@ -182,7 +182,7 @@ if (!$redirect_mask) $redirect_mask = 'xredirect';
                     <button data-xagio-tooltip data-xagio-title="Delete this shortcode" class="xagio-button xagio-button-danger xagio-button-mini shortcode-delete"><i class="xagio-icon xagio-icon-delete"></i></button>
                 </div>
             </div>
-            <span class="img"></span>
+            <figure class="img"></figure>
             <div class="shortcode-url">
                 Link - <a class="url" href="#" target="_blank"></a>
             </div>

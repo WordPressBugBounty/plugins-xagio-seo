@@ -33,6 +33,11 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
 
             self::initShortcodes();
 
+            add_action('admin_post_nopriv_xagio_trackShortcode', [
+                'XAGIO_MODEL_SHORTCODES',
+                'trackShortcode'
+            ]);
+
             if (!XAGIO_HAS_ADMIN_PERMISSIONS)
                 return;
 
@@ -91,10 +96,6 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
             ]);
 
             add_action('admin_post_xagio_trackShortcode', [
-                'XAGIO_MODEL_SHORTCODES',
-                'trackShortcode'
-            ]);
-            add_action('admin_post_nopriv_xagio_trackShortcode', [
                 'XAGIO_MODEL_SHORTCODES',
                 'trackShortcode'
             ]);
@@ -582,6 +583,8 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
 
         public static function trackShortcode()
         {
+            global $wpdb;
+
             check_ajax_referer('xagio_nonce', '_xagio_nonce');
 
             if (!isset($_SERVER['REMOTE_ADDR'])) {
@@ -621,12 +624,12 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                 // Check if the shortcode tracking already exists for today
                 $shortcode_tracking = $wpdb->get_row(
                     $wpdb->prepare(
-                        "SELECT * FROM $table WHERE date = %s AND shortcode_id = %d AND ip_address = %s", $date, $shortcode['id'], sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']))
+                        "SELECT * FROM $table WHERE `date` = %s AND shortcode_id = %d AND ip_address = %s", $date, $shortcode['id'], sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']))
                     ), ARRAY_A
                 );
 
                 // Update or insert the tracking record
-                if ($shortcode_tracking !== false) {
+                if ($shortcode_tracking != NULL) {
                     $wpdb->update($table, ['clicked' => 1], [
                         'date'         => $date,
                         'shortcode_id' => $shortcode['id'],
@@ -694,7 +697,7 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                 $shortcode = $wpdb->get_row($wpdb->prepare("SELECT * FROM xag_shortcodes WHERE shortcode = %s", $tag), ARRAY_A);
             }
 
-            if ($shortcode !== FALSE) {
+            if ($shortcode != NULL) {
                 // if multiple shortcodes
                 if (!isset($shortcode['shortcode'])) {
                     $shortcode = $shortcode[0];
@@ -704,7 +707,7 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                     $atts = ['mask' => 0];
 
                 // Track!
-                $ip_address   = sanitize_url(wp_unslash($_SERVER['REMOTE_ADDR']));
+                $ip_address   = sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']));
                 $shortcode_id = $shortcode['id'];
                 $date         = gmdate('Y-m-d');
                 $isMasked     = '';
@@ -726,7 +729,7 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                         ), ARRAY_A
                     );
 
-                    if ($tracking !== FALSE) {
+                    if ($tracking != NULL) {
                         $tracking_id = $tracking['id'];
                     } else {
                         $wpdb->insert('xag_shortcodes_url_tracking', [
@@ -746,7 +749,7 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                     );
 
 
-                    if ($tracking !== FALSE) {
+                    if ($tracking != NULL) {
                         $tracking_id = $tracking['id'];
                     } else {
                         $wpdb->insert('xag_shortcodes_tracking', [
@@ -945,7 +948,7 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                 'rows'  => $results,
                 'mask'  => $mask,
                 'pages' => $pages,
-                'total' => $count,
+                'total' => $count_query,
             ]);
         }
 
@@ -965,17 +968,19 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
             $nofollow     = isset($_POST['nofollow']) ? intval($_POST['nofollow']) : 0;
             $mask         = isset($_POST['mask']) ? intval($_POST['mask']) : 0;
             $name         = isset($_POST['name']) ? sanitize_text_field(wp_unslash($_POST['name'])) : '';
+            $image        = isset($_POST['image']) ? sanitize_url(wp_unslash($_POST['image'])) : '';
 
             // Prepare data for insertion or update
             $data = [
-                'group'        => $group,
-                'title'        => $title,
-                'shortcode'    => $shortcode,
-                'url'          => $url,
-                'target_blank' => $target_blank,
-                'nofollow'     => $nofollow,
-                'mask'         => $mask,
-                'name'         => $name
+                'group'         => $group,
+                'title'         => $title,
+                'shortcode'     => $shortcode,
+                'url'           => $url,
+                'target_blank'  => $target_blank,
+                'nofollow'      => $nofollow,
+                'mask'          => $mask,
+                'name'          => $name,
+                'image'         => $image
             ];
 
             // Determine whether to insert or update
@@ -988,12 +993,9 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
 
             // Handle the result and send a JSON response
             if (is_wp_error($result)) {
-                wp_send_json_error($result->get_error_message());
+                xagio_json('error', $result->get_error_message());
             } else {
-                wp_send_json_success([
-                    'message' => 'Shortcode successfully saved!',
-                    'data'    => $result
-                ]);
+                xagio_json('success', 'Shortcode successfully saved!', $result);
             }
         }
 

@@ -3024,27 +3024,38 @@ let cf_template = cf_templates[cf_default_template].data;
         },
         seedKeyword                  : function () {
             let phrase_match_labels = [
-                `Phrase Match ( <span class="phrase-match-underline">cat</span>, <span class="phrase-match-underline">cat</span>s, <span class="phrase-match-underline">cat</span>apult, wild<span class="phrase-match-underline">cat</span> )`,
+                `Broad Match ( <span class="phrase-match-underline">cat</span>, <span class="phrase-match-underline">cat</span>s, <span class="phrase-match-underline">cat</span>apult, wild<span class="phrase-match-underline">cat</span> )`,
                 `Phrase Match ( <span class="phrase-match-underline">cat</span> )`
             ];
 
             $(document).on('change', '.seed-word-match', function () {
-                let checkbox = $(this);
+                let input = $(this);
 
-                if (checkbox.prop('checked')) {
-                    checkbox.next('.word_match_label').html(phrase_match_labels[1]);
+                if (input.val() == "1") {
+                    input.parent().find('.word_match_label').html(phrase_match_labels[1]);
                 } else {
-                    checkbox.next('.word_match_label').html(phrase_match_labels[0]);
+                    input.parent().find('.word_match_label').html(phrase_match_labels[0]);
                 }
             });
 
             $(document).on('click', '.seedKeyword', function (e) {
                 e.preventDefault();
-                let group_id = $(this).data('group-id');
+                let group_id         = $(this).data('group-id');
                 let seedKeywordModal = $('#seedKeywordsModal');
 
                 seedKeywordModal.find('input[name="group_id"]').val(group_id);
+                seedKeywordModal.find(".seed_group_container_template").remove();
+                seedKeywordModal.find("input[type='text']").val("");
                 seedKeywordModal[0].showModal();
+            });
+
+            $(document).on("click", "#add_multiple_groups", function () {
+                let template = $(".seed_group_container_template.xagio-hidden").clone().removeClass('xagio-hidden');
+                $("#seed_group_container").append(template);
+            });
+
+            $(document).on('click', '.delete_seed_row', function () {
+                $(this).parents(".seed_group_container_template").remove();
             });
 
             $(document).on('submit', '#seedKeywordsForm', function (e) {

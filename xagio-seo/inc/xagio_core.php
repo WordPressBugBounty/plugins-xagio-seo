@@ -48,10 +48,8 @@ if (!class_exists('XAGIO_CORE')) {
         // Init hooks
         public static function registerHooks()
         {
-            add_action('admin_init', [
-                'XAGIO_CORE',
-                'registerAssets'
-            ]);
+            XAGIO_CORE::registerAssets();
+
             add_action('admin_menu', [
                 'XAGIO_CORE',
                 'createPages'

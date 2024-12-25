@@ -16,10 +16,6 @@ if (!class_exists('XAGIO_MODEL_REVIEWS')) {
         {
             XAGIO_MODEL_REVIEWS::defines();
 
-            add_action('admin_init', [
-                'XAGIO_MODEL_REVIEWS',
-                'registerAssets'
-            ]);
             add_action('admin_enqueue_scripts', [
                 'XAGIO_MODEL_REVIEWS',
                 'loadAdminAssets'
@@ -28,6 +24,11 @@ if (!class_exists('XAGIO_MODEL_REVIEWS')) {
                 'XAGIO_MODEL_REVIEWS',
                 'loadUserAssets'
             ], 10, 1);
+
+            add_action('admin_post_nopriv_xagio_newReview', [
+                'XAGIO_MODEL_REVIEWS',
+                'newReview'
+            ]);
 
             if (!XAGIO_HAS_ADMIN_PERMISSIONS) return;
 
@@ -67,19 +68,10 @@ if (!class_exists('XAGIO_MODEL_REVIEWS')) {
                 'XAGIO_MODEL_REVIEWS',
                 'newReview'
             ]);
-            add_action('admin_post_nopriv_xagio_newReview', [
-                'XAGIO_MODEL_REVIEWS',
-                'newReview'
-            ]);
             add_action('admin_post_xagio_saveReviewWidget', [
                 'XAGIO_MODEL_REVIEWS',
                 'saveReviewWidget'
             ]);
-
-        }
-
-        public static function registerAssets()
-        {
 
         }
 

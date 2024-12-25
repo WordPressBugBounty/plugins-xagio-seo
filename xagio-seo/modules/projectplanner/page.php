@@ -1356,31 +1356,60 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                 <i class="xagio-icon xagio-icon-info"></i> This function will search a current project for any keywords that contain phrases entered below, create a new group and move all keywords found into newly created group
             </div>
 
-            <div class="xagio-flex-even-columns xagio-flex-gap-medium xagio-flex-align-top xagio-margin-bottom-large">
-                <div>
-                    <label class="modal-label" for="seed_group_name">New Group name</label>
-                    <input type="text" name="seed_group_name" id="seed_group_name" class="xagio-input-text-mini" placeholder="eg. My New Group">
-                    <div class="modal-label-small">If left empty, a group will have name of your first seed keyword</div>
+            <div>
+                <div class="xagio-flex-even-columns xagio-flex-gap-medium">
+                    <div>
+                        <label class="modal-label">New Group name</label>
+                    </div>
+                    <div>
+                        <label class="modal-label">Your seed keywords</label>
+                    </div>
                 </div>
-                <div>
-                    <label class="modal-label" for="seed_keywords">Your seed keywords</label>
-                    <input type="text" name="seed_keywords" id="seed_keywords" class="xagio-input-text-mini" required placeholder="eg. flowers, blanket, bicycle, house">
-                    <div class="modal-label-small">*insert keyword(s) separated by a comma "," to create a new group with keywords containing entered above</div>
+
+                <div class="xagio-flex-column" id="seed_group_container">
+                    <div class="xagio-flex-even-columns xagio-flex-gap-medium">
+                        <div class="seed-group-name-container">
+                            <input type="text" name="seed_group_name[]" class="xagio-input-text-mini" placeholder="eg. My New Group">
+                        </div>
+
+                        <div class="seed-keywords-container">
+                            <input type="text" name="seed_keywords[]" class="xagio-input-text-mini" placeholder="eg. flowers, blanket, bicycle, house">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="xagio-flex-even-columns x xagio-flex-gap-medium xagio-margin-top-small xagio-flex-align-top">
+                    <div class="modal-label-small xagio-margin-top-remove">If left empty, a group will have name of your first seed keyword</div>
+                    <div class="modal-label-small xagio-margin-top-remove">*insert keyword(s) separated by a comma "," to create a new group with keywords containing entered above</div>
                 </div>
             </div>
 
-            <div class="xagio-checkbox-button">
-                <div>
-                    <label class="word_match"><input type="checkbox" name="word_match" value="1" class="xagio-input-checkbox xagio-input-checkbox-mini seed-word-match">
-
-                        <span class="word_match_label">Phrase Match (
+            <div class="xagio-flex-row xagio-margin-bottom-large m-t-20">
+                <div class="xagio-slider-container xagio-margin-none">
+                    <input type="hidden" name="word_match" id="word_match" value="0" class="seed-word-match"/>
+                    <div class="xagio-slider-frame">
+                        <span class="xagio-slider-button" data-element="word_match"></span>
+                    </div>
+                    <p class="xagio-slider-label">
+                        <span class="word_match_label">Broad Match (
                             <span class="phrase-match-underline">cat</span>,
                             <span class="phrase-match-underline">cat</span>s,
                             <span class="phrase-match-underline">cat</span>apult,
                             wild<span class="phrase-match-underline">cat</span>
                         )</span>
-                    </label>
+                    </p>
                 </div>
+
+                <button type="button" class="xagio-button xagio-button-primary xagio-button-small" data-xagio-tooltip data-xagio-title="Add Multiple Groups" id="add_multiple_groups">
+                    <i class="xagio-icon xagio-icon-plus"></i>
+                </button>
+            </div>
+
+            <div class="xagio-checkbox-button">
+                <button class="xagio-button xagio-button-outline" data-xagio-close-modal="" type="button">
+                    <i class="xagio-icon xagio-icon-close"></i>
+                    Cancel
+                </button>
                 <div>
                     <button class="xagio-button xagio-button-primary autoGenerateGroupsBtn" type="submit"><i class="xagio-icon xagio-icon-check"></i> Seed New Group</button>
                 </div>
@@ -1490,6 +1519,20 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
     <div class="cluster_group">
         <div class="cluster_group_name"></div>
         <div class="cluster_group_keywords"></div>
+    </div>
+</div>
+
+<!--new row in seed keywords modal-->
+<div class="xagio-flex-even-columns xagio-flex-gap-medium seed_group_container_template xagio-hidden">
+    <div class="seed-group-name-container">
+        <input type="text" name="seed_group_name[]" class="xagio-input-text-mini" placeholder="eg. My New Group">
+    </div>
+
+    <div class="xagio-flex xagio-flex-gap-small seed-keywords-container">
+        <input type="text" name="seed_keywords[]" class="xagio-input-text-mini" placeholder="eg. flowers, blanket, bicycle, house">
+        <button type="button" class="xagio-button xagio-button-outline xagio-button-small delete_seed_row" data-xagio-tooltip data-xagio-title="Delete Row">
+            <i class="xagio-icon xagio-icon-close"></i>
+        </button>
     </div>
 </div>
 
