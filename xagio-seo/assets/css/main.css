@@ -1795,12 +1795,13 @@ div.logo-nag-xagio:before {
     content: '';
     display: block;
     position: absolute;
-    top: -5px;
-    left: -5px;
+    top: 50%;
+    transform: translate(0, -50%);
+    left: 0;
     box-sizing: border-box;
     border-radius: 10px;
-    width: 65px;
-    height: 65px;
+    width: 58px;
+    height: 58px;
     background: #2f2bea url(/wp-content/plugins/xagio-seo/assets/img/xagio-nag-white-logo.webp) no-repeat center;
     background-size: 55px;
 }
@@ -1811,7 +1812,7 @@ div.logo-nag-xagio {
 
 div.logo-nag-block-xagio {
     border: none !important;
-    border-radius: 5px;
+    border-radius: 10px;
     max-width: 700px !important;
     box-shadow: 0 2px 2px #dddddd;
     display: inline-flex;
@@ -2153,5 +2154,62 @@ a.xagio-circle-btn.xagio-circle-btn-small {
 }
 
 img.xags {
-    max-width: 24px;
+    max-width: 22px;
+}
+
+/*XAGS DESIGN*/
+.xags-container {
+    display: flex;
+    align-items: center;
+    background: #f2f4f8;
+    border-radius: 10px;
+    padding: 4px 10px;
+    font-weight: bold;
+    color: #111;
+    gap: 10px;
+}
+
+.xags-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 15px;
+}
+
+.xags-divider {
+    color: #999;
+    border-left: 1px solid #babec1;
+    width: 0;
+    height: 25px;
+}
+
+.xags-icon {
+    width: 22px;
+}
+
+.modal-audit-cost, .xag-cost-container {
+    display: flex;
+    align-items: center;
+    font-size: 18px;
+}
+
+#xagsCost {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    color: #000000;
+}
+
+#xagsCost div {
+    background: rgba(25, 68, 118, 0.07);
+    border-radius: 5px;
+    padding: 6px 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+#xagsCost div span {
+    font-weight: 600;
 }

@@ -15,14 +15,14 @@
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 
-$MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
+$XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 ?>
 <div class="xagio-main-header xagio-main-header-big-gaps">
     <img class="logo-image repo-xagio" src="<?php echo  esc_url(XAGIO_URL); ?>assets/img/logo-xagio.webp"/>
     <h2 class="logo-title logo-title-big">
         Clone Website
     </h2>
-    <?php if(isset($MEMBERSHIP_INFO["membership"]) && $MEMBERSHIP_INFO["membership"] === "Xagio AI Free") { ?>
+    <?php if(isset($XAGIO_MEMBERSHIP_INFO["membership"]) && $XAGIO_MEMBERSHIP_INFO["membership"] === "Xagio AI Free") { ?>
         <div class="xagio-header-actions">
             <a href="https://xagio.com/?goto=wppremfeatures" target="_blank" class="xagio-button xagio-button-secondary xagio-button-premium-button">
                 See Xagio Premium Features
@@ -115,11 +115,11 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                 <tr>
                     <td>PHP Maximum Execution Time:</td>
                     <?php
-                    $execution = ini_get('max_execution_time');
-                    if ($execution < 120) {
+                    $xagio_execution = ini_get('max_execution_time');
+                    if ($xagio_execution < 120) {
                     ?>
                     <td>
-                        <?php echo esc_html($execution); ?> <i class="xagio-icon xagio-icon-close uk-text-danger"></i>
+                        <?php echo esc_html($xagio_execution); ?> <i class="xagio-icon xagio-icon-close uk-text-danger"></i>
                     </td>
                 </tr>
                 <tr class="danger">
@@ -133,7 +133,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                 } else {
                     ?>
                     <td>
-                        <?php echo esc_html($execution); ?> <i class="xagio-icon xagio-icon-check uk-text-success"></i>
+                        <?php echo esc_html($xagio_execution); ?> <i class="xagio-icon xagio-icon-check uk-text-success"></i>
                     </td>
                     </tr>
                     <?php
@@ -143,11 +143,11 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                 <tr>
                     <td>PHP Memory Limit:</td>
                     <?php
-                    $memory_limit = ini_get('memory_limit');
-                    if ($memory_limit != '-1' && str_replace('MB', '', $memory_limit) < 256) {
+                    $xagio_memory_limit = ini_get('memory_limit');
+                    if ($xagio_memory_limit != '-1' && str_replace('MB', '', $xagio_memory_limit) < 256) {
                     ?>
                     <td>
-                        <?php echo esc_html($memory_limit); ?> <i class="xagio-icon xagio-icon-close uk-text-danger"></i>
+                        <?php echo esc_html($xagio_memory_limit); ?> <i class="xagio-icon xagio-icon-close uk-text-danger"></i>
                     </td>
                 </tr>
                     <tr class="danger">
@@ -160,7 +160,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                 } else {
                     ?>
                     <td>
-                        <?php echo ($memory_limit == '-1') ? 'Unlimited' : esc_html($memory_limit); ?> <i
+                        <?php echo ($xagio_memory_limit == '-1') ? 'Unlimited' : esc_html($xagio_memory_limit); ?> <i
                                 class="xagio-icon xagio-icon-check uk-text-success"></i>
                     </td>
                     </tr>

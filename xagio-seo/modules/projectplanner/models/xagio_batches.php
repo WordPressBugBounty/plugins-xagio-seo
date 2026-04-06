@@ -54,20 +54,20 @@ if (!class_exists('XAGIO_MODEL_BATCHES')) {
 
             foreach ($batches as $batch) {
 
-                $http_code = 0;
-                $result    = XAGIO_API::apiRequest(
+                $xagio_http_code = 0;
+                $xagio_result    = XAGIO_API::apiRequest(
                     $endpoint = 'keywords', $method = 'GET', [
                         'batch_id' => $batch['batch_id'],
-                    ], $http_code
+                    ], $xagio_http_code
                 );
 
                 // Check the status
-                if ($http_code == 200) {
+                if ($xagio_http_code == 200) {
 
                     $change = TRUE;
 
                     // They're all completed
-                    foreach ($result as $keyword) {
+                    foreach ($xagio_result as $keyword) {
                         $wpdb->update('xag_keywords', [
                             'intitle' => $keyword['intitle'],
                             'inurl'   => $keyword['inurl'],
@@ -82,7 +82,7 @@ if (!class_exists('XAGIO_MODEL_BATCHES')) {
                         'id' => $batch['id'],
                     ]);
 
-                } else if ($http_code == 500) {
+                } else if ($xagio_http_code == 500) {
                     $wpdb->delete('xag_batches', [
                         'id' => $batch['id'],
                     ]);

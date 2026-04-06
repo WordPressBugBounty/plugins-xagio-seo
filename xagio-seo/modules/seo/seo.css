@@ -2120,16 +2120,13 @@ a.schema-toggle-collapse {
 }
 
 pre#renderedSchema {
-    background: whitesmoke;
-    border: 1px solid gainsboro;
-    padding: 20px;
-    border-radius: 10px;
+    padding: 40px;
     margin: 0;
     white-space: pre-wrap;
 }
 
 pre#renderedSchema code.json {
-    background: whitesmoke;
+    background: #f5f7fb;
 }
 
 #wizardSchemaModal .uk-modal-footer {
@@ -2493,6 +2490,9 @@ ul.xagio-blocks-data {
 }
 .CodeMirror-sizer {
     margin-left: 29px !important;
+}
+.CodeMirror-gutters .CodeMirror-lint-markers {
+    display: none !important;
 }
 
 /***************** MODALS START ******************/
@@ -2912,4 +2912,30 @@ pre.xagio-preview-meta-robots {
 
 .xagio-hidden {
     display: none !important;
+}
+
+.xagio-margin-top-remove {
+    margin-top: 0 !important;
+}
+
+.aiPrice_step1 label {
+    font-size: 16px;
+}
+
+.aiPrice_step1 ul.xagio-tab > li:not(.xagio-tab-active) {
+    background: rgb(239, 239, 239);
+}
+
+.xagio-2-column-20-80-grid {
+    display: grid;
+    grid-template-columns: 20fr 80fr;
+    gap: var(--xagio-gap-medium);
+}
+
+.xagio-align-center {
+    align-items: center;
+}
+
+.profiles-title {
+    margin: 30px 0;
 }

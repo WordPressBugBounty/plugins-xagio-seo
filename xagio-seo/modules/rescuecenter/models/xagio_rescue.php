@@ -64,13 +64,13 @@ if (!class_exists('XAGIO_MODEL_RESCUE')) {
             }
 
             $uploads = WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR;
-            $files   = array_map('sanitize_text_field', wp_unslash($_POST['files']));
-            foreach ($files as $file) {
-                if (strpos($file, $uploads) !== FALSE) {
-                    wp_delete_file($file);
+            $xagio_files   = array_map('sanitize_text_field', wp_unslash($_POST['files']));
+            foreach ($xagio_files as $xagio_file) {
+                if (strpos($xagio_file, $uploads) !== FALSE) {
+                    wp_delete_file($xagio_file);
                 }
             }
-            xagio_json('success', 'Successfully removed files.', $files);
+            xagio_json('success', 'Successfully removed files.', $xagio_files);
         }
 
         public static function scanUploads()
@@ -103,15 +103,15 @@ if (!class_exists('XAGIO_MODEL_RESCUE')) {
             ];
 
             $uploads = WP_CONTENT_DIR . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR;
-            $files   = XAGIO_MODEL_RESCUE::getFiles($uploads);
+            $xagio_files   = XAGIO_MODEL_RESCUE::getFiles($uploads);
 
             $suspicious_files = [];
 
-            foreach ($files as $file => $data) {
-                $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+            foreach ($xagio_files as $xagio_file => $data) {
+                $ext = strtolower(pathinfo($xagio_file, PATHINFO_EXTENSION));
 
                 if (!in_array($ext, $allowed_extensions)) {
-                    $suspicious_files[$file] = $data;
+                    $suspicious_files[$xagio_file] = $data;
                 }
             }
 
@@ -142,10 +142,10 @@ if (!class_exists('XAGIO_MODEL_RESCUE')) {
             // Move and Unzip
             XAGIO_MODEL_RESCUE::moveUploadUnzip(map_deep($_FILES['file'], 'sanitize_text_field'), $unzip_directory);
 
-            $result = file_exists($unzip_directory . $theme_plugin_dir);
+            $xagio_result = file_exists($unzip_directory . $theme_plugin_dir);
 
-            if ($result !== FALSE) {
-                xagio_json('success', 'Rescue operation completed successfully.', $result);
+            if ($xagio_result !== FALSE) {
+                xagio_json('success', 'Rescue operation completed successfully.', $xagio_result);
             } else {
                 xagio_json('error', 'Failed to perform rescue operation. Please reinstall ' . $type . ' manually.');
             }
@@ -171,10 +171,10 @@ if (!class_exists('XAGIO_MODEL_RESCUE')) {
 
             $unzip_directory = WP_CONTENT_DIR . DIRECTORY_SEPARATOR . $type . 's' . DIRECTORY_SEPARATOR;
 
-            $result = XAGIO_MODEL_RESCUE::downloadUnzip($download, $theme_plugin_dir, $unzip_directory);
+            $xagio_result = XAGIO_MODEL_RESCUE::downloadUnzip($download, $theme_plugin_dir, $unzip_directory);
 
-            if ($result !== FALSE) {
-                xagio_json('success', 'Rescue operation completed successfully.', $result);
+            if ($xagio_result !== FALSE) {
+                xagio_json('success', 'Rescue operation completed successfully.', $xagio_result);
             } else {
                 xagio_json('error', 'Failed to perform rescue operation. Please reinstall ' . $type . ' manually.');
             }
@@ -216,7 +216,7 @@ if (!class_exists('XAGIO_MODEL_RESCUE')) {
             XAGIO_MODEL_RESCUE::deleteFolder(XAGIO_PATH . '/tmp/wordpress');
         }
 
-        public static function regenerateWpConfig($prefix = FALSE, $location = FALSE)
+        public static function regenerateWpConfig($prefix = FALSE, $xagio_location = FALSE)
         {
             global $table_prefix;
 
@@ -257,10 +257,10 @@ if (!class_exists('XAGIO_MODEL_RESCUE')) {
             $t .= "require_once(ABSPATH . 'wp-settings.php');\n";
             $t .= "?>";
 
-            if ($location == FALSE) {
+            if ($xagio_location == FALSE) {
                 xagio_file_put_contents(ABSPATH . 'wp-config.php', $t);
             } else {
-                xagio_file_put_contents($location . 'wp-config.php', $t);
+                xagio_file_put_contents($xagio_location . 'wp-config.php', $t);
             }
 
         }
@@ -290,7 +290,7 @@ if (!class_exists('XAGIO_MODEL_RESCUE')) {
             }
 
             // Process the file changes
-            $files = XAGIO_MODEL_RESCUE::processFiles($filesToDelete, $filesToOverwrite, $filesToAdd);
+            $xagio_files = XAGIO_MODEL_RESCUE::processFiles($filesToDelete, $filesToOverwrite, $filesToAdd);
 
             // Remove the WordPress core files
             XAGIO_MODEL_RESCUE::deleteFolder(XAGIO_PATH . '/tmp/wordpress');
@@ -299,7 +299,7 @@ if (!class_exists('XAGIO_MODEL_RESCUE')) {
             XAGIO_MODEL_RESCUE::regenerateWpConfig();
 
             // Output
-            xagio_json('Successfully finished WordPress core rescue.', 'Rescue has been successfully performed for your selected WordPress core files. You can leave this page now.', $files);
+            xagio_json('Successfully finished WordPress core rescue.', 'Rescue has been successfully performed for your selected WordPress core files. You can leave this page now.', $xagio_files);
         }
 
         public static function downloadCore()
@@ -311,10 +311,10 @@ if (!class_exists('XAGIO_MODEL_RESCUE')) {
             }
 
             // Get the version for download
-            $version = sanitize_text_field(wp_unslash($_POST['version']));
+            $xagio_version = sanitize_text_field(wp_unslash($_POST['version']));
 
             // Download the WP core
-            $coreDownload = XAGIO_MODEL_RESCUE::downloadUnzip('https://wordpress.org/wordpress-' . $version . '.zip', 'wordpress');
+            $coreDownload = XAGIO_MODEL_RESCUE::downloadUnzip('https://wordpress.org/wordpress-' . $xagio_version . '.zip', 'wordpress');
 
             if (!$coreDownload) {
 
@@ -448,22 +448,22 @@ if (!class_exists('XAGIO_MODEL_RESCUE')) {
         }
 
 
-        public static function verifyURL($url)
+        public static function verifyURL($xagio_url)
         {
-            $response = wp_remote_head($url, [
+            $xagio_response = wp_remote_head($xagio_url, [
                 'timeout'    => 10,
                 // Adjust the timeout as needed
                 'sslverify'  => false,
                 'user-agent' => 'WordPress/4.8',
             ]);
 
-            if (is_wp_error($response)) {
+            if (is_wp_error($xagio_response)) {
                 return false; // Handle the error as needed
             }
 
-            $http_code = wp_remote_retrieve_response_code($response);
+            $xagio_http_code = wp_remote_retrieve_response_code($xagio_response);
 
-            return $http_code == 200;
+            return $xagio_http_code == 200;
         }
 
         public static function getAvailableCoreVersions()
@@ -519,12 +519,12 @@ if (!class_exists('XAGIO_MODEL_RESCUE')) {
             }
 
             // Download the zip file
-            $response = wp_remote_get($remote_path, array('timeout' => 60));
-            if (is_wp_error($response)) {
+            $xagio_response = wp_remote_get($remote_path, array('timeout' => 60));
+            if (is_wp_error($xagio_response)) {
                 return FALSE;
             }
 
-            $wp_filesystem->put_contents($tempFile, wp_remote_retrieve_body($response));
+            $wp_filesystem->put_contents($tempFile, wp_remote_retrieve_body($xagio_response));
 
             // Unzip it
             if (class_exists('ZipArchive')) {
@@ -554,7 +554,7 @@ if (!class_exists('XAGIO_MODEL_RESCUE')) {
             }
         }
 
-        public static function moveUploadUnzip($file, $local_path)
+        public static function moveUploadUnzip($xagio_file, $local_path)
         {
             // Include the necessary WordPress file handling functions
             if (!function_exists('wp_handle_upload')) {
@@ -569,7 +569,7 @@ if (!class_exists('XAGIO_MODEL_RESCUE')) {
             $upload_overrides = array('test_form' => false);
 
             // Use wp_handle_upload instead of move_uploaded_file
-            $uploaded_file = wp_handle_upload($file, $upload_overrides);
+            $uploaded_file = wp_handle_upload($xagio_file, $upload_overrides);
 
             if ($uploaded_file && !isset($uploaded_file['error'])) {
                 $tempFile = $uploaded_file['file'];
@@ -655,12 +655,12 @@ if (!class_exists('XAGIO_MODEL_RESCUE')) {
             }
 
             // Get the list of files in the directory
-            $files = $wp_filesystem->dirlist($dir);
+            $xagio_files = $wp_filesystem->dirlist($dir);
 
             // Iterate through the files and delete them
-            foreach ($files as $file) {
-                $file_path = $dir . DIRECTORY_SEPARATOR . $file['name'];
-                if ($file['type'] === 'd') {
+            foreach ($xagio_files as $xagio_file) {
+                $file_path = $dir . DIRECTORY_SEPARATOR . $xagio_file['name'];
+                if ($xagio_file['type'] === 'd') {
                     self::deleteFolder($file_path);
                 } else {
                     $wp_filesystem->delete($file_path);
@@ -673,7 +673,7 @@ if (!class_exists('XAGIO_MODEL_RESCUE')) {
 
         public static function getFiles($root_path = '', $path = '', $exclusions = [])
         {
-            $files = [];
+            $xagio_files = [];
 
             if (empty($root_path))
                 $root_path = ABSPATH;
@@ -681,17 +681,17 @@ if (!class_exists('XAGIO_MODEL_RESCUE')) {
             $handle = opendir($root_path . $path);
 
             if (!$handle)
-                return $files;
+                return $xagio_files;
 
             // loop through dirs/files
-            while (FALSE !== ($file = readdir($handle))) {
+            while (FALSE !== ($xagio_file = readdir($handle))) {
 
                 // Ignore . and ..
-                if ("." == $file || ".." == $file || in_array($file, $exclusions)) {
+                if ("." == $xagio_file || ".." == $xagio_file || in_array($xagio_file, $exclusions)) {
                     continue;
                 }
 
-                $full_file_name     = ltrim($path . DIRECTORY_SEPARATOR . $file, DIRECTORY_SEPARATOR);
+                $full_file_name     = ltrim($path . DIRECTORY_SEPARATOR . $xagio_file, DIRECTORY_SEPARATOR);
                 $full_dir_file_name = $root_path . $full_file_name;
 
                 // Directory? else file
@@ -699,11 +699,11 @@ if (!class_exists('XAGIO_MODEL_RESCUE')) {
 
                     // We are on a directory lets go one deeper
                     $new_files = XAGIO_MODEL_RESCUE::getFiles($root_path, $full_file_name, $exclusions);
-                    $files     = array_merge($files, $new_files);
+                    $xagio_files     = array_merge($xagio_files, $new_files);
 
                 } else {
 
-                    $files[$full_file_name] = [
+                    $xagio_files[$full_file_name] = [
                         'md5'  => md5_file($full_dir_file_name),
                         'path' => $full_dir_file_name,
                     ];
@@ -714,7 +714,7 @@ if (!class_exists('XAGIO_MODEL_RESCUE')) {
             // Close connection
             closedir($handle);
 
-            return $files;
+            return $xagio_files;
 
         }
 
@@ -723,24 +723,24 @@ if (!class_exists('XAGIO_MODEL_RESCUE')) {
 
             $compiled_list = [];
 
-            foreach ($new_files as $file => $new_data) {
+            foreach ($new_files as $xagio_file => $new_data) {
 
-                if (isset($old_files[$file])) {
+                if (isset($old_files[$xagio_file])) {
 
-                    if ($old_files[$file]['md5'] !== $new_data['md5']) {
-                        $old_files[$file]['action'] = 'force-overwrite';
+                    if ($old_files[$xagio_file]['md5'] !== $new_data['md5']) {
+                        $old_files[$xagio_file]['action'] = 'force-overwrite';
                     } else {
-                        $old_files[$file]['action'] = 'overwrite';
+                        $old_files[$xagio_file]['action'] = 'overwrite';
                     }
 
-                    $old_files[$file]['new_path'] = $new_data['path'];
+                    $old_files[$xagio_file]['new_path'] = $new_data['path'];
 
                 } else {
 
 
-                    $old_files[$file] = [
+                    $old_files[$xagio_file] = [
                         'action'   => 'add',
-                        'path'     => $rootPath . $file,
+                        'path'     => $rootPath . $xagio_file,
                         'new_path' => $new_data['path'],
                         'md5'      => $new_data['md5'],
                     ];
@@ -749,17 +749,17 @@ if (!class_exists('XAGIO_MODEL_RESCUE')) {
 
             }
 
-            foreach ($old_files as $file => $old_data) {
+            foreach ($old_files as $xagio_file => $old_data) {
 
                 if ($multiDimensional) {
 
-                    $parts = explode(DIRECTORY_SEPARATOR, $file);
+                    $parts = explode(DIRECTORY_SEPARATOR, $xagio_file);
 
                     $last_array = &$compiled_list;
 
-                    for ($i = 0; $i < sizeof($parts); $i++) {
+                    for ($xagio_i = 0; $xagio_i < sizeof($parts); $xagio_i++) {
 
-                        $last_array =& $last_array[$parts[$i]];
+                        $last_array =& $last_array[$parts[$xagio_i]];
 
                     }
 
@@ -778,7 +778,7 @@ if (!class_exists('XAGIO_MODEL_RESCUE')) {
                         continue;
                     }
 
-                    $compiled_list[$file] = $old_data;
+                    $compiled_list[$xagio_file] = $old_data;
 
                 }
 

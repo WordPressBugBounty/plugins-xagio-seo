@@ -146,8 +146,8 @@ if (!class_exists('XAGIO_MODEL_REDIRECTS')) {
             $redirects   = $wpdb->get_results('SELECT * FROM xag_redirects', ARRAY_A);
             $current_url = isset($_SERVER['REQUEST_URI']) ? sanitize_url(wp_unslash($_SERVER['REQUEST_URI'])) : '';
 
-            foreach ($redirects as $r) {
-                if ($r['is_redirect_active'] == 0) continue;
+            foreach ($redirects as $xagio_r) {
+                if ($xagio_r['is_redirect_active'] == 0) continue;
 
                 // Clean up the current URL and redirect URL
                 $request_uri = strtok($current_url, '?');
@@ -155,26 +155,26 @@ if (!class_exists('XAGIO_MODEL_REDIRECTS')) {
                 $request_uri_ltrim = ltrim($request_uri, '/');
 
                 // Clean up the old redirect URL
-                $old_url = strtok($r['old'], '?');
+                $old_url = strtok($xagio_r['old'], '?');
                 $old_url = rtrim($old_url, '/');
                 $old_url = ltrim($old_url, '/');
 
                 // Check if URLs match after normalization
                 $isRedirectMatch = ($request_uri_ltrim === $old_url);
-                $isFrontPageOrHome = $r['old'] === FALSE && (is_front_page() || is_home());
+                $isFrontPageOrHome = $xagio_r['old'] === FALSE && (is_front_page() || is_home());
 
                 if ($isRedirectMatch || $isFrontPageOrHome) {
                     // Determine redirect type once
-                    $isExternal = strpos($r['new'], 'http') !== FALSE;
+                    $isExternal = strpos($xagio_r['new'], 'http') !== FALSE;
 
                     if ($isExternal) {
-                        $redirectUrl = $r['new'];
+                        $redirectUrl = $xagio_r['new'];
                     } else {
                         // Ensure internal redirects maintain a consistent trailing slash
-                        $redirectUrl = site_url('/' . trim($r['new'], '/') . '/');
+                        $redirectUrl = site_url('/' . trim($xagio_r['new'], '/'));
                     }
 
-                    wp_redirect($redirectUrl, 301);
+                    xagio_redirect($redirectUrl, 301);
                     exit;
                 }
             }
@@ -190,7 +190,7 @@ if (!class_exists('XAGIO_MODEL_REDIRECTS')) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $ID = intval($_POST['id']);
+            $ID = sanitize_text_field(wp_unslash($_POST['id']));
 
             $RemoveIDs = explode(',', $ID);
 
@@ -198,30 +198,111 @@ if (!class_exists('XAGIO_MODEL_REDIRECTS')) {
                 $wpdb->delete('xag_redirects', ['id' => $i_d]);
             }
 
+            xagio_json('success', 'Selected redirects successfully deleted.');
         }
 
         public static function deleteAllRedirects()
         {
             global $wpdb;
             $wpdb->query('TRUNCATE TABLE xag_redirects');
+
+            xagio_json('success', 'All redirects successfully deleted.');
         }
 
 
-        public static function getRedirects()
-        {
+        public static function getRedirects() {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             global $wpdb;
 
-            // Prepare the query using wpdb::prepare()
+            // Paging
+            $start  = isset($_POST['iDisplayStart']) ? absint($_POST['iDisplayStart']) : 0;
+            $length = isset($_POST['iDisplayLength']) ? absint($_POST['iDisplayLength']) : 3000;
 
-            // Execute the query and fetch results
-            $results = $wpdb->get_results(
-                "SELECT id, old, new, is_redirect_active, DATE_FORMAT(date_created, '%b %D, %Y') as date_created 
-         FROM xag_redirects", ARRAY_A
-            );
+            if ($length < 1) {
+                $length = 3000;
+            }
+            if ($length > 3000) {
+                $length = 3000;
+            }
 
-            // Return the results in JSON format
-            xagio_json('success', 'Retrieved all redirects.', $results);
+            // Search (value only)
+            $sSearch = isset($_POST['sSearch']) ? sanitize_text_field(wp_unslash($_POST['sSearch'])) : '';
+            $like    = ($sSearch !== '') ? ('%' . $wpdb->esc_like($sSearch) . '%') : '';
+
+            // ORDER BY (whitelist)
+            $sortable = [
+                0 => 'id',
+                1 => '`old`',
+                2 => '`new`',
+                3 => 'is_redirect_active',
+                4 => 'date_created',
+            ];
+
+            $order_by  = 'id';
+            $order_dir = 'DESC';
+
+            if (isset($_POST['iSortCol_0'])) {
+                $idx = absint($_POST['iSortCol_0']);
+                if (isset($sortable[$idx])) {
+                    $order_by = $sortable[$idx];
+                }
+            }
+            if (isset($_POST['sSortDir_0'])) {
+                $dir = strtolower(sanitize_text_field(wp_unslash($_POST['sSortDir_0'])));
+                $order_dir = ($dir === 'asc') ? 'ASC' : 'DESC';
+            }
+
+            // Query (table name directly, no variables injected other than $wpdb->prefix)
+            if ($like !== '') {
+                $rows = $wpdb->get_results(
+                    $wpdb->prepare(
+                        "SELECT SQL_CALC_FOUND_ROWS id, `old`, `new`, is_redirect_active, date_created
+                 FROM xag_redirects
+                 WHERE (`old` LIKE %s OR `new` LIKE %s)
+                 ORDER BY {$order_by} {$order_dir}
+                 LIMIT %d, %d",
+                        $like,
+                        $like,
+                        $start,
+                        $length
+                    ),
+                    ARRAY_A
+                );
+            } else {
+                $rows = $wpdb->get_results(
+                    $wpdb->prepare(
+                        "SELECT SQL_CALC_FOUND_ROWS id, `old`, `new`, is_redirect_active, date_created
+                 FROM xag_redirects
+                 ORDER BY {$order_by} {$order_dir}
+                 LIMIT %d, %d",
+                        $start,
+                        $length
+                    ),
+                    ARRAY_A
+                );
+            }
+
+            $iFilteredTotal = (int) $wpdb->get_var('SELECT FOUND_ROWS()');
+            $iTotal         = (int) $wpdb->get_var("SELECT COUNT(*) FROM xag_redirects");
+
+            $datt = [];
+            foreach ($rows as $d) {
+                $d['date_created'] = gmdate("M dS, Y", strtotime($d['date_created']));
+                $datt[] = $d;
+            }
+
+            $xagio_output = [
+                "sEcho"                => isset($_POST['sEcho']) ? absint($_POST['sEcho']) : 0,
+                "iTotalRecords"        => $iTotal,
+                "iTotalDisplayRecords" => $iFilteredTotal,
+                "aaData"               => $datt,
+            ];
+
+            wp_send_json($xagio_output);
         }
+
+
 
 
         public static function toggleRedirect()
@@ -247,10 +328,10 @@ if (!class_exists('XAGIO_MODEL_REDIRECTS')) {
             if (isset($oldUrl)) {
                 $redirects = $wpdb->get_results('SELECT * FROM xag_redirects', ARRAY_A);
 
-                foreach ($redirects as $r) {
+                foreach ($redirects as $xagio_r) {
 
-                    $id   = $r['id'];
-                    $slug = $r['old'];
+                    $id   = $xagio_r['id'];
+                    $slug = $xagio_r['old'];
                     $slug = ltrim($slug, '/');
                     $slug = rtrim($slug, '/');
 

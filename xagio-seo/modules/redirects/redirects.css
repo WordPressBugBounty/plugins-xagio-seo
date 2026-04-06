@@ -157,3 +157,98 @@ td.column-url a {
 .xagio-panel-title.xagio-margin-bottom-large {
     margin-bottom: 40px;
 }
+
+.select2.select2-container {
+    padding: 7px 25px !important;
+    background-color: var(--color-xagio-white-secondary) !important;
+    color: #646970 !important;
+    border-radius: 10px;
+}
+
+.select2.select2-container.select2-container--open.select2-container--below {
+    border-radius: 10px 10px 0 0;
+}
+.select2.select2-container.select2-container--open.select2-container--above {
+    border-radius: 0 0 10px 10px;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__arrow, .select2-container--default .select2-selection--multiple .select2-selection__arrow {
+    height: 40px;
+}
+.select2-container--default .select2-selection--single, .select2-container--default .select2-selection--multiple {
+    background-color: #f8f8f8;
+    border: none;
+    border-radius: 0;
+}
+.select2-container .select2-selection--single .select2-selection__rendered, .select2-container .select2-selection--multiple .select2-selection__rendered {
+    padding-left: 0;
+}
+.xagio-input-select.xagio-input-select-gray {
+    height: 49px;
+}
+.select2-search.select2-search--inline {
+    margin-bottom: 0;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    color: white !important;
+    margin: 0 !important;
+}
+
+span.select2-selection.select2-selection--multiple {
+    border: 0 !important;
+    display: flex !important;
+}
+
+span.select2-dropdown.select2-dropdown--below,
+span.select2-dropdown.select2-dropdown--above {
+    border: 0;
+    background: #f8f8f8;
+    padding: 10px 20px;
+}
+span.select2-dropdown.select2-dropdown--below {
+    border-radius: 0 0 10px 10px;
+}
+span.select2-dropdown.select2-dropdown--above {
+    border-radius: 10px 10px 0 0;
+}
+
+li.select2-selection__choice {
+    border: none !important;
+    -moz-border-radius: 2px !important;
+    -webkit-border-radius: 2px !important;
+    padding: 6px 15px !important;
+    text-decoration: none !important;
+    background: #1e4674 !important;
+    color: white !important;
+    border-radius: 6px !important;
+    font-size: 12px !important;
+    margin: 0 !important;
+    display: flex;
+    gap: 5px;
+}
+.select2-container--default .select2-selection--multiple .select2-selection__rendered {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.select2-results__group {
+    background: var(--color-xagio-blue);
+    color: white;
+    padding: 6px 13px !important;
+}
+
+table.xagio-table .xagio-toggle-ref-table td {
+    padding : 4px 24px;
+}
+table.xagio-table .xagio-toggle-ref-table tr:first-child td {
+    padding-top : 0px;
+    border-bottom: none;
+}
+table.xagio-table .xagio-toggle-ref-table tr:last-child td {
+    border-bottom: none;
+}
+table.xagio-table.logTable .xagio-toggle-ref-table td:nth-child(3) {
+    color: inherit;
+}

@@ -10,6 +10,9 @@ if (!class_exists('XAGIO_CORE')) {
         // Init the plugin
         public static function init()
         {
+            // Set the initial defines
+            XAGIO_CORE::getUserPermissions();
+
             // Init the models
             XAGIO_CORE::loadModels();
 
@@ -18,6 +21,19 @@ if (!class_exists('XAGIO_CORE')) {
 
             // Perform a version check
             XAGIO_CORE::checkVersion();
+        }
+
+        public static function getUserPermissions() {
+            // Check for Permissions
+            $current_user = wp_get_current_user();
+
+            // If no user is found, assume an unauthenticated request (user ID 0)
+            if (!isset($current_user->ID) || 0 == $current_user->ID) {
+                define('XAGIO_HAS_ADMIN_PERMISSIONS', false);
+                return;
+            }
+
+            define('XAGIO_HAS_ADMIN_PERMISSIONS', user_can($current_user, 'manage_options'));
         }
 
         // Load all available Modules and init them
@@ -130,8 +146,11 @@ if (!class_exists('XAGIO_CORE')) {
                 return $page1['Position'] <=> $page2['Position'];
             });
 
-
             foreach ($pages as $page) {
+
+                if (!XAGIO_DEV_MODE && $page['Slug'] == 'xagio-test') {
+                    continue;
+                }
 
                 $page_hook_suffix = NULL;
 
@@ -181,7 +200,7 @@ if (!class_exists('XAGIO_CORE')) {
         public static function registerAssets()
         {
             // Register Fonts
-            wp_register_style('xagio_font_outfit', XAGIO_URL . 'assets/css/fonts/Outfit/outfit.css', [], '1.0');
+            wp_register_style('xagio_font_outfit', XAGIO_URL . 'assets/css/fonts/Outfit/outfit.css', [], XAGIO_CURRENT_VERSION);
 
             // Register all scripts that we'll load
             $vendor_scripts = glob(XAGIO_PATH . '/assets/js/vendor/*.js');
@@ -190,7 +209,7 @@ if (!class_exists('XAGIO_CORE')) {
             foreach (array_merge($vendor_scripts, $global_scripts, $page_scripts) as $script) {
                 $script      = str_replace(XAGIO_PATH . '/', '', $script);
                 $script_name = str_replace('.js', '', basename($script));
-                wp_register_script('xagio_' . $script_name, XAGIO_URL . $script, ['jquery'], '1.0', true);
+                wp_register_script('xagio_' . $script_name, XAGIO_URL . $script, ['jquery'], XAGIO_CURRENT_VERSION, true);
             }
 
             /**
@@ -203,18 +222,19 @@ if (!class_exists('XAGIO_CORE')) {
                          'xagio_global'
                      ] as $script) {
                 wp_localize_script($script, 'xagio_data', [
-                    'wp_get'      => admin_url('admin-ajax.php'),
-                    'wp_post'     => admin_url('admin-post.php'),
-                    'wp_admin'    => admin_url(),
-                    'plugins_url' => plugins_url('/', dirname(__FILE__)),
-                    'site_name'   => get_bloginfo('name'),
-                    'site_url'    => get_site_url(),
-                    'panel_url'   => XAGIO_PANEL_URL,
-                    'domain'      => XAGIO_DOMAIN,
-                    'uploads_dir' => wp_upload_dir(),
-                    'connected'   => XAGIO_CONNECTED,
-                    'api_key'     => XAGIO_API::getAPIKey(),
-                    'nonce'       => wp_create_nonce('xagio_nonce')
+                    'wp_get'          => admin_url('admin-ajax.php'),
+                    'wp_post'         => admin_url('admin-post.php'),
+                    'wp_admin'        => admin_url(),
+                    'plugins_url'     => plugins_url('/', dirname(__FILE__)),
+                    'site_name'       => get_bloginfo('name'),
+                    'site_url'        => get_site_url(),
+                    'panel_url'       => XAGIO_PANEL_URL,
+                    'domain'          => XAGIO_DOMAIN,
+                    'uploads_dir'     => wp_upload_dir(),
+                    'connected'       => XAGIO_CONNECTED,
+                    'nonce'           => wp_create_nonce('xagio_nonce'),
+                    '_wpnonce'        => wp_create_nonce('elementor_revert_kit'),
+                    'elementor_nonce' => wp_create_nonce('elementor_ajax')
                 ]);
             }
 
@@ -225,7 +245,7 @@ if (!class_exists('XAGIO_CORE')) {
             foreach (array_merge($vendor_styles, $global_styles, $page_styles) as $style) {
                 $style      = str_replace(XAGIO_PATH . '/', '', $style);
                 $style_name = str_replace('.css', '', basename($style));
-                wp_register_style('xagio_' . $style_name, XAGIO_URL . $style, [], '1.0');
+                wp_register_style('xagio_' . $style_name, XAGIO_URL . $style, [], XAGIO_CURRENT_VERSION);
             }
         }
 
@@ -250,10 +270,10 @@ if (!class_exists('XAGIO_CORE')) {
         }
 
         // Enqueue scripts admin scripts
-        public static function loadAdminAssets($hook)
+        public static function loadAdminAssets($xagio_hook)
         {
 
-            if ($hook == 'post-new.php' || $hook == 'post.php' || $hook == 'term.php') {
+            if ($xagio_hook == 'post-new.php' || $xagio_hook == 'post.php' || $xagio_hook == 'term.php') {
 
                 wp_enqueue_style('xagio_chosen');
                 wp_enqueue_style('xagio_admin');
@@ -282,7 +302,7 @@ if (!class_exists('XAGIO_CORE')) {
 
             } else {
 
-                if ($hook === 'xagio_page_xagio-projectplanner') {
+                if ($xagio_hook === 'xagio_page_xagio-projectplanner') {
                     wp_enqueue_media();
                 }
 
@@ -302,15 +322,27 @@ if (!class_exists('XAGIO_CORE')) {
         {
             // Enqueue Scripts
             wp_enqueue_script('xagio_user');
+
+            if (!current_user_can('manage_options')) {
+                return;
+            }
+
+            if ((is_admin() && isset($_GET['action']) && $_GET['action'] === 'elementor') || isset($_GET['elementor-preview'])) {
+                return;
+            }
+
+            wp_enqueue_script('xagio_frontend');
+            wp_enqueue_style('xagio_frontend');
+            wp_enqueue_style('xagio_font_outfit');
         }
 
         // Add custom action links
-        public static function customActionLinks($links, $file)
+        public static function customActionLinks($links, $xagio_file)
         {
-            if ($file == XAGIO_SLUG) {
-                $custom_links = [];
+            if ($xagio_file == XAGIO_SLUG) {
+                $custom_links   = [];
                 $custom_links[] = '<a target="popup" rel="noopener noreferrer" onclick="window.open(\'https://tawk.to/chat/5f9af4237f0a8e57c2d8421e/default\',\'popup\',\'width=600,height=600\'); return false;" href="https://tawk.to/chat/5f9af4237f0a8e57c2d8421e/default">Get Support</a>';
-                $links = array_merge($custom_links, $links);
+                $links          = array_merge($custom_links, $links);
             }
             return $links;
         }

@@ -16,8 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 // Changed xagio_stripAllSlashes to stripslashes_deep because of Avada Update
 /* Removed wp_strip_all_tags because of prevent the option to be empty */
-$ps_review = stripslashes_deep(get_option('XAGIO_REVIEW'));
-$MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
+$xagio_review = stripslashes_deep(get_option('XAGIO_REVIEW'));
+$XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 ?>
 
 <div class="xagio-main-header xagio-main-header-big-gaps">
@@ -27,7 +27,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
     </h2>
     <div class="xagio-header-actions">
         <button class="xagio-button xagio-button-primary add_review"><i class="xagio-icon xagio-icon-plus"></i> Add new review</button>
-        <?php if(isset($MEMBERSHIP_INFO["membership"]) && $MEMBERSHIP_INFO["membership"] === "Xagio AI Free") { ?>
+        <?php if(isset($XAGIO_MEMBERSHIP_INFO["membership"]) && $XAGIO_MEMBERSHIP_INFO["membership"] === "Xagio AI Free") { ?>
             <a href="https://xagio.com/?goto=wppremfeatures" target="_blank" class="xagio-button xagio-button-secondary xagio-button-premium-button">
                 See Xagio Premium Features
             </a>
@@ -154,25 +154,25 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                             <div class="xagio-2-column-grid">
                                                 <div>
                                                     <div class="xagio-slider-container">
-                                                        <input type="hidden" name="XAGIO_REVIEW[settings][per_page_reviews]" id="per_page_reviews" value="<?php echo  (@$ps_review['settings']['per_page_reviews'] == 1) ? 1 : 0; ?>">
+                                                        <input type="hidden" name="XAGIO_REVIEW[settings][per_page_reviews]" id="per_page_reviews" value="<?php echo (($xagio_review['settings']['per_page_reviews'] ?? null) == 1) ? 1 : 0; ?>">
                                                         <div class="xagio-slider-frame">
-                                                            <span class="xagio-slider-button <?php echo  (@$ps_review['settings']['per_page_reviews'] == 1) ? 'on' : ''; ?>" data-element="per_page_reviews"></span>
+                                                            <span class="xagio-slider-button <?php echo (($xagio_review['settings']['per_page_reviews'] ?? null) == 1) ? 'on' : ''; ?>" data-element="per_page_reviews"></span>
                                                         </div>
                                                         <p class="xagio-slider-label">Use Per Page Reviews <i class="xagio-icon xagio-icon-info help-icon" data-xagio-tooltip data-xagio-title="Reviews will be visible only on specific pages/posts where they were originally left. Useful if you have a website selling products."></i></p>
                                                     </div>
 
                                                     <div class="xagio-slider-container">
-                                                        <input type="hidden" name="XAGIO_REVIEW[settings][prevent_multiple]" id="prevent_multiple" value="<?php echo  (@$ps_review['settings']['prevent_multiple'] == 1) ? 1 : 0; ?>">
+                                                        <input type="hidden" name="XAGIO_REVIEW[settings][prevent_multiple]" id="prevent_multiple" value="<?php echo (($xagio_review['settings']['prevent_multiple'] ?? null) == 1) ? 1 : 0; ?>">
                                                         <div class="xagio-slider-frame">
-                                                            <span class="xagio-slider-button <?php echo  (@$ps_review['settings']['prevent_multiple'] == 1) ? 'on' : ''; ?>" data-element="prevent_multiple"></span>
+                                                            <span class="xagio-slider-button <?php echo (($xagio_review['settings']['prevent_multiple'] ?? null) == 1) ? 'on' : ''; ?>" data-element="prevent_multiple"></span>
                                                         </div>
                                                         <p class="xagio-slider-label">Stop Multiple Reviews <i class="xagio-icon xagio-icon-info help-icon" data-xagio-tooltip data-xagio-title="Adds cookie tracking to your visitors to prevent adding more than one review per day."></i></p>
                                                     </div>
 
                                                     <div class="xagio-slider-container">
-                                                        <input type="hidden" name="XAGIO_REVIEW[settings][reviews_approve]" id="reviews_approve" value="<?php echo  (@$ps_review['settings']['reviews_approve'] == 1) ? 1 : 0; ?>">
+                                                        <input type="hidden" name="XAGIO_REVIEW[settings][reviews_approve]" id="reviews_approve" value="<?php echo (($xagio_review['settings']['reviews_approve'] ?? null) == 1) ? 1 : 0; ?>">
                                                         <div class="xagio-slider-frame">
-                                                            <span class="xagio-slider-button <?php echo  (@$ps_review['settings']['reviews_approve'] == 1) ? 'on' : ''; ?>" data-element="reviews_approve"></span>
+                                                            <span class="xagio-slider-button <?php echo (($xagio_review['settings']['reviews_approve'] ?? null) == 1) ? 'on' : ''; ?>" data-element="reviews_approve"></span>
                                                         </div>
                                                         <p class="xagio-slider-label">Auto Approve Reviews <i class="xagio-icon xagio-icon-info help-icon" data-xagio-tooltip data-xagio-title="If you turn on this option, reviews will be automatically approved without the need for your interaction. If you're using ratings instead of reviews, please see the next option on the right."></i></p>
                                                     </div>
@@ -180,16 +180,16 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                                 </div>
                                                 <div>
                                                     <div class="xagio-slider-container">
-                                                        <input type="hidden" name="XAGIO_REVIEW[settings][natural_reviews]" id="natural_reviews" value="<?php echo  (@$ps_review['settings']['natural_reviews'] == 1) ? 1 : 0; ?>">
+                                                        <input type="hidden" name="XAGIO_REVIEW[settings][natural_reviews]" id="natural_reviews" value="<?php echo (($xagio_review['settings']['natural_reviews'] ?? null) == 1) ? 1 : 0; ?>">
                                                         <div class="xagio-slider-frame">
-                                                            <span class="xagio-slider-button <?php echo  (@$ps_review['settings']['natural_reviews'] == 1) ? 'on' : ''; ?>" data-element="natural_reviews"></span>
+                                                            <span class="xagio-slider-button <?php echo (($xagio_review['settings']['natural_reviews'] ?? null) == 1) ? 'on' : ''; ?>" data-element="natural_reviews"></span>
                                                         </div>
                                                         <p class="xagio-slider-label">Natural Reviews <i class="xagio-icon xagio-icon-info help-icon" data-xagio-tooltip data-xagio-title="All ratings from reviews will be calculated into assigned Schema(s) for current page/post."></i></p>
                                                     </div>
                                                     <div class="xagio-slider-container">
-                                                        <input type="hidden" name="XAGIO_REVIEW[settings][stars_approve]" id="stars_approve" value="<?php echo  (@$ps_review['settings']['stars_approve'] == 1) ? 1 : 0; ?>">
+                                                        <input type="hidden" name="XAGIO_REVIEW[settings][stars_approve]" id="stars_approve" value="<?php echo (($xagio_review['settings']['stars_approve'] ?? null) == 1) ? 1 : 0; ?>">
                                                         <div class="xagio-slider-frame">
-                                                            <span class="xagio-slider-button <?php echo  (@$ps_review['settings']['stars_approve'] == 1) ? 'on' : ''; ?>" data-element="stars_approve"></span>
+                                                            <span class="xagio-slider-button <?php echo (($xagio_review['settings']['stars_approve'] ?? null) == 1) ? 'on' : ''; ?>" data-element="stars_approve"></span>
                                                         </div>
                                                         <p class="xagio-slider-label">Auto Approve Ratings <i class="xagio-icon xagio-icon-info help-icon" data-xagio-tooltip data-xagio-title="If you have Widget Ratings Mode activated globally, or for certain pages using a shortcode, you can turn on this option to automatically approve ratings."></i></p>
                                                     </div>
@@ -210,32 +210,32 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                             <div class="xagio-2-column-grid">
                                                 <div>
                                                     <div class="xagio-slider-container">
-                                                        <input type="hidden" name="XAGIO_REVIEW[settings][popup]" id="popup" value="<?php echo  (@$ps_review['settings']['popup'] == 1) ? 1 : 0; ?>">
+                                                        <input type="hidden" name="XAGIO_REVIEW[settings][popup]" id="popup" value="<?php echo (($xagio_review['settings']['popup'] ?? null) == 1) ? 1 : 0; ?>">
                                                         <div class="xagio-slider-frame">
-                                                            <span class="xagio-slider-button <?php echo  (@$ps_review['settings']['popup'] == 1) ? 'on' : ''; ?>" data-element="popup"></span>
+                                                            <span class="xagio-slider-button <?php echo (($xagio_review['settings']['popup'] ?? null) == 1) ? 'on' : ''; ?>" data-element="popup"></span>
                                                         </div>
                                                         <p class="xagio-slider-label">Button Popup Mode <i class="xagio-icon xagio-icon-info help-icon" data-xagio-tooltip data-xagio-title="Instead of showing Review Widget directly on page, this will make it appear as a popup when clicked on a button. Useful if you have limited space on your website."></i></p>
                                                     </div>
                                                 </div>
                                                 <div>
-                                                    <div class="xagio-slider-container" style="<?php echo  (@$ps_review['settings']['popup'] == 0) ? 'display:none;' : ''; ?>">
-                                                        <input type="hidden" name="XAGIO_REVIEW[settings][popup_text]" id="popup_text" value="<?php echo  (@$ps_review['settings']['popup_text'] == 1) ? 1 : 0; ?>">
+                                                    <div class="xagio-slider-container" style="<?php echo (($xagio_review['settings']['popup'] ?? 1) == 0) ? 'display:none;' : ''; ?>">
+                                                        <input type="hidden" name="XAGIO_REVIEW[settings][popup_text]" id="popup_text" value="<?php echo (isset($xagio_review['settings']['popup_text']) && $xagio_review['settings']['popup_text'] == 1) ? 1 : 0; ?>">
                                                         <div class="xagio-slider-frame">
-                                                            <span class="xagio-slider-button <?php echo  (@$ps_review['settings']['popup_text'] == 1) ? 'on' : ''; ?>" data-element="popup_text"></span>
+                                                            <span class="xagio-slider-button <?php echo (isset($xagio_review['settings']['popup_text']) && $xagio_review['settings']['popup_text'] == 1) ? 'on' : ''; ?>" data-element="popup_text"></span>
                                                         </div>
                                                         <p class="xagio-slider-label">Use Text Popup Button <i class="xagio-icon xagio-icon-info help-icon" data-xagio-tooltip data-xagio-title="If you want to display a text link instead of a button to display the review widget popup, turn this on."></i></p>
                                                     </div>
-                                                    <div class="xagio-slider-container" style="<?php echo  (@$ps_review['settings']['popup'] == 0) ? 'display:none;' : ''; ?>">
-                                                        <input type="hidden" name="XAGIO_REVIEW[settings][exit_popup]" id="exit_popup" value="<?php echo  (@$ps_review['settings']['exit_popup'] == 1) ? 1 : 0; ?>">
+                                                    <div class="xagio-slider-container" style="<?php echo (($xagio_review['settings']['popup'] ?? 1) == 0) ? 'display:none;' : ''; ?>">
+                                                        <input type="hidden" name="XAGIO_REVIEW[settings][exit_popup]" id="exit_popup" value="<?php echo (($xagio_review['settings']['exit_popup'] ?? null) == 1) ? 1 : 0; ?>">
                                                         <div class="xagio-slider-frame">
-                                                            <span class="xagio-slider-button <?php echo  (@$ps_review['settings']['exit_popup'] == 1) ? 'on' : ''; ?>" data-element="exit_popup"></span>
+                                                            <span class="xagio-slider-button <?php echo (($xagio_review['settings']['exit_popup'] ?? null) == 1) ? 'on' : ''; ?>" data-element="exit_popup"></span>
                                                         </div>
                                                         <p class="xagio-slider-label">Exit Popup Mode <i class="xagio-icon xagio-icon-info help-icon" data-xagio-tooltip data-xagio-title="Stop visitors from leaving your website without leaving a review! This operation will be only available when Popup Mode is enabled."></i></p>
                                                     </div>
                                                 </div>
                                             </div>
                                             <label class="xagio-label-text" for="popup_button_title">Popup Button Text: <i class="xagio-icon xagio-icon-info" data-xagio-tooltip data-xagio-title="Changes the text of a button used to display review widget in popup mode."></i></label>
-                                            <input type="text" class="xagio-input-text-mini" value="<?php echo  esc_attr(@$ps_review['details']['popup_button_title']); ?>" id="popup_button_title" name="XAGIO_REVIEW[details][popup_button_title]" placeholder="eg. Submit"/>
+                                            <input type="text" class="xagio-input-text-mini" value="<?php echo esc_attr($xagio_review['details']['popup_button_title'] ?? ''); ?>" id="popup_button_title" name="XAGIO_REVIEW[details][popup_button_title]" placeholder="eg. Submit"/>
                                         </div>
                                     </div>
                                 </div>
@@ -251,18 +251,18 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                             <div class="xagio-2-column-grid">
                                                 <div>
                                                     <div class="xagio-slider-container">
-                                                        <input type="hidden" name="XAGIO_REVIEW[settings][stars_only]" id="stars_only" value="<?php echo  (@$ps_review['settings']['stars_only'] == 1) ? 1 : 0; ?>">
+                                                        <input type="hidden" name="XAGIO_REVIEW[settings][stars_only]" id="stars_only" value="<?php echo (($xagio_review['settings']['stars_only'] ?? null) == 1) ? 1 : 0; ?>">
                                                         <div class="xagio-slider-frame">
-                                                            <span class="xagio-slider-button <?php echo  (@$ps_review['settings']['stars_only'] == 1) ? 'on' : ''; ?>" data-element="stars_only"></span>
+                                                            <span class="xagio-slider-button <?php echo (($xagio_review['settings']['stars_only'] ?? null) == 1) ? 'on' : ''; ?>" data-element="stars_only"></span>
                                                         </div>
                                                         <p class="xagio-slider-label">Widget Ratings Mode <i class="xagio-icon xagio-icon-info help-icon" data-xagio-tooltip data-xagio-title="Turns Review Widget into the Ratings Widget. Basically removes Submit Review button along with all other input fields except stars and instead adds ratings when stars are clicked."></i></p>
                                                     </div>
                                                 </div>
                                                 <div>
                                                     <div class="xagio-slider-container">
-                                                        <input type="hidden" name="XAGIO_REVIEW[settings][alpha_bg]" id="alpha_bg" value="<?php echo  (@$ps_review['settings']['alpha_bg'] == 1) ? 1 : 0; ?>">
+                                                        <input type="hidden" name="XAGIO_REVIEW[settings][alpha_bg]" id="alpha_bg" value="<?php echo (($xagio_review['settings']['alpha_bg'] ?? null) == 1) ? 1 : 0; ?>">
                                                         <div class="xagio-slider-frame">
-                                                            <span class="xagio-slider-button <?php echo  (@$ps_review['settings']['alpha_bg'] == 1) ? 'on' : ''; ?>" data-element="alpha_bg"></span>
+                                                            <span class="xagio-slider-button <?php echo (($xagio_review['settings']['alpha_bg'] ?? null) == 1) ? 'on' : ''; ?>" data-element="alpha_bg"></span>
                                                         </div>
                                                         <p class="xagio-slider-label">Alpha Widget Mode <i class="xagio-icon xagio-icon-info help-icon" data-xagio-tooltip data-xagio-title="If you want your widget to blend in with the rest of the background, use this option."></i></p>
                                                     </div>
@@ -281,10 +281,10 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                     <div>
                                         <div class="xagio-accordion-panel">
                                             <label for="details_thank_you" class="xagio-label-text">Thank You - Message: <i class="xagio-icon xagio-icon-info" data-xagio-tooltip data-xagio-title="Changes the message user receives after he leaves a review."></i></label>
-                                            <input type="text" class="xagio-input-text-mini" id="details_thank_you" value="<?php echo esc_attr(@$ps_review['details']['thank_you']); ?>" name="XAGIO_REVIEW[details][thank_you]" placeholder="eg. Thank you for leaving a Review!"/>
+                                            <input type="text" class="xagio-input-text-mini" id="details_thank_you" value="<?php echo esc_attr($xagio_review['details']['thank_you'] ?? ''); ?>" name="XAGIO_REVIEW[details][thank_you]" placeholder="eg. Thank you for leaving a Review!"/>
 
                                             <label for="details_no_reviews_message" class="xagio-label-text">No Reviews - Message: <i class="xagio-icon xagio-icon-info" data-xagio-tooltip data-xagio-title="Changes the message user sees when there are no reviews for current content."></i></label>
-                                            <input type="text" class="xagio-input-text-mini" id="details_no_reviews_message" value="<?php echo esc_attr(@$ps_review['details']['no_reviews_message']); ?>" name="XAGIO_REVIEW[details][no_reviews_message]" placeholder="eg. Nobody yet left a review. Be first?!"/>
+                                            <input type="text" class="xagio-input-text-mini" id="details_no_reviews_message" value="<?php echo esc_attr($xagio_review['details']['no_reviews_message'] ?? ''); ?>" name="XAGIO_REVIEW[details][no_reviews_message]" placeholder="eg. Nobody yet left a review. Be first?!"/>
 
                                             <?php if (class_exists('XAGIO_MODEL_REVIEWS')): ?>
 
@@ -310,7 +310,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 
                                 <p class="xagio-text-info">In this section you can choose which fields should be present / required on your Review Widget. You can also change the order of fields by dragging them around the list.</p>
 
-                                <input type="hidden" name="XAGIO_REVIEW[fields]" value="<?php echo  (@$ps_review['fields'] != NULL) ? esc_attr($ps_review['fields']) : '' ?>"/>
+                                <input type="hidden" name="XAGIO_REVIEW[fields]" value="<?php echo (isset($xagio_review['fields']) ? esc_attr($xagio_review['fields']) : ''); ?>"/>
 
                                 <ul class="uk-sortable fields" data-uk-sortable="{handleClass:'uk-sortable-handle'}">
 
@@ -475,39 +475,36 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                             <div class="xagio-2-column-grid">
                                                 <div>
                                                     <label for="details_title" class="xagio-label-text">Heading: <i class="xagio-icon xagio-icon-info" data-xagio-tooltip data-xagio-title="Changes the main heading of the Review Widget. HTML allowed."></i></label>
-                                                    <input type="text" class="xagio-input-text-mini" id="details_title" value="<?php echo esc_attr(@$ps_review['details']['title']); ?>" name="XAGIO_REVIEW[details][title]" placeholder="eg. Leave a Review"/>
+                                                    <input type="text" class="xagio-input-text-mini" id="details_title" value="<?php echo esc_attr($xagio_review['details']['title'] ?? ''); ?>" name="XAGIO_REVIEW[details][title]" placeholder="eg. Leave a Review"/>
 
                                                     <label for="details_text" class="xagio-label-text">Subheading: <i class="xagio-icon xagio-icon-info" data-xagio-tooltip data-xagio-title="Changes the subheading of the Review Widget. HTML allowed."></i></label>
-                                                    <textarea rows="1" class="xagio-input-textarea" id="details_text" name="XAGIO_REVIEW[details][text]" placeholder="eg. Describe what should your visitors do..."><?php echo esc_textarea(@$ps_review['details']['text']); ?></textarea>
+                                                    <textarea rows="1" class="xagio-input-textarea" id="details_text" name="XAGIO_REVIEW[details][text]" placeholder="eg. Describe what should your visitors do..."><?php echo esc_textarea($xagio_review['details']['text'] ?? ''); ?></textarea>
 
                                                     <label for="details_button_title" class="xagio-label-text">Submit Button Text: <i class="xagio-icon xagio-icon-info" data-xagio-tooltip data-xagio-title="Changes the text of a button used to submit reviews."></i></label>
-                                                    <input type="text" class="xagio-input-text-mini" id="details_button_title" value="<?php echo esc_attr(@$ps_review['details']['button_title']); ?>" name="XAGIO_REVIEW[details][button_title]" placeholder="eg. Submit"/>
+                                                    <input type="text" class="xagio-input-text-mini" id="details_button_title" value="<?php echo esc_attr($xagio_review['details']['button_title'] ?? ''); ?>" name="XAGIO_REVIEW[details][button_title]" placeholder="eg. Submit"/>
                                                 </div>
                                                 <div>
-
                                                     <label for="heading-size" class="xagio-label-text">Heading Size:</label>
                                                     <div class="xagio-flex-row xagio-min-height-40">
-                                                        <input type="range" value="<?php echo esc_attr(@$ps_review['font_size']['heading']) ?>" min="10" max="40" name="XAGIO_REVIEW[font_size][heading]" id="heading-size" class="xagio-range"/>
+                                                        <input type="range" value="<?php echo esc_attr($xagio_review['font_size']['heading'] ?? 14); ?>" min="10" max="40" name="XAGIO_REVIEW[font_size][heading]" id="heading-size" class="xagio-range"/>
                                                     </div>
 
                                                     <label for="subheading-size" class="xagio-label-text">Subheading Size:</label>
                                                     <div class="xagio-flex-row xagio-margin-bottom-medium xagio-min-height-40">
-                                                        <input type="range" value="<?php echo esc_attr(@$ps_review['font_size']['subheading']) ?>" min="8" max="20" name="XAGIO_REVIEW[font_size][subheading]" id="subheading-size" class="xagio-range"/>
+                                                        <input type="range" value="<?php echo esc_attr($xagio_review['font_size']['subheading'] ?? 12); ?>" min="8" max="20" name="XAGIO_REVIEW[font_size][subheading]" id="subheading-size" class="xagio-range"/>
                                                     </div>
-
-
 
                                                     <div class="xagio-flex-space-between">
                                                         <div>
                                                             <label for="color-picker-6" class="color-picker-text xagio-label-text">Background</label>
                                                             <div class="xagio-color-swatch">
-                                                                <input value="<?php echo  (@$ps_review['colors']['button_background'] != NULL) ? esc_attr($ps_review['colors']['button_background']) : '#eaeaea'; ?>" type="color" id="color-picker-6" name="XAGIO_REVIEW[colors][button_background]" class="color-picker"/>
+                                                                <input value="<?php echo esc_attr($xagio_review['colors']['button_background'] ?? '#eaeaea'); ?>" type="color" id="color-picker-6" name="XAGIO_REVIEW[colors][button_background]" class="color-picker"/>
                                                             </div>
                                                         </div>
                                                         <div>
                                                             <label for="color-picker-7" class="color-picker-text xagio-label-text">Text</label>
                                                             <div class="xagio-color-swatch">
-                                                                <input value="<?php echo  (@$ps_review['colors']['button_text'] != NULL) ? esc_attr($ps_review['colors']['button_text']) : '#656565'; ?>" type="color" id="color-picker-7" name="XAGIO_REVIEW[colors][button_text]" class="color-picker"/>
+                                                                <input value="<?php echo esc_attr($xagio_review['colors']['button_text'] ?? '#656565'); ?>" type="color" id="color-picker-7" name="XAGIO_REVIEW[colors][button_text]" class="color-picker"/>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -530,34 +527,35 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                                 <div>
                                                     <label for="widget-theme" class="xagio-label-text">Widget Theme: <i class="xagio-icon xagio-icon-info" data-xagio-tooltip data-xagio-title="Allows you to use different widget themes to match your website design."></i></label>
                                                     <select name="XAGIO_REVIEW[settings][widget_theme]" id="widget-theme" class="xagio-input-select xagio-input-select-gray">
-                                                        <option <?php echo  (@$ps_review['settings']['widget_theme'] == 0) ? 'selected' : ''; ?> value="0">Default</option>
-                                                        <option <?php echo  (@$ps_review['settings']['widget_theme'] == 1) ? 'selected' : ''; ?> value="1">Flat</option>
-                                                        <option <?php echo  (@$ps_review['settings']['widget_theme'] == 2) ? 'selected' : ''; ?> value="2">Minimal</option>
+                                                        <option <?php echo (($xagio_review['settings']['widget_theme'] ?? 0) == 0) ? 'selected' : ''; ?> value="0">Default</option>
+                                                        <option <?php echo (($xagio_review['settings']['widget_theme'] ?? 0) == 1) ? 'selected' : ''; ?> value="1">Flat</option>
+                                                        <option <?php echo (($xagio_review['settings']['widget_theme'] ?? 0) == 2) ? 'selected' : ''; ?> value="2">Minimal</option>
                                                     </select>
                                                 </div>
                                                 <div>
                                                     <label for="widget-width" class="xagio-label-text">Widget Width: <i class="xagio-icon xagio-icon-info" data-xagio-tooltip data-xagio-title="Allows you to switch between fixed width & automatic full width for Review Widget."></i></label>
                                                     <select name="XAGIO_REVIEW[settings][widget_width]" id="widget-width" class="xagio-input-select xagio-input-select-gray">
-                                                        <option <?php echo  (@$ps_review['settings']['widget_width'] == 0) ? 'selected' : ''; ?> value="0">Fixed</option>
-                                                        <option <?php echo  (@$ps_review['settings']['widget_width'] == 1) ? 'selected' : ''; ?> value="1">Auto</option>
+                                                        <option <?php echo (($xagio_review['settings']['widget_width'] ?? 0) == 0) ? 'selected' : ''; ?> value="0">Fixed</option>
+                                                        <option <?php echo (($xagio_review['settings']['widget_width'] ?? 0) == 1) ? 'selected' : ''; ?> value="1">Auto</option>
                                                     </select>
                                                 </div>
                                             </div>
                                             <div class="xagio-flex-even-columns xagio-flex-gap-medium">
                                                 <div>
-                                                    <label for="alignment" class="xagio-label-text">Content Alignment: <i class="xagio-icon xagio-icon-info" data-xagio-tooltip data-xagio-title="Allows you to use different alignment for content inside of Review Widget."></i></label><select name="XAGIO_REVIEW[settings][alignment]" id="alignment" class="xagio-input-select xagio-input-select-gray">
-                                                        <option <?php echo  (@$ps_review['settings']['alignment'] == 'left') ? 'selected' : ''; ?>value="left">Left</option>
-                                                        <option <?php echo  (@$ps_review['settings']['alignment'] == 'center') ? 'selected' : ''; ?>value="center">Center</option>
-                                                        <option <?php echo  (@$ps_review['settings']['alignment'] == 'right') ? 'selected' : ''; ?>value="right">Right</option>
+                                                    <label for="alignment" class="xagio-label-text">Content Alignment: <i class="xagio-icon xagio-icon-info" data-xagio-tooltip data-xagio-title="Allows you to use different alignment for content inside of Review Widget."></i></label>
+                                                    <select name="XAGIO_REVIEW[settings][alignment]" id="alignment" class="xagio-input-select xagio-input-select-gray">
+                                                        <option <?php echo (($xagio_review['settings']['alignment'] ?? 'left') == 'left') ? 'selected' : ''; ?> value="left">Left</option>
+                                                        <option <?php echo (($xagio_review['settings']['alignment'] ?? 'left') == 'center') ? 'selected' : ''; ?> value="center">Center</option>
+                                                        <option <?php echo (($xagio_review['settings']['alignment'] ?? 'left') == 'right') ? 'selected' : ''; ?> value="right">Right</option>
                                                     </select>
 
                                                 </div>
                                                 <div>
                                                     <label for="form-labels" class="xagio-label-text">Label Rendering Mode: <i class="xagio-icon xagio-icon-info" data-xagio-tooltip data-xagio-title="Allows you to change how the form labels will look like on your Review Widget."></i></label>
                                                     <select name="XAGIO_REVIEW[settings][form_labels]" id="form-labels" class="xagio-input-select xagio-input-select-gray">
-                                                        <option <?php echo  (@$ps_review['settings']['form_labels'] == 0) ? 'selected' : ''; ?>value="0">Above the text boxes</option>
-                                                        <option <?php echo  (@$ps_review['settings']['form_labels'] == 1) ? 'selected' : ''; ?>value="1">Next to text boxes</option>
-                                                        <option <?php echo  (@$ps_review['settings']['form_labels'] == 2) ? 'selected' : ''; ?>value="2">As placeholders</option>
+                                                        <option <?php echo (($xagio_review['settings']['form_labels'] ?? 0) == 0) ? 'selected' : ''; ?> value="0">Above the text boxes</option>
+                                                        <option <?php echo (($xagio_review['settings']['form_labels'] ?? 0) == 1) ? 'selected' : ''; ?> value="1">Next to text boxes</option>
+                                                        <option <?php echo (($xagio_review['settings']['form_labels'] ?? 0) == 2) ? 'selected' : ''; ?> value="2">As placeholders</option>
                                                     </select>
                                                 </div>
                                             </div>
@@ -565,13 +563,13 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                                 <div>
                                                     <label for="widget-padding" class="xagio-label-text">Widget Padding:</label>
                                                     <div class="xagio-flex-row xagio-min-height-40">
-                                                        <input type="range" value="<?php echo esc_attr(@$ps_review['padding']['widget']) ?>" min="1" max="50" name="XAGIO_REVIEW[padding][widget]" id="widget-padding" class="xagio-range" />
+                                                        <input type="range" value="<?php echo esc_attr($xagio_review['padding']['widget'] ?? 10); ?>" min="1" max="50" name="XAGIO_REVIEW[padding][widget]" id="widget-padding" class="xagio-range" />
                                                     </div>
                                                 </div>
                                                 <div>
                                                     <label for="input-padding" class="xagio-label-text">Field Padding:</label>
                                                     <div class="xagio-flex-row xagio-min-height-40">
-                                                        <input type="range" value="<?php echo esc_attr(@$ps_review['padding']['input']) ?>" min="1" max="50" name="XAGIO_REVIEW[padding][input]" id="input-padding" class="xagio-range" />
+                                                        <input type="range" value="<?php echo esc_attr($xagio_review['padding']['input'] ?? 10); ?>" min="1" max="50" name="XAGIO_REVIEW[padding][input]" id="input-padding" class="xagio-range" />
                                                     </div>
                                                 </div>
                                             </div>
@@ -579,13 +577,13 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                                 <div>
                                                     <label for="input-size" class="xagio-label-text">Field Text Size:</label>
                                                     <div class="xagio-flex-row xagio-min-height-40">
-                                                        <input type="range" value="<?php echo esc_attr(@$ps_review['font_size']['input']) ?>" min="8" max="25" name="XAGIO_REVIEW[font_size][input]" id="input-size" class="xagio-range" />
+                                                        <input type="range" value="<?php echo esc_attr($xagio_review['font_size']['input'] ?? 14); ?>" min="8" max="25" name="XAGIO_REVIEW[font_size][input]" id="input-size" class="xagio-range" />
                                                     </div>
                                                 </div>
                                                 <div>
                                                     <label for="label-size" class="xagio-label-text">Label Text Size:</label>
                                                     <div class="xagio-flex-row xagio-min-height-40">
-                                                        <input type="range" value="<?php echo esc_attr(@$ps_review['font_size']['label']) ?>" min="8" max="25" name="XAGIO_REVIEW[font_size][label]" id="label-size" class="xagio-range" />
+                                                        <input type="range" value="<?php echo esc_attr($xagio_review['font_size']['label'] ?? 12); ?>" min="8" max="25" name="XAGIO_REVIEW[font_size][label]" id="label-size" class="xagio-range" />
                                                     </div>
                                                 </div>
                                             </div>
@@ -593,7 +591,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                                 <div>
                                                     <label for="stars-size" class="xagio-label-text">Stars Size:</label>
                                                     <div class="xagio-flex-row xagio-min-height-40">
-                                                        <input type="range" value="<?php echo esc_attr(@$ps_review['font_size']['stars']) ?>" min="14" max="50" name="XAGIO_REVIEW[font_size][stars]" id="stars-size" class="xagio-range" />
+                                                        <input type="range" value="<?php echo esc_attr($xagio_review['font_size']['stars'] ?? 20); ?>" min="14" max="50" name="XAGIO_REVIEW[font_size][stars]" id="stars-size" class="xagio-range" />
                                                     </div>
                                                 </div>
                                                 <div></div>
@@ -615,19 +613,19 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                                 <div>
                                                     <label for="color-picker-1" class="xagio-label-text">Background</label>
                                                     <div class="xagio-color-swatch">
-                                                        <input value="<?php echo  (@$ps_review['colors']['background'] != NULL) ? esc_attr($ps_review['colors']['background']) : '#ffffff'; ?>" type="color" id="color-picker-1" name="XAGIO_REVIEW[colors][background]" class="color-picker" />
+                                                        <input value="<?php echo esc_attr($xagio_review['colors']['background'] ?? '#ffffff'); ?>" type="color" id="color-picker-1" name="XAGIO_REVIEW[colors][background]" class="color-picker" />
                                                     </div>
                                                 </div>
                                                 <div>
                                                     <label for="color-picker-2" class="xagio-label-text">Border</label>
                                                     <div class="xagio-color-swatch">
-                                                        <input value="<?php echo  (@$ps_review['colors']['border'] != NULL) ? esc_attr($ps_review['colors']['border']) : '#bbbbbb'; ?>" type="color" id="color-picker-2" name="XAGIO_REVIEW[colors][border]" class="color-picker" />
+                                                        <input value="<?php echo esc_attr($xagio_review['colors']['border'] ?? '#bbbbbb'); ?>" type="color" id="color-picker-2" name="XAGIO_REVIEW[colors][border]" class="color-picker" />
                                                     </div>
                                                 </div>
                                                 <div>
                                                     <label for="color-picker-3" class="xagio-label-text">Text</label>
                                                     <div class="xagio-color-swatch">
-                                                        <input value="<?php echo  (@$ps_review['colors']['text'] != NULL) ? esc_attr($ps_review['colors']['text']) : '#444444'; ?>" type="color" id="color-picker-3" name="XAGIO_REVIEW[colors][text]" class="color-picker" />
+                                                        <input value="<?php echo esc_attr($xagio_review['colors']['text'] ?? '#444444'); ?>" type="color" id="color-picker-3" name="XAGIO_REVIEW[colors][text]" class="color-picker" />
                                                     </div>
                                                 </div>
                                             </div>
@@ -635,19 +633,19 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                                 <div>
                                                     <label for="color-picker-4" class="xagio-label-text">Input Background</label>
                                                     <div class="xagio-color-swatch">
-                                                        <input value="<?php echo  (@$ps_review['colors']['input_background'] != NULL) ? esc_attr($ps_review['colors']['input_background']) : '#ffffff'; ?>" type="color" id="color-picker-4" name="XAGIO_REVIEW[colors][input_background]" class="color-picker" />
+                                                        <input value="<?php echo esc_attr($xagio_review['colors']['input_background'] ?? '#ffffff'); ?>" type="color" id="color-picker-4" name="XAGIO_REVIEW[colors][input_background]" class="color-picker" />
                                                     </div>
                                                 </div>
                                                 <div>
                                                     <label for="color-picker-8" class="xagio-label-text">Stars</label>
                                                     <div class="xagio-color-swatch">
-                                                        <input value="<?php echo  (@$ps_review['colors']['stars'] != NULL) ? esc_attr($ps_review['colors']['stars']) : '#000012'; ?>" type="color" id="color-picker-8" name="XAGIO_REVIEW[colors][stars]" class="color-picker" />
+                                                        <input value="<?php echo esc_attr($xagio_review['colors']['stars'] ?? '#000012'); ?>" type="color" id="color-picker-8" name="XAGIO_REVIEW[colors][stars]" class="color-picker" />
                                                     </div>
                                                 </div>
                                                 <div>
                                                     <label for="color-picker-5" class="xagio-label-text">Input Text</label>
                                                     <div class="xagio-color-swatch">
-                                                        <input value="<?php echo  (@$ps_review['colors']['input_text'] != NULL) ? esc_attr($ps_review['colors']['input_text']) : '#000012'; ?>" type="color" id="color-picker-5" name="XAGIO_REVIEW[colors][input_text]" class="color-picker" />
+                                                        <input value="<?php echo esc_attr($xagio_review['colors']['input_text'] ?? '#000012'); ?>" type="color" id="color-picker-5" name="XAGIO_REVIEW[colors][input_text]" class="color-picker" />
                                                     </div>
                                                 </div>
                                             </div>
@@ -664,12 +662,22 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                 <div class="xagio-flex-even-columns xagio-flex-gap-medium">
                                     <div>
                                         <label class="xagio-label-text">Heading: <i class="xagio-icon xagio-icon-info" data-xagio-tooltip data-xagio-title="Change this field if you want Heading above your ratings, if you leave this field emtpy it will not be shown. HTML allowed."></i></label>
-                                        <input type="text" class="xagio-input-text-mini" value="<?php echo esc_attr(@$ps_review['details']['display_reviews_heading']); ?>" name="XAGIO_REVIEW[details][display_reviews_heading]" placeholder="eg. Check out our Reviews!" />
+                                        <input type="text"
+                                               class="xagio-input-text-mini"
+                                               value="<?php echo esc_attr( $xagio_review['details']['display_reviews_heading'] ?? '' ); ?>"
+                                               name="XAGIO_REVIEW[details][display_reviews_heading]"
+                                               placeholder="eg. Check out our Reviews!" />
                                     </div>
                                     <div>
                                         <label for="display-heading-size" class="xagio-label-text">Heading Size:</label>
                                         <div class="xagio-flex-row xagio-min-height-40">
-                                            <input type="range" value="<?php echo esc_attr(@$ps_review['details']['heading_size']) ?>" min="10" max="40" name="XAGIO_REVIEW[details][heading_size]" id="display-heading-size" class="xagio-range"/>
+                                            <input type="range"
+                                                   value="<?php echo esc_attr( $xagio_review['details']['heading_size'] ?? '' ); ?>"
+                                                   min="10"
+                                                   max="40"
+                                                   name="XAGIO_REVIEW[details][heading_size]"
+                                                   id="display-heading-size"
+                                                   class="xagio-range"/>
                                         </div>
                                     </div>
                                 </div>
@@ -677,12 +685,18 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                 <div class="xagio-flex-even-columns xagio-flex-gap-medium">
                                     <div>
                                         <label class="xagio-label-text">Subheading: <i class="xagio-icon xagio-icon-info" data-xagio-tooltip data-xagio-title="Changes the subheading of the Display Reviews Widget. Use {calc} & {sum} inside of this field to display calculated ratings & number of reviews / ratings. HTML allowed."></i></label>
-                                        <input type="text" class="xagio-input-text-mini" value="<?php echo esc_attr(@$ps_review['details']['display_reviews_text']); ?>" name="XAGIO_REVIEW[details][display_reviews_text]" placeholder="eg. {calc} Rating From {sum} Reviews."/>
+                                        <input type="text" class="xagio-input-text-mini" value="<?php echo esc_attr( $xagio_review['details']['display_reviews_text'] ?? '' ); ?>" name="XAGIO_REVIEW[details][display_reviews_text]" placeholder="eg. {calc} Rating From {sum} Reviews."/>
                                     </div>
                                     <div>
                                         <label for="display-subheading-size" class="xagio-label-text">Subheading Size:</label>
                                         <div class="xagio-flex-row xagio-min-height-40">
-                                            <input type="range" value="<?php echo esc_attr(@$ps_review['details']['subheading_size']) ?>" min="8" max="20" name="XAGIO_REVIEW[details][subheading_size]" id="display-subheading-size" class="xagio-range"/>
+                                            <input type="range"
+                                                   value="<?php echo esc_attr( $xagio_review['details']['subheading_size'] ?? '' ); ?>"
+                                                   min="8"
+                                                   max="20"
+                                                   name="XAGIO_REVIEW[details][subheading_size]"
+                                                   id="display-subheading-size"
+                                                   class="xagio-range"/>
                                         </div>
                                     </div>
                                 </div>
@@ -691,7 +705,13 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                     <div>
                                         <label for="stars-size-display" class="xagio-label-text">Star Size:</label>
                                         <div class="xagio-flex-row xagio-min-height-40">
-                                            <input type="range" value="<?php echo esc_attr(@$ps_review['details']['display_star_size']) ?>" min="10" max="40" name="XAGIO_REVIEW[details][display_star_size]" id="stars-size-display" class="xagio-range"/>
+                                            <input type="range"
+                                                   value="<?php echo esc_attr( $xagio_review['details']['display_star_size'] ?? '' ); ?>"
+                                                   min="10"
+                                                   max="40"
+                                                   name="XAGIO_REVIEW[details][display_star_size]"
+                                                   id="stars-size-display"
+                                                   class="xagio-range"/>
                                         </div>
                                     </div>
                                     <div>
@@ -714,25 +734,25 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                                 <div>
                                                     <label for="color-picker-1" class="xagio-label-text">Background</label>
                                                     <div class="xagio-color-swatch">
-                                                        <input value="<?php echo  (@$ps_review['colors_display']['background'] != NULL) ? esc_attr($ps_review['colors_display']['background']) : '#fbfbfb'; ?>" type="color" id="color-picker-51" name="XAGIO_REVIEW[colors_display][background]" class="color-picker"/>
+                                                        <input value="<?php echo esc_attr( $xagio_review['colors_display']['background'] ?? '#fbfbfb' ); ?>" type="color" id="color-picker-51" name="XAGIO_REVIEW[colors_display][background]" class="color-picker"/>
                                                     </div>
                                                 </div>
                                                 <div>
                                                     <label for="color-picker-2" class="xagio-label-text">Border</label>
                                                     <div class="xagio-color-swatch">
-                                                        <input value="<?php echo  (@$ps_review['colors_display']['border'] != NULL) ? esc_attr($ps_review['colors_display']['border']) : '#fbfbfb'; ?>" type="color" id="color-picker-52" name="XAGIO_REVIEW[colors_display][border]" class="color-picker"/>
+                                                        <input value="<?php echo esc_attr( $xagio_review['colors_display']['border'] ?? '#fbfbfb' ); ?>" type="color" id="color-picker-52" name="XAGIO_REVIEW[colors_display][border]" class="color-picker"/>
                                                     </div>
                                                 </div>
                                                 <div>
                                                     <label for="color-picker-3" class="xagio-label-text">Text</label>
                                                     <div class="xagio-color-swatch">
-                                                        <input value="<?php echo  (@$ps_review['colors_display']['text'] != NULL) ? esc_attr($ps_review['colors_display']['text']) : '#626a74'; ?>" type="color" id="color-picker-53" name="XAGIO_REVIEW[colors_display][text]" class="color-picker"/>
+                                                        <input value="<?php echo esc_attr( $xagio_review['colors_display']['text'] ?? '#626a74' ); ?>" type="color" id="color-picker-53" name="XAGIO_REVIEW[colors_display][text]" class="color-picker"/>
                                                     </div>
                                                 </div>
                                                 <div>
                                                     <label for="color-picker-8" class="xagio-label-text">Stars</label>
                                                     <div class="xagio-color-swatch">
-                                                        <input value="<?php echo  (@$ps_review['colors_display']['stars'] != NULL) ? esc_attr($ps_review['colors_display']['stars']) : '#626a74'; ?>" type="color" id="color-picker-58" name="XAGIO_REVIEW[colors_display][stars]" class="color-picker"/>
+                                                        <input value="<?php echo esc_attr( $xagio_review['colors_display']['stars'] ?? '#626a74' ); ?>" type="color" id="color-picker-58" name="XAGIO_REVIEW[colors_display][stars]" class="color-picker"/>
                                                     </div>
                                                 </div>
                                             </div>
@@ -748,47 +768,66 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                 <p class="xagio-text-info">Change the fields below to alter how your Review Widget will look like when you use the "Widget Ratings Mode". You'll see all the changes you make in the preview area on the right.</p>
 
                                 <label class="xagio-label-text">Heading: <i class="xagio-icon xagio-icon-info" data-xagio-tooltip data-xagio-title="Changes the main heading of the Review Widget when Widget Ratings Mode is turned on. Use {num} inside of this field to display percentage, {calc} to display rating value and {sum} to display total number of reviews. HTML allowed."></i></label>
-                                <input type="text" class="xagio-input-text-mini" value="<?php echo  esc_attr(@$ps_review['details']['rating_text']); ?>" name="XAGIO_REVIEW[details][rating_text]" placeholder="eg. {num} of users found this article interesting"/>
+                                <input type="text" class="xagio-input-text-mini" value="<?php echo esc_attr( $xagio_review['details']['rating_text'] ?? '' ); ?>" name="XAGIO_REVIEW[details][rating_text]" placeholder="eg. {num} of users found this article interesting"/>
 
                                 <div class="xagio-flex-even-columns xagio-flex-gap-large xagio-margin-top-medium xagio-margin-bottom-medium">
                                     <div>
                                         <label for="rating-heading-size" class="xagio-label-text">Heading Size</label>
                                         <div class="xagio-flex-row xagio-min-height-40">
-                                            <input type="range" value="<?php echo  esc_attr(@$ps_review['details']['rating_heading_size']) ?>" min="10" max="40" name="XAGIO_REVIEW[details][rating_heading_size]" id="rating-heading-size" class="xagio-range"/>
+                                            <input type="range"
+                                                   value="<?php echo esc_attr( $xagio_review['details']['rating_heading_size'] ?? '' ); ?>"
+                                                   min="10"
+                                                   max="40"
+                                                   name="XAGIO_REVIEW[details][rating_heading_size]"
+                                                   id="rating-heading-size"
+                                                   class="xagio-range"/>
                                         </div>
                                     </div>
                                     <div>
                                         <label for="color-picker-11" class="xagio-label-text">Heading Color</label>
                                         <div class="xagio-color-swatch">
-                                            <input value="<?php echo  (@$ps_review['colors']['rating_heading'] != NULL) ? esc_attr($ps_review['colors']['rating_heading']) : '#434440'; ?>" type="color" id="color-picker-11" name="XAGIO_REVIEW[colors][rating_heading]" class="color-picker"/>
+                                            <input value="<?php echo esc_attr( $xagio_review['colors']['rating_heading'] ?? '#434440' ); ?>"
+                                                   type="color"
+                                                   id="color-picker-11"
+                                                   name="XAGIO_REVIEW[colors][rating_heading]"
+                                                   class="color-picker"/>
                                         </div>
                                     </div>
                                 </div>
 
                                 <label class="xagio-label-text">Instruction Text: <i class="xagio-icon xagio-icon-info" data-xagio-tooltip data-xagio-title="Changes the instruction text that tells the user how to use the ratings widget."></i></label>
-                                <input type="text" class="xagio-input-text-mini" value="<?php echo  esc_attr(@$ps_review['details']['rating_info']); ?>" name="XAGIO_REVIEW[details][rating_info]" placeholder="eg. Click a star to add your rating"/>
+                                <input type="text" class="xagio-input-text-mini" value="<?php echo esc_attr( $xagio_review['details']['rating_info'] ?? '' ); ?>" name="XAGIO_REVIEW[details][rating_info]" placeholder="eg. Click a star to add your rating"/>
 
                                 <div class="xagio-flex-even-columns xagio-flex-gap-large xagio-margin-top-medium xagio-margin-bottom-medium">
                                     <div>
                                         <label for="rating-heading-size" class="xagio-label-text">Instruction Size:</label>
                                         <div class="xagio-flex-row xagio-min-height-40">
-                                            <input type="range" value="<?php echo  esc_attr(@$ps_review['details']['rating_instruction_size']) ?>" min="8" max="20" name="XAGIO_REVIEW[details][rating_instruction_size]" id="rating-heading-size" class="xagio-range"/>
+                                            <input type="range"
+                                                   value="<?php echo esc_attr( $xagio_review['details']['rating_instruction_size'] ?? '' ); ?>"
+                                                   min="8"
+                                                   max="20"
+                                                   name="XAGIO_REVIEW[details][rating_instruction_size]"
+                                                   id="rating-heading-size"
+                                                   class="xagio-range"/>
                                         </div>
                                     </div>
                                     <div>
                                         <label for="color-picker-12" class="xagio-label-text">Information Text</label>
                                         <div class="xagio-color-swatch">
-                                            <input value="<?php echo  (@$ps_review['colors']['rating_info'] != NULL) ? esc_attr($ps_review['colors']['rating_info']) : '#3a3a3a70'; ?>" type="color" id="color-picker-12" name="XAGIO_REVIEW[colors][rating_info]" class="color-picker"/>
+                                            <input value="<?php echo esc_attr( $xagio_review['colors']['rating_info'] ?? '#3a3a3a70' ); ?>"
+                                                   type="color"
+                                                   id="color-picker-12"
+                                                   name="XAGIO_REVIEW[colors][rating_info]"
+                                                   class="color-picker"/>
                                         </div>
                                     </div>
                                 </div>
 
                                 <label class="xagio-label-text">Thank You - Message: <i class="xagio-icon xagio-icon-info" data-xagio-tooltip data-xagio-title="Changes the message user sees when there are no ratings for current content."></i></label>
-                                <input type="text" class="xagio-input-text-mini" value="<?php echo  esc_attr(@$ps_review['details']['rating_thank_you']); ?>" name="XAGIO_REVIEW[details][rating_thank_you]" placeholder="eg. Thank you for leaving a rating!"/>
+                                <input type="text" class="xagio-input-text-mini" value="<?php echo esc_attr( $xagio_review['details']['rating_thank_you'] ?? '' ); ?>" name="XAGIO_REVIEW[details][rating_thank_you]" placeholder="eg. Thank you for leaving a rating!"/>
 
                                 <label class="xagio-label-text">No Ratings - Message: <i class="xagio-icon xagio-icon-info" data-xagio-tooltip data-xagio-title="Changes the message user sees when there are no ratings for current content."></i></label>
-                                <input type="text" class="xagio-input-text-mini" value="<?php echo  esc_attr(@$ps_review['details']['no_ratings_message']); ?>" name="XAGIO_REVIEW[details][no_ratings_message]" placeholder="eg. Nobody yet left a rating. Be first?!"/>
-
+                                <input type="text" class="xagio-input-text-mini" value="<?php echo esc_attr( $xagio_review['details']['no_ratings_message'] ?? '' ); ?>" name="XAGIO_REVIEW[details][no_ratings_message]" placeholder="eg. Nobody yet left a rating. Be first?!"/>
 
                                 <div class="xagio-alert xagio-alert-primary xagio-margin-top-medium">
                                     <i class="xagio-icon xagio-icon-info"></i> To use the "Widget Ratings Mode" either set the "Widget Ratings Mode" to Yes in Settings, or when using Review Widget shortcode use the attribute <kbd>stars_only=1</kbd>.

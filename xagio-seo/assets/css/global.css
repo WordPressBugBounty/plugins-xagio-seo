@@ -445,15 +445,16 @@ button.xagio-button.xagio-button-padding-small {
     text-decoration: none;
 }
 
-.xagio-button:disabled {
+.xagio-button:disabled, .xagio-btn[disabled] {
     cursor: wait !important;
     background: gray !important;
 }
 
-.xagio-button:hover:disabled {
+.xagio-button:hover:disabled, .xagio-btn:hover[disabled] {
     cursor: wait !important;
     background: gray !important;
 }
+
 
 button.xagio-button.xagio-button-small {
     padding: 10px;
@@ -564,6 +565,13 @@ p.xagio-slider-label {
     grid-template-columns: 30fr 70fr;
     gap: var(--xagio-gap-medium);
 }
+
+.xagio-2-column-35-65-grid {
+    display: grid;
+    grid-template-columns: 35fr 65fr;
+    gap: var(--xagio-gap-medium);
+}
+
 .xagio-2-column-40-60-grid {
     display: grid;
     grid-template-columns: 40fr 60fr;
@@ -625,6 +633,10 @@ p.xagio-slider-label {
     .xagio-3-columns {
         grid-template-columns: 1fr;
     }
+}
+
+.xagio-align-center {
+    align-items: center;
 }
 
 .xagio-flex {
@@ -1811,6 +1823,10 @@ table.xagio-table-modal {
     font-size: 14px;
 }
 
+.xagio-dropdown-simple .xagio-button-dropdown li:last-of-type {
+    margin-bottom: 0;
+}
+
 li.xagio-nav-header {
     font-size: 14px;
     color: #1e4674 !important;
@@ -2175,6 +2191,10 @@ span.xagio-version {
     color: white;
 }
 
+.xagio-notify-wrapper.danger a {
+    color: #e1e1e1;
+}
+
 /***************** NOTIFICATION END ******************/
 
 /***************** XAGIO UPLOAD START ******************/
@@ -2250,4 +2270,7 @@ span.xagio-version {
 
 .xagio-seo-count-danger {
     color: #fb5566;
+}
+.xagio-dropdown-show i {
+    transform: rotate(180deg);
 }

@@ -3,20 +3,20 @@ if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 $id   = $tag->term_id;
 $tax  = $tag->taxonomy;
-$meta = xagio_get_term_meta($id);
+$xagio_meta = xagio_get_term_meta($id);
 
 // Default Values
-$taxonomies  = get_option('XAGIO_SEO_DEFAULT_TAXONOMIES');
+$xagio_taxonomies  = get_option('XAGIO_SEO_DEFAULT_TAXONOMIES');
 $title       = '';
-$description = '';
+$xagio_description = '';
 
-if (isset($taxonomies[$tax])) {
+if (isset($xagio_taxonomies[$tax])) {
 
-    $title = XAGIO_MODEL_SEO::replaceVars(@$taxonomies[$tax]['XAGIO_SEO_TITLE'], 0, [
+    $title = XAGIO_MODEL_SEO::replaceVars($xagio_taxonomies[$tax]['XAGIO_SEO_TITLE'] ?? '', 0, [
             '%%term_title%%' => $tag->name,
     ]);
 
-    $description = XAGIO_MODEL_SEO::replaceVars(@$taxonomies[$tax]['XAGIO_SEO_DESCRIPTION'], 0, [
+    $xagio_description = XAGIO_MODEL_SEO::replaceVars($xagio_taxonomies[$tax]['XAGIO_SEO_DESCRIPTION'] ?? '', 0, [
             '%%term_title%%' => $tag->name,
     ]);
 
@@ -43,9 +43,11 @@ if (isset($taxonomies[$tax])) {
                     </div>
                     <div class="title-check-circle"></div>
 
-                    <input type="hidden" name="meta[XAGIO_SEO_TITLE]" id="XAGIO_SEO_TITLE_INPUT" value="<?php echo esc_attr(@$meta['XAGIO_SEO_TITLE']); ?>"/>
+                    <input type="hidden" name="meta[XAGIO_SEO_TITLE]" id="XAGIO_SEO_TITLE_INPUT" value="<?php echo esc_attr( $xagio_meta['XAGIO_SEO_TITLE'] ?? '' ); ?>"/>
                     <div class="xagio-editor" data-target="XAGIO_SEO_TITLE_INPUT" id="XAGIO_SEO_TITLE" contenteditable="true"
-                         placeholder="<?php echo  esc_attr(XAGIO_MODEL_SEO::replaceVars(@$template['title'], absint($id))); ?>"><?php echo esc_html(@$meta['XAGIO_SEO_TITLE']); ?></div>
+                         placeholder="<?php echo esc_attr( XAGIO_MODEL_SEO::replaceVars( $xagio_template['title'] ?? '', absint( $id ) ) ); ?>">
+                        <?php echo esc_html( $xagio_meta['XAGIO_SEO_TITLE'] ?? '' ); ?>
+                    </div>
                 </div>
                 <div class="xagio-g-desc">
                     <!-- SEO Description -->
@@ -54,18 +56,20 @@ if (isset($taxonomies[$tax])) {
                     </div>
                     <div class="desc-check-circle"></div>
 
-                    <input type="hidden" name="meta[XAGIO_SEO_DESCRIPTION]" id="XAGIO_SEO_DESCRIPTION_INPUT" value="<?php echo esc_attr(@$meta['XAGIO_SEO_DESCRIPTION']); ?>"/>
+                    <input type="hidden" name="meta[XAGIO_SEO_DESCRIPTION]" id="XAGIO_SEO_DESCRIPTION_INPUT" value="<?php echo esc_attr( $xagio_meta['XAGIO_SEO_DESCRIPTION'] ?? '' ); ?>"/>
                     <div class="xagio-editor smaller-font" data-target="XAGIO_SEO_DESCRIPTION_INPUT" id="XAGIO_SEO_DESCRIPTION" contenteditable="true"
-                         placeholder="<?php echo  esc_attr(XAGIO_MODEL_SEO::replaceVars(@$template['description'], absint($id))); ?>"><?php echo esc_html(@$meta['XAGIO_SEO_DESCRIPTION']); ?></div>
+                         placeholder="<?php echo esc_attr( XAGIO_MODEL_SEO::replaceVars( $xagio_template['description'] ?? '', absint( $id ) ) ); ?>">
+                        <?php echo esc_html( $xagio_meta['XAGIO_SEO_DESCRIPTION'] ?? '' ); ?>
+                    </div>
                 </div>
 
             </div>
             <div class="xagio-g-robot xagio-margin-top-medium">
 
                 <div class="xagio-slider-container">
-                    <input type="hidden" name="meta[XAGIO_SEO_ROBOTS]" id="XAGIO_SEO_ROBOTS" value="<?php echo esc_html(@$meta['XAGIO_SEO_ROBOTS']); ?>"/>
+                    <input type="hidden" name="meta[XAGIO_SEO_ROBOTS]" id="XAGIO_SEO_ROBOTS" value="<?php echo esc_html( $xagio_meta['XAGIO_SEO_ROBOTS'] ?? '' ); ?>"/>
                     <div class="xagio-slider-frame">
-                        <span class="xagio-slider-button <?php echo ((@$meta['XAGIO_SEO_ROBOTS']) == 0 ? 'off' : 'on'); ?>" data-element="XAGIO_SEO_ROBOTS"></span>
+                        <span class="xagio-slider-button <?php echo ( ( $xagio_meta['XAGIO_SEO_ROBOTS'] ?? 0 ) == 0 ? 'off' : 'on' ); ?>" data-element="XAGIO_SEO_ROBOTS"></span>
                     </div>
                     <p class="xagio-slider-label">Don't Index & Follow</p>
                 </div>

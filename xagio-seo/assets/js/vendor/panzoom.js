@@ -64,10 +64,7 @@ const cssProps = {
 	// Support pointer events in IE11+ if available
 	if ( window.PointerEvent ) {
 		$.each(list, function( i, name ) {
-			// Add event name to events property and add fixHook
-			$.event.fixHooks[
-				(events[name] = 'pointer' + name)
-				] = hook;
+			events[name] = 'pointer' + name;
 		});
 	} else {
 		var mouseProps = hook.props;
@@ -98,8 +95,6 @@ const cssProps = {
 			} else {
 				var touch = 'touch' +
 					(name === 'down' ? 'start' : name === 'up' ? 'end' : name);
-				// Add fixHook
-				$.event.fixHooks[ touch ] = hook;
 				// Add event names to events property
 				events[ name ] = touch + ' mouse' + name;
 			}

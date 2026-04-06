@@ -14,11 +14,14 @@
         backup.backup();
 
         if (xagio_backup.backup_speed.grade < 8) {
-            xagioModal("Warning", "Your hosting is not powerful enough to handle backups without issues, it received performance grade of " + xagio_backup.backup_speed.grade + " / 10. Please contact your hosting provider to upgrade your plan or get a <b>FREE</b> migration of this website by switching to our <a href='https://care.xagio.com' target='_blank'>Xagio Care Hosting</a>.");
+            xagioModal("Warning", "Your hosting is not powerful enough to handle backups without issues, it received performance grade of " +
+                                  xagio_backup.backup_speed.grade +
+                                  " / 10. Please contact your hosting provider to upgrade your plan or get a <b>FREE</b> migration of this website by switching to our <a href='https://care.xagio.com' target='_blank'>Xagio Care Hosting</a>.");
         }
 
         if (xagio_backup.backup_size > 1000) {
-            xagioModal("Warning", "Your website is large, backup size could reach up to " + xagio_backup.backup_size + " Mb in file size. This might create issues during upload with script timeouts, especially if you're using CloudFlare.");
+            xagioModal("Warning", "Your website is large, backup size could reach up to " + xagio_backup.backup_size +
+                                  " Mb in file size. This might create issues during upload with script timeouts, especially if you're using CloudFlare.");
         }
     });
 
@@ -36,23 +39,23 @@
             backup.refreshSpeeds();
         },
 
-        refreshSpeeds: function(){
-            $(document).on('click', '.check-backup-speed', function(e){
+        refreshSpeeds: function () {
+            $(document).on('click', '.check-backup-speed', function (e) {
                 e.preventDefault();
                 $(this).disable();
-                $.post(xagio_data.wp_post, 'action=xagio_check_backup_speed', function(d){
+                $.post(xagio_data.wp_post, 'action=xagio_check_backup_speed', function (d) {
                     xagioModal("Success", "Your Backup Grade has been refreshed. Reloading this page...");
-                    setTimeout(function(){
+                    setTimeout(function () {
                         document.location.reload();
                     }, 2000);
                 });
             });
-            $(document).on('click', '.check-backup-size', function(e){
+            $(document).on('click', '.check-backup-size', function (e) {
                 e.preventDefault();
                 $(this).disable();
-                $.post(xagio_data.wp_post, 'action=xagio_check_backup_size', function(d){
+                $.post(xagio_data.wp_post, 'action=xagio_check_backup_size', function (d) {
                     xagioModal("Success", "Your Backup Estimated Size has been refreshed. Reloading this page...");
-                    setTimeout(function(){
+                    setTimeout(function () {
                         document.location.reload();
                     }, 2000);
                 });
@@ -131,7 +134,8 @@
                 let button = $(this);
                 button.disable();
 
-                $.post(xagio_data.wp_post, 'action=xagio_download_backup&id=' + id + "&backup=" + backup + "&storage=" + storage, function (d) {
+                $.post(xagio_data.wp_post, 'action=xagio_download_backup&id=' + id + "&backup=" + backup + "&storage=" +
+                                           storage, function (d) {
                     button.disable();
 
                     // if d.status == redirect, open the download link in a new tab, else show a notification
@@ -153,7 +157,8 @@
                 let button = $(this);
                 button.disable();
 
-                $.post(xagio_data.wp_post, 'action=xagio_delete_backup&id=' + id + "&backup=" + backup + "&storage=" + storage, function (d) {
+                $.post(xagio_data.wp_post, 'action=xagio_delete_backup&id=' + id + "&backup=" + backup + "&storage=" +
+                                           storage, function (d) {
                     button.disable();
 
                     xagioNotify(d.status == 'success' ? 'success' : 'danger', d.message)
@@ -170,6 +175,22 @@
         },
 
         saveSettings: function () {
+            $(document).on('submit', '.backup-amazons3', function (e) {
+                e.preventDefault();
+
+                let $this = $(this);
+                let button = $this.find('button');
+
+                button.disable('Saving...');
+
+                $.post(xagio_data.wp_post, $this.serialize(), function (d) {
+                    button.disable();
+                    UIkit.notify(d.message, {
+                        pos   : 'bottom-right',
+                        status: d.status == 'success' ? 'success' : 'danger'
+                    });
+                });
+            });
             $(document).on('submit', '.save-settings', function (e) {
                 e.preventDefault();
 

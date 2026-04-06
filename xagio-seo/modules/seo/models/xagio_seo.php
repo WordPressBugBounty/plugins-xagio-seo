@@ -43,6 +43,22 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 'saveSeoSearch'
             ]);
 
+            add_filter('post_row_actions', [
+                'XAGIO_MODEL_SEO',
+                'duplicatePostButton'
+            ], 10, 2);
+
+            add_filter('page_row_actions', [
+                'XAGIO_MODEL_SEO',
+                'duplicatePostButton'
+            ], 10, 2);
+
+            add_action('admin_action_xagio_duplicate_post', [
+                'XAGIO_MODEL_SEO',
+                'duplicatePost'
+            ]);
+
+
             if (XAGIO_HAS_ADMIN_PERMISSIONS) {
 
                 wp_schedule_single_event(time() + 5, 'xagio_set_default_post_settings');
@@ -53,6 +69,10 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                     'XAGIO_MODEL_SEO',
                     'savePost'
                 ]);
+
+                add_filter('wp_insert_post_data', [
+                    'XAGIO_MODEL_SEO', 'filterPostSlug'
+                ], 10, 2);
 
                 add_action('quick_edit_custom_box', [
                     'XAGIO_MODEL_SEO',
@@ -242,22 +262,94 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             ], 10, 1);
         }
 
+        public static function duplicatePostButton($actions, $post) {
+            if (current_user_can('edit_posts')) {
+                $xagio_url = wp_nonce_url(
+                    admin_url('admin.php?action=xagio_duplicate_post&post=' . $post->ID),
+                    'duplicate_post_' . $post->ID
+                );
+                $actions['duplicate'] = '<a href="' . esc_url($xagio_url) . '">Duplicate</a>';
+            }
+            return $actions;
+        }
+
+        public static function duplicatePost() {
+            if (empty($_GET['post']) || !current_user_can('edit_pages')) {
+                wp_die('Access denied.');
+            }
+
+            $post_id = absint($_GET['post']);
+            check_admin_referer('duplicate_post_' . $post_id);
+
+            $post = get_post($post_id);
+            if (isset($post) && $post != null) {
+                $new_post = [
+                    'comment_status' => $post->comment_status,
+                    'post_title' => $post->post_title . ' (Copy)',
+                    'post_content' => $post->post_content,
+                    'post_status' => 'draft',
+                    'post_type' => $post->post_type,
+                    'post_author' => get_current_user_id(),
+                    'post_parent' => $post->post_parent,
+                    'post_excerpt' => $post->post_excerpt,
+                    'post_password' => $post->post_password,
+                    'menu_order' => $post->menu_order,
+                    'ping_status' => $post->ping_status,
+                    'to_ping' => $post->to_ping,
+                ];
+                $new_post_id = wp_insert_post($new_post);
+
+                // get all current post terms ad set them to the new post draft
+                $xagio_taxonomies = array_map('sanitize_text_field', get_object_taxonomies($post->post_type));
+                if (!empty($xagio_taxonomies) && is_array($xagio_taxonomies)) {
+                    foreach ($xagio_taxonomies as $taxonomy) {
+                        $post_terms = wp_get_object_terms($post_id, $taxonomy, array('fields' => 'slugs'));
+                        wp_set_object_terms($new_post_id, $post_terms, $taxonomy, false);
+                    }
+                }
+
+                // duplicate all post meta
+                $post_meta_keys = get_post_custom_keys( $post_id );
+                if(!empty($post_meta_keys)){
+                    foreach ( $post_meta_keys as $meta_key ) {
+                        $meta_values = get_post_custom_values( $meta_key, $post_id );
+                        foreach ( $meta_values as $meta_value ) {
+                            $meta_value = maybe_unserialize( $meta_value );
+                            update_post_meta( $new_post_id, $meta_key, wp_slash( $meta_value ) );
+                        }
+                    }
+                }
+
+                XAGIO_MODEL_OCW::clearElementorCache();
+
+                if ($post->post_type !== 'post') {
+                    xagio_redirect(admin_url('edit.php?post_type=' . $post->post_type));
+                    exit;
+                }
+
+                xagio_redirect(admin_url('edit.php'));
+                exit;
+            }
+
+            wp_die('Failed to duplicate page.');
+        }
+
         public static function extendQuickEdit($column_name, $post_type)
         {
             wp_nonce_field('xagio_nonce', '_xagio_nonce');
         }
 
         // Enqueues admin
-        public static function loadAdminAssets($hook)
+        public static function loadAdminAssets($xagio_hook)
         {
-            if ($hook == 'edit.php') {
+            if ($xagio_hook == 'edit.php') {
 
                 wp_enqueue_script('xagio_seo');
                 wp_enqueue_style('xagio_font_outfit');
 
             }
 
-            if ($hook == 'post-new.php' || $hook == 'post.php') {
+            if ($xagio_hook == 'post-new.php' || $xagio_hook == 'post.php') {
 
                 wp_enqueue_script('xagio_tablesorter');
                 wp_enqueue_script('xagio_jqcloud');
@@ -268,14 +360,14 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
             }
 
-            if ($hook == 'term.php') {
+            if ($xagio_hook == 'term.php') {
                 wp_enqueue_script('xagio_seo-terms');
                 wp_enqueue_style('xagio_seo');
                 wp_enqueue_style('xagio_font_outfit');
 
             }
 
-            if ($hook == 'xagio_page_xagio-seo') {
+            if ($xagio_hook == 'xagio_page_xagio-seo') {
                 // CodeMirror
                 $cm_settings['codeEditor'] = wp_enqueue_code_editor(['type' => 'text/x-php']);
                 wp_localize_script('jquery', 'cm_settings', $cm_settings);
@@ -287,7 +379,7 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             }
         }
 
-        private static $blocks = [
+        private static $xagio_blocks = [
 
             'sitename' => [
                 'name' => 'Site Name',
@@ -376,6 +468,23 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
         ];
 
+        public static function filterPostSlug($data, $postarr) {
+
+            if (isset($postarr['XAGIO_SEO_URL'])) {
+                $newUrl = sanitize_title(wp_unslash($postarr['XAGIO_SEO_URL']));
+                $oriUrl = isset($postarr['XAGIO_SEO_ORIGINAL_URL']) ? sanitize_title(wp_unslash($postarr['XAGIO_SEO_ORIGINAL_URL'])) : '';
+                $pstUrl = isset($postarr['post_name']) ? sanitize_title(wp_unslash($postarr['post_name'])) : '';
+
+                if ($newUrl == $oriUrl && $newUrl != $pstUrl) {
+                    $newUrl = $pstUrl;
+                }
+
+                $data['post_name'] = $newUrl;
+            }
+
+            return $data;
+        }
+
         public static function localizeJS()
         {
             foreach ([
@@ -383,7 +492,7 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                          'xagio_user',
                          'xagio_admin'
                      ] as $script) {
-                wp_localize_script($script, 'xagio_replaces', self::$blocks);
+                wp_localize_script($script, 'xagio_replaces', self::$xagio_blocks);
 
                 // get the post id if we are on a post or page or get post id of front page
                 $post_id = get_the_ID() ? get_the_ID() : abs(intval(get_option('page_on_front')));
@@ -414,12 +523,12 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
         {
 
             // POSTS
-            $post_types = get_option('XAGIO_SEO_DEFAULT_POST_TYPES');
+            $xagio_post_types = get_option('XAGIO_SEO_DEFAULT_POST_TYPES');
 
             foreach (self::getAllPostObjects() as $post_type) {
                 $post_type = (is_array($post_type) ? $post_type['name'] : $post_type);
                 if ($post_type !== 'post' && $post_type !== 'page') {
-                    if (@array_key_exists($post_type, $post_types)) {
+                    if (@array_key_exists($post_type, $xagio_post_types)) {
                         continue;
                     } else {
                         $pa                         = [
@@ -432,14 +541,14 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 }
             }
 
-            if (!empty($post_templates) && !empty($post_types)) {
-                $post_data = array_merge($post_types, $post_templates);
+            if (!empty($post_templates) && !empty($xagio_post_types)) {
+                $xagio_post_data = array_merge($xagio_post_types, $post_templates);
             } else if (!empty($post_templates)) {
-                $post_data = $post_templates;
+                $xagio_post_data = $post_templates;
             }
 
-            if (!empty($post_data)) {
-                update_option('XAGIO_SEO_DEFAULT_POST_TYPES', $post_data);
+            if (!empty($xagio_post_data)) {
+                update_option('XAGIO_SEO_DEFAULT_POST_TYPES', $xagio_post_data);
             }
         }
 
@@ -448,10 +557,10 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
             // TAXONOMIES
             $taxonomy_templates = [];
-            $taxonomies         = get_option('XAGIO_SEO_DEFAULT_TAXONOMIES');
+            $xagio_taxonomies         = get_option('XAGIO_SEO_DEFAULT_TAXONOMIES');
 
             foreach (self::getAllTaxonomies() as $taxonomy) {
-                if (@!array_key_exists($taxonomy, $taxonomies)) {
+                if (@!array_key_exists($taxonomy, $xagio_taxonomies)) {
                     $pa                            = [
                         'title'       => '%%term_title%% %%sep%% %%sitename%%',
                         'description' => '',
@@ -461,8 +570,8 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 }
             }
 
-            if (!empty($taxonomy_templates) && !empty($taxonomies)) {
-                $taxonomy_data = array_merge($taxonomies, $taxonomy_templates);
+            if (!empty($taxonomy_templates) && !empty($xagio_taxonomies)) {
+                $taxonomy_data = array_merge($xagio_taxonomies, $taxonomy_templates);
             } else if (!empty($taxonomy_templates)) {
                 $taxonomy_data = $taxonomy_templates;
             }
@@ -474,13 +583,13 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
         public static function getCustomTaxonomies()
         {
-            $taxonomies = get_taxonomies();
-            unset($taxonomies['nav_menu']);
-            unset($taxonomies['link_category']);
-            unset($taxonomies['post_format']);
-            //            unset($taxonomies['location']);
+            $xagio_taxonomies = get_taxonomies();
+            unset($xagio_taxonomies['nav_menu']);
+            unset($xagio_taxonomies['link_category']);
+            unset($xagio_taxonomies['post_format']);
+            //            unset($xagio_taxonomies['location']);
 
-            foreach ($taxonomies as $taxonomy) {
+            foreach ($xagio_taxonomies as $taxonomy) {
 
                 add_action($taxonomy . '_edit_form_fields', [
                     'XAGIO_MODEL_SEO',
@@ -502,9 +611,12 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
             // This needs to work only when meta is present otherwise continue with default function
             if (isset($_POST['meta'])) {
+
                 $term_meta = map_deep(wp_unslash($_POST['meta']), 'sanitize_text_field');
-                foreach ($term_meta as $key => $value) {
-                    update_term_meta($term_id, $key, $value);
+                foreach ($term_meta as $xagio_key => $xagio_value) {
+                    if (str_contains($xagio_key, 'XAGIO')) {
+                        update_term_meta($term_id, $xagio_key, $xagio_value);
+                    }
                 }
 
                 $cat_meta = xagio_get_term_meta($term_id);
@@ -553,25 +665,25 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 }
             }
 
-            $object = $GLOBALS['wp_query']->get_queried_object();
-            if (is_object($object) && isset($object->ID)) {
-                $disable_page = get_post_meta($object->ID, 'XAGIO_SEO_DISABLE_PAGE_HEADER_SCRIPTS', TRUE);
+            $xagio_object = $GLOBALS['wp_query']->get_queried_object();
+            if (is_object($xagio_object) && isset($xagio_object->ID)) {
+                $disable_page = get_post_meta($xagio_object->ID, 'XAGIO_SEO_DISABLE_PAGE_HEADER_SCRIPTS', TRUE);
 
-                $disable_global = get_post_meta($object->ID, 'XAGIO_SEO_DISABLE_GLOBAL_HEADER_SCRIPTS', TRUE);
+                $disable_global = get_post_meta($xagio_object->ID, 'XAGIO_SEO_DISABLE_GLOBAL_HEADER_SCRIPTS', TRUE);
 
                 if (isset($disable_page) && $disable_page != 1) {
 
                     // If meta does not exist SEO SEARCH is turned on by default
-                    if (metadata_exists('post', $object->ID, 'XAGIO_SEO_SCRIPTS_ENABLE')) {
+                    if (metadata_exists('post', $xagio_object->ID, 'XAGIO_SEO_SCRIPTS_ENABLE')) {
                         // If metadata exists we are checking if it's empty string(TURNED OFF) or 1(TUNED ON)
-                        $XAGIO_SEO_SCRIPTS_ENABLE = get_post_meta($object->ID, 'XAGIO_SEO_SCRIPTS_ENABLE', TRUE);
+                        $XAGIO_SEO_SCRIPTS_ENABLE = get_post_meta($xagio_object->ID, 'XAGIO_SEO_SCRIPTS_ENABLE', TRUE);
                         if ($XAGIO_SEO_SCRIPTS_ENABLE === "") {
                             $scripts = '';
                         } else {
-                            $scripts = get_post_meta($object->ID, 'XAGIO_SEO_SCRIPTS_HEADER', TRUE);
+                            $scripts = get_post_meta($xagio_object->ID, 'XAGIO_SEO_SCRIPTS_HEADER', TRUE);
                         }
                     } else {
-                        $scripts = get_post_meta($object->ID, 'XAGIO_SEO_SCRIPTS_HEADER', TRUE);
+                        $scripts = get_post_meta($xagio_object->ID, 'XAGIO_SEO_SCRIPTS_HEADER', TRUE);
                     }
 
 
@@ -607,26 +719,26 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 }
             }
 
-            $object = $GLOBALS['wp_query']->get_queried_object();
-            if (is_object($object) && isset($object->ID)) {
+            $xagio_object = $GLOBALS['wp_query']->get_queried_object();
+            if (is_object($xagio_object) && isset($xagio_object->ID)) {
 
-                $disable_page = get_post_meta($object->ID, 'XAGIO_SEO_DISABLE_PAGE_FOOTER_SCRIPTS', TRUE);
+                $disable_page = get_post_meta($xagio_object->ID, 'XAGIO_SEO_DISABLE_PAGE_FOOTER_SCRIPTS', TRUE);
 
-                $disable_global = get_post_meta($object->ID, 'XAGIO_SEO_DISABLE_GLOBAL_FOOTER_SCRIPTS', TRUE);
+                $disable_global = get_post_meta($xagio_object->ID, 'XAGIO_SEO_DISABLE_GLOBAL_FOOTER_SCRIPTS', TRUE);
 
                 if (isset($disable_page) && $disable_page != 1) {
 
                     // If meta does not exist SEO SEARCH is turned on by default
-                    if (metadata_exists('post', $object->ID, 'XAGIO_SEO_SCRIPTS_ENABLE')) {
+                    if (metadata_exists('post', $xagio_object->ID, 'XAGIO_SEO_SCRIPTS_ENABLE')) {
                         // If metadata exists we are checking if it's empty string(TURNED OFF) or 1(TUNED ON)
-                        $XAGIO_SEO_SCRIPTS_ENABLE = get_post_meta($object->ID, 'XAGIO_SEO_SCRIPTS_ENABLE', TRUE);
+                        $XAGIO_SEO_SCRIPTS_ENABLE = get_post_meta($xagio_object->ID, 'XAGIO_SEO_SCRIPTS_ENABLE', TRUE);
                         if ($XAGIO_SEO_SCRIPTS_ENABLE === "") {
                             $scripts = '';
                         } else {
-                            $scripts = get_post_meta($object->ID, 'XAGIO_SEO_SCRIPTS_FOOTER', TRUE);
+                            $scripts = get_post_meta($xagio_object->ID, 'XAGIO_SEO_SCRIPTS_FOOTER', TRUE);
                         }
                     } else {
-                        $scripts = get_post_meta($object->ID, 'XAGIO_SEO_SCRIPTS_FOOTER', TRUE);
+                        $scripts = get_post_meta($xagio_object->ID, 'XAGIO_SEO_SCRIPTS_FOOTER', TRUE);
                     }
 
                     if ($disable_global != 1) {
@@ -661,26 +773,26 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 }
             }
 
-            $object = $GLOBALS['wp_query']->get_queried_object();
-            if (is_object($object) && isset($object->ID)) {
+            $xagio_object = $GLOBALS['wp_query']->get_queried_object();
+            if (is_object($xagio_object) && isset($xagio_object->ID)) {
 
-                $disable_page = get_post_meta($object->ID, 'XAGIO_SEO_DISABLE_PAGE_BODY_SCRIPTS', TRUE);
+                $disable_page = get_post_meta($xagio_object->ID, 'XAGIO_SEO_DISABLE_PAGE_BODY_SCRIPTS', TRUE);
 
-                $disable_global = get_post_meta($object->ID, 'XAGIO_SEO_DISABLE_GLOBAL_BODY_SCRIPTS', TRUE);
+                $disable_global = get_post_meta($xagio_object->ID, 'XAGIO_SEO_DISABLE_GLOBAL_BODY_SCRIPTS', TRUE);
 
                 if (isset($disable_page) && $disable_page != 1) {
 
                     // If meta does not exist SEO SEARCH is turned on by default
-                    if (metadata_exists('post', $object->ID, 'XAGIO_SEO_SCRIPTS_ENABLE')) {
+                    if (metadata_exists('post', $xagio_object->ID, 'XAGIO_SEO_SCRIPTS_ENABLE')) {
                         // If metadata exists we are checking if it's empty string(TURNED OFF) or 1(TUNED ON)
-                        $XAGIO_SEO_SCRIPTS_ENABLE = get_post_meta($object->ID, 'XAGIO_SEO_SCRIPTS_ENABLE', TRUE);
+                        $XAGIO_SEO_SCRIPTS_ENABLE = get_post_meta($xagio_object->ID, 'XAGIO_SEO_SCRIPTS_ENABLE', TRUE);
                         if ($XAGIO_SEO_SCRIPTS_ENABLE === "") {
                             $scripts = '';
                         } else {
-                            $scripts = get_post_meta($object->ID, 'XAGIO_SEO_SCRIPTS_BODY', TRUE);
+                            $scripts = get_post_meta($xagio_object->ID, 'XAGIO_SEO_SCRIPTS_BODY', TRUE);
                         }
                     } else {
-                        $scripts = get_post_meta($object->ID, 'XAGIO_SEO_SCRIPTS_BODY', TRUE);
+                        $scripts = get_post_meta($xagio_object->ID, 'XAGIO_SEO_SCRIPTS_BODY', TRUE);
                     }
 
                     if ($disable_global != 1) {
@@ -717,14 +829,14 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 "xagio_seo_disable"
             ];
             if (!in_array($action, $allowed_actions)) {
-                wp_redirect($sendback);
+                xagio_redirect($sendback);
                 exit;
             }
 
             $post_ids = array_map('sanitize_text_field', wp_unslash($_GET['post']));
 
             if (empty($post_ids)) {
-                wp_redirect($sendback);
+                xagio_redirect($sendback);
                 exit;
             }
 
@@ -745,11 +857,11 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
                     break;
                 default:
-                    wp_redirect($sendback);
+                    xagio_redirect($sendback);
                     exit;
             }
 
-            wp_redirect($sendback);
+            xagio_redirect($sendback);
             exit;
         }
 
@@ -767,8 +879,8 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
         public static function renderCustomColumn($column, $post_id)
         {
             if ($column == 'xagio_seo_column') {
-                $meta                            = XAGIO_MODEL_SEO::formatMetaVariables(get_post_meta($post_id));
-                $XAGIO_SEO_SEARCH_PREVIEW_ENABLE = !isset($meta['XAGIO_SEO_SEARCH_PREVIEW_ENABLE']) ? 1 : $meta['XAGIO_SEO_SEARCH_PREVIEW_ENABLE'];
+                $xagio_meta                            = XAGIO_MODEL_SEO::formatMetaVariables(get_post_meta($post_id));
+                $XAGIO_SEO_SEARCH_PREVIEW_ENABLE = !isset($xagio_meta['XAGIO_SEO_SEARCH_PREVIEW_ENABLE']) ? 1 : $xagio_meta['XAGIO_SEO_SEARCH_PREVIEW_ENABLE'];
                 ob_start();
                 include XAGIO_PATH . '/modules/seo/metabox/column.php';
 
@@ -817,9 +929,9 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
             if (isset($_POST['XAGIO_SEO_DEFAULT_POST_TYPES'])) {
 
-                $post_types = sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_DEFAULT_POST_TYPES']));
-                if (is_array($post_types) && !empty($post_types)) {
-                    update_option('XAGIO_SEO_DEFAULT_POST_TYPES', $post_types);
+                $xagio_post_types = sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_DEFAULT_POST_TYPES']));
+                if (is_array($xagio_post_types) && !empty($xagio_post_types)) {
+                    update_option('XAGIO_SEO_DEFAULT_POST_TYPES', $xagio_post_types);
                 }
                 xagio_json('success', 'Your post type settings have been saved.');
 
@@ -833,9 +945,9 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
             if (isset($_POST['XAGIO_SEO_DEFAULT_CUSTOM_POST_TYPES'])) {
 
-                $post_types = sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_DEFAULT_CUSTOM_POST_TYPES']));
-                if (is_array($post_types) && !empty($post_types)) {
-                    update_option('XAGIO_SEO_DEFAULT_CUSTOM_POST_TYPES', $post_types);
+                $xagio_post_types = sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_DEFAULT_CUSTOM_POST_TYPES']));
+                if (is_array($xagio_post_types) && !empty($xagio_post_types)) {
+                    update_option('XAGIO_SEO_DEFAULT_CUSTOM_POST_TYPES', $xagio_post_types);
                 }
                 xagio_json('success', 'Your post type Open Graph settings have been saved.');
 
@@ -849,9 +961,9 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
             if (isset($_POST['XAGIO_SEO_DEFAULT_POST_OG'])) {
 
-                $post_types = sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_DEFAULT_POST_OG']));
-                if (is_array($post_types) && !empty($post_types)) {
-                    update_option('XAGIO_SEO_DEFAULT_POST_OG', $post_types);
+                $xagio_post_types = sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_DEFAULT_POST_OG']));
+                if (is_array($xagio_post_types) && !empty($xagio_post_types)) {
+                    update_option('XAGIO_SEO_DEFAULT_POST_OG', $xagio_post_types);
                 }
                 xagio_json('success', 'Your Default Open Graph settings have been saved.');
 
@@ -865,9 +977,9 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
             if (isset($_POST['XAGIO_SEO_DEFAULT_TAXONOMIES'])) {
 
-                $taxonomies = sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_DEFAULT_TAXONOMIES']));
-                if (is_array($taxonomies) && !empty($taxonomies)) {
-                    update_option('XAGIO_SEO_DEFAULT_TAXONOMIES', $taxonomies);
+                $xagio_taxonomies = sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_DEFAULT_TAXONOMIES']));
+                if (is_array($xagio_taxonomies) && !empty($xagio_taxonomies)) {
+                    update_option('XAGIO_SEO_DEFAULT_TAXONOMIES', $xagio_taxonomies);
                 }
                 xagio_json('success', 'Your taxonomy settings have been saved.');
 
@@ -881,9 +993,9 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
             if (isset($_POST['XAGIO_SEO_DEFAULT_MISCELLANEOUS'])) {
 
-                $miscellaneous = sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_DEFAULT_MISCELLANEOUS']));
-                if (is_array($miscellaneous) && !empty($miscellaneous)) {
-                    update_option('XAGIO_SEO_DEFAULT_MISCELLANEOUS', $miscellaneous);
+                $xagio_miscellaneous = sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_DEFAULT_MISCELLANEOUS']));
+                if (is_array($xagio_miscellaneous) && !empty($xagio_miscellaneous)) {
+                    update_option('XAGIO_SEO_DEFAULT_MISCELLANEOUS', $xagio_miscellaneous);
                 }
                 xagio_json('success', 'Your miscellaneous settings have been saved.');
 
@@ -913,8 +1025,8 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
             $google_tag = get_option('XAGIO_SEO_VERIFICATION_GOOGLE_TAG_BODY');
             if (!empty($google_tag)) {
-                wp_register_script('google-tag-manager-body', false); // We register it without a source
-                wp_enqueue_script('google-tag-manager-body'); // Enqueue the script
+                wp_register_script('google-tag-manager-body', false, [], XAGIO_CURRENT_VERSION); // We register it without a source
+                wp_enqueue_script('google-tag-manager-body', false, [], XAGIO_CURRENT_VERSION); // Enqueue the script
 
                 $xagio_comment_start = '';
                 $xagio_comment_end   = '';
@@ -959,8 +1071,8 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
             // Enqueue Google Tag Manager script
             if (!empty($google_tag)) {
-                wp_register_script('google-tag-manager', false); // We register it without a source
-                wp_enqueue_script('google-tag-manager'); // Enqueue the script
+                wp_register_script('google-tag-manager', false, [], XAGIO_CURRENT_VERSION); // We register it without a source
+                wp_enqueue_script('google-tag-manager', false, [], XAGIO_CURRENT_VERSION); // Enqueue the script
 
                 // Add the inline script depending on the condition
                 if (strlen($google_tag) > 15) {
@@ -1055,12 +1167,12 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
         public static function changeCanonical()
         {
-            $object = $GLOBALS['wp_query']->get_queried_object();
+            $xagio_object = $GLOBALS['wp_query']->get_queried_object();
 
-            if (!is_object($object))
+            if (!is_object($xagio_object))
                 return FALSE;
 
-            if (!isset($object->ID))
+            if (!isset($xagio_object->ID))
                 return FALSE;
 
             $canonical = '';
@@ -1081,9 +1193,9 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
             // Turn off robots per page
             // If meta does not exist SEO_META_ROBOTS_ENABLE is turned on by default
-            if (metadata_exists('post', $object->ID, 'XAGIO_SEO_META_ROBOTS_ENABLE')) {
+            if (metadata_exists('post', $xagio_object->ID, 'XAGIO_SEO_META_ROBOTS_ENABLE')) {
                 // If metadata exists we are checking if it's empty string(TURNED OFF) or 1(TUNED ON)
-                $XAGIO_SEO_META_ROBOTS_ENABLE = get_post_meta($object->ID, 'XAGIO_SEO_META_ROBOTS_ENABLE', TRUE);
+                $XAGIO_SEO_META_ROBOTS_ENABLE = get_post_meta($xagio_object->ID, 'XAGIO_SEO_META_ROBOTS_ENABLE', TRUE);
                 if ($XAGIO_SEO_META_ROBOTS_ENABLE === "") {
                     $canonical = '';
                 }
@@ -1110,10 +1222,10 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
         }
 
-        private static function generatePermalinkFromURL($url)
+        private static function generatePermalinkFromURL($xagio_url)
         {
             // Parse the URL and extract the query string
-            $parsedUrl   = wp_parse_url($url);
+            $parsedUrl   = wp_parse_url($xagio_url);
             $queryString = isset($parsedUrl['query']) ? $parsedUrl['query'] : '';
 
             // Parse the query string into variables
@@ -1141,81 +1253,81 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                     return false;
                 }
             } else {
-                return $url;
+                return $xagio_url;
             }
         }
 
         public static function changeMetaRobots()
         {
-            $object = $GLOBALS['wp_query']->get_queried_object();
+            $xagio_object = $GLOBALS['wp_query']->get_queried_object();
+            $xagio_robots = '';
 
             if (is_feed()) {
                 return FALSE;
             }
 
-            if (!is_object($object)) {
-                return FALSE;
+            if (is_object($xagio_object)) {
+                if (is_singular()) {
+                    $xagio_robots = XAGIO_MODEL_SEO::getRobots($xagio_object);
+
+                } else if (is_category() || is_tag() || is_tax()) {
+                    $xagio_robots = XAGIO_MODEL_SEO::getRobotsTaxonomy($xagio_object);
+
+                }
+            } else {
+                if (is_search()) {
+                    $xagio_robots = XAGIO_MODEL_SEO::getRobotsMisc();
+
+                } else if (is_author()) {
+                    $xagio_robots = XAGIO_MODEL_SEO::getRobotsMisc();
+
+                } else if (is_post_type_archive()) {
+                    $xagio_robots = XAGIO_MODEL_SEO::getRobotsMisc();
+
+                } else if (is_archive()) {
+                    $xagio_robots = XAGIO_MODEL_SEO::getRobotsMisc();
+
+                } else if (is_404()) {
+                    $xagio_robots = XAGIO_MODEL_SEO::getRobotsMisc();
+
+                }
             }
 
-            $robots = '';
-
-            if (is_singular()) {
-                $robots = XAGIO_MODEL_SEO::getRobots($object);
-
-            } else if (is_category() || is_tag() || is_tax()) {
-                $robots = XAGIO_MODEL_SEO::getRobotsTaxonomy($object);
-
-            } else if (is_search()) {
-                $robots = XAGIO_MODEL_SEO::getRobotsMisc();
-
-            } else if (is_author()) {
-                $robots = XAGIO_MODEL_SEO::getRobotsMisc();
-
-            } else if (is_post_type_archive()) {
-                $robots = XAGIO_MODEL_SEO::getRobotsMisc();
-
-            } else if (is_archive()) {
-                $robots = XAGIO_MODEL_SEO::getRobotsMisc();
-
-            } else if (is_404()) {
-                $robots = XAGIO_MODEL_SEO::getRobotsMisc();
-
-            }
 
             if (get_option('XAGIO_SEO_FORCE_NOODP') == "1") {
-                if (empty($robots)) {
-                    $robots = 'noodp';
+                if (empty($xagio_robots)) {
+                    $xagio_robots = 'noodp';
                 } else {
-                    $robots   = explode(',', $robots);
-                    $robots[] = 'noodp';
-                    $robots   = join(',', $robots);
+                    $xagio_robots   = explode(',', $xagio_robots);
+                    $xagio_robots[] = 'noodp';
+                    $xagio_robots   = join(',', $xagio_robots);
                 }
 
             }
 
             if (get_option('XAGIO_DONT_INDEX_SUBPAGES') == "1") {
                 if (XAGIO_MODEL_SEO::is_sub_page()) {
-                    if (empty($robots)) {
-                        $robots = 'noindex';
+                    if (empty($xagio_robots)) {
+                        $xagio_robots = 'noindex';
                     } else {
-                        $robots   = explode(',', $robots);
-                        $robots   = array_diff($robots, [
+                        $xagio_robots   = explode(',', $xagio_robots);
+                        $xagio_robots   = array_diff($xagio_robots, [
                             "index",
                             "noindex"
                         ]);
-                        $robots[] = 'noindex';
-                        $robots   = join(',', $robots);
+                        $xagio_robots[] = 'noindex';
+                        $xagio_robots   = join(',', $xagio_robots);
                     }
                 }
 
             }
 
-            if (!empty($robots)) {
+            if (!empty($xagio_robots)) {
                 if (!XAGIO_DISABLE_HTML_FOOTPRINT) {
                     echo "\n<!-- xagio – Meta Robots -->\n";
                 }
 
-                echo "<meta name='robots' content='" . esc_attr($robots) . "'/>";
+                echo "<meta name='robots' content='" . esc_attr($xagio_robots) . "'/>";
 
                 if (!XAGIO_DISABLE_HTML_FOOTPRINT) {
                     echo "\n<!-- xagio – Meta Robots -->\n";
@@ -1225,95 +1337,95 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             return TRUE;
         }
 
-        public static function getRobots($object, $output = false)
+        public static function getRobots($xagio_object, $xagio_output = false)
         {
-            if (!is_object($object) || !isset($object->ID)) {
+            if (!is_object($xagio_object) || !isset($xagio_object->ID)) {
                 return false;
             }
 
-            $robots        = [];
+            $xagio_robots        = [];
             $global_robots = false;
             $post_type     = 'homepage';
 
             // Load all variables
-            $meta = XAGIO_MODEL_SEO::formatMetaVariables(get_post_meta($object->ID));
+            $xagio_meta = XAGIO_MODEL_SEO::formatMetaVariables(get_post_meta($xagio_object->ID));
 
             // Check if Meta Robots is Enabled in page
-            if (!empty($meta['XAGIO_SEO_META_ROBOTS_ENABLE'])) {
+            if (!empty($xagio_meta['XAGIO_SEO_META_ROBOTS_ENABLE'])) {
 
                 // First check the global settings and apply changes
-                $post_type     = $object->post_type ?? $object->query_var;
-                $page_id       = $object->ID;
+                $post_type     = $xagio_object->post_type ?? $xagio_object->query_var;
+                $xagio_page_id       = $xagio_object->ID;
                 $front_page_id = get_option('page_on_front');
                 $front_page_id = intval($front_page_id);
 
                 if (is_front_page())
                     $post_type = 'homepage';
-                if ($front_page_id === $page_id)
+                if ($front_page_id === $xagio_page_id)
                     $post_type = 'homepage';
 
 
-                $post_types = get_option('XAGIO_SEO_DEFAULT_POST_TYPES');
+                $xagio_post_types = get_option('XAGIO_SEO_DEFAULT_POST_TYPES');
 
-                if (!empty($post_types[$post_type]['XAGIO_SEO_ROBOTS'])) {
-                    $robots[]      = 'noindex';
-                    $robots[]      = 'follow';
+                if (!empty($xagio_post_types[$post_type]['XAGIO_SEO_ROBOTS'])) {
+                    $xagio_robots[]      = 'noindex';
+                    $xagio_robots[]      = 'follow';
                     $global_robots = true;
                 }
 
                 // Check advanced robots from the page and apply them to global
-                $advanced_robots = maybe_unserialize(!empty($meta['XAGIO_SEO_META_ROBOTS_ADVANCED']) ? $meta['XAGIO_SEO_META_ROBOTS_ADVANCED'] : []);
+                $advanced_robots = maybe_unserialize(!empty($xagio_meta['XAGIO_SEO_META_ROBOTS_ADVANCED']) ? $xagio_meta['XAGIO_SEO_META_ROBOTS_ADVANCED'] : []);
 
                 foreach ($advanced_robots as $a_robot) {
-                    $robots[] = $a_robot;
+                    $xagio_robots[] = $a_robot;
                 }
 
                 // Then if page settings for meta robots are not set to default, overwrite the global setting
-                if ($meta['XAGIO_SEO_META_ROBOTS_INDEX'] !== 'default') {
-                    if (($key = array_search('noindex', $robots, true)) !== false) {
-                        unset($robots[$key]);
+                if ($xagio_meta['XAGIO_SEO_META_ROBOTS_INDEX'] !== 'default') {
+                    if (($xagio_key = array_search('noindex', $xagio_robots, true)) !== false) {
+                        unset($xagio_robots[$xagio_key]);
                     }
 
-                    $robots[] = $meta['XAGIO_SEO_META_ROBOTS_INDEX'] ?? '';
+                    $xagio_robots[] = $xagio_meta['XAGIO_SEO_META_ROBOTS_INDEX'] ?? '';
                 }
 
-                if ($meta['XAGIO_SEO_META_ROBOTS_FOLLOW'] !== 'default') {
-                    if (($key = array_search('follow', $robots, true)) !== false) {
-                        unset($robots[$key]);
+                if ($xagio_meta['XAGIO_SEO_META_ROBOTS_FOLLOW'] !== 'default') {
+                    if (($xagio_key = array_search('follow', $xagio_robots, true)) !== false) {
+                        unset($xagio_robots[$xagio_key]);
                     }
-                    $robots[] = $meta['XAGIO_SEO_META_ROBOTS_FOLLOW'] ?? '';
+                    $xagio_robots[] = $xagio_meta['XAGIO_SEO_META_ROBOTS_FOLLOW'] ?? '';
                 }
 
-                $robots = implode(',', array_filter($robots));
+                $xagio_robots = implode(',', array_filter($xagio_robots));
             }
 
-            if ($output) {
+            if ($xagio_output) {
                 return [
-                    'robots'    => $robots,
+                    'robots'    => $xagio_robots,
                     'global'    => $global_robots,
                     'post_type' => $post_type
                 ];
             }
 
-            return $robots;
+            return $xagio_robots;
         }
 
 
-        public static function getRobotsTaxonomy($object)
+        public static function getRobotsTaxonomy($xagio_object)
         {
-            if (is_object($object) && isset($object->taxonomy) && isset($object->term_id)) {
+            if (is_object($xagio_object) && isset($xagio_object->taxonomy) && isset($xagio_object->term_id)) {
 
-                $taxonomy   = $object->taxonomy;
-                $taxonomies = get_option('XAGIO_SEO_DEFAULT_TAXONOMIES');
+                $taxonomy   = $xagio_object->taxonomy;
+                $xagio_taxonomies = get_option('XAGIO_SEO_DEFAULT_TAXONOMIES');
 
-                $robots = @$taxonomies[$taxonomy]['XAGIO_SEO_ROBOTS'];
+                $xagio_robots = @$xagio_taxonomies[$taxonomy]['XAGIO_SEO_ROBOTS'];
 
-                $meta = xagio_get_term_meta($object->term_id);
-                if (@$meta['XAGIO_SEO_ROBOTS'] == TRUE) {
+                $xagio_meta = xagio_get_term_meta($xagio_object->term_id);
+                if (@$xagio_meta['XAGIO_SEO_ROBOTS'] == TRUE) {
 
                     return 'noindex,follow';
 
-                } else if ($robots == TRUE) {
+                } else if ($xagio_robots == TRUE) {
 
                     return 'noindex,follow';
 
@@ -1347,11 +1459,11 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
         public static function getRobotsMisc()
         {
-            $miscellaneous = get_option('XAGIO_SEO_DEFAULT_MISCELLANEOUS');
+            $xagio_miscellaneous = get_option('XAGIO_SEO_DEFAULT_MISCELLANEOUS');
             $misc          = self::detectSpecialPages();
-            if (isset($miscellaneous[$misc])) {
-                $robots = @$miscellaneous[$misc]['XAGIO_SEO_ROBOTS'];
-                if ($robots == TRUE) {
+            if (isset($xagio_miscellaneous[$misc])) {
+                $xagio_robots = @$xagio_miscellaneous[$misc]['XAGIO_SEO_ROBOTS'];
+                if ($xagio_robots == TRUE) {
                     return 'noindex,follow';
                 } else {
                     return FALSE;
@@ -1388,18 +1500,18 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 return FALSE;
             }
 
-            $description = XAGIO_MODEL_SEO::getMeta('XAGIO_SEO_DESCRIPTION');
+            $xagio_description = XAGIO_MODEL_SEO::getMeta('XAGIO_SEO_DESCRIPTION');
 
-            if (!empty($description)) {
+            if (!empty($xagio_description)) {
 
                 // Perform spintax
-                $description = do_shortcode(xagio_spintax($description));
+                $xagio_description = do_shortcode(xagio_spintax($xagio_description));
 
                 if (!XAGIO_DISABLE_HTML_FOOTPRINT) {
                     echo "\n<!-- xagio – Meta Description -->\n";
                 }
 
-                echo '<meta name="description" content="' . esc_attr($description) . '">';
+                echo '<meta name="description" content="' . esc_attr($xagio_description) . '">';
 
                 if (!XAGIO_DISABLE_HTML_FOOTPRINT) {
                     echo "\n<!-- xagio – Meta Description -->\n";
@@ -1415,14 +1527,14 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 return FALSE;
             }
 
-            $og = XAGIO_MODEL_SEO::getOG();
+            $xagio_og = XAGIO_MODEL_SEO::getOG();
 
-            if (!empty($og)) {
+            if (!empty($xagio_og)) {
                 if (!XAGIO_DISABLE_HTML_FOOTPRINT) {
                     echo "\n<!-- xagio – Open Graph -->\n";
                 }
 
-                echo wp_kses($og, [
+                echo wp_kses($xagio_og, [
                     'meta' => [
                         'content'  => [],
                         'property' => [],
@@ -1438,10 +1550,10 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             return TRUE;
         }
 
-        public static function getMeta($key = '')
+        public static function getMeta($xagio_key = '')
         {
-            $object   = $GLOBALS['wp_query']->get_queried_object();
-            $meta     = null;
+            $xagio_object   = $GLOBALS['wp_query']->get_queried_object();
+            $xagio_meta     = null;
             $defaults = null;
             $type     = null;
 
@@ -1456,64 +1568,64 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 }
 
                 $type     = $term->taxonomy;
-                $meta     = xagio_get_term_meta($term->term_id);
+                $xagio_meta     = xagio_get_term_meta($term->term_id);
                 $defaults = get_option('XAGIO_SEO_DEFAULT_TAXONOMIES');
 
-                if (empty($meta) || (empty($meta[$key]))) {
+                if (empty($xagio_meta) || (empty($xagio_meta[$xagio_key]))) {
                     $type     = 'magicpage';
                     $defaults = get_option('XAGIO_SEO_DEFAULT_POST_TYPES');
-                    $meta     = XAGIO_MODEL_SEO::formatMetaVariables(get_post_meta($object->ID));
+                    $xagio_meta     = XAGIO_MODEL_SEO::formatMetaVariables(get_post_meta($xagio_object->ID));
                 }
 
             } // If Post
-            else if ($object instanceof WP_Post) {
+            else if ($xagio_object instanceof WP_Post) {
 
                 $defaults = get_option('XAGIO_SEO_DEFAULT_POST_TYPES');
-                $meta     = XAGIO_MODEL_SEO::formatMetaVariables(get_post_meta($object->ID));
+                $xagio_meta     = XAGIO_MODEL_SEO::formatMetaVariables(get_post_meta($xagio_object->ID));
 
-                if (is_front_page() || is_home() || $object->ID == get_option('page_on_front')) {
-                    switch ($key) {
+                if (is_front_page() || is_home() || $xagio_object->ID == get_option('page_on_front')) {
+                    switch ($xagio_key) {
                         case "XAGIO_SEO_DESCRIPTION":
                         case "XAGIO_SEO_TITLE":
-                            if (empty($meta[$key])) {
+                            if (empty($xagio_meta[$xagio_key])) {
                                 $type = 'homepage';
-                                $meta = isset($defaults[$type]) ? $defaults[$type] : [];
+                                $xagio_meta = isset($defaults[$type]) ? $defaults[$type] : [];
                             }
                             break;
                         default:
                             $type = 'homepage';
-                            $meta = isset($defaults[$type]) ? $defaults[$type] : [];
+                            $xagio_meta = isset($defaults[$type]) ? $defaults[$type] : [];
                             break;
                     }
 
                 } else {
-                    $type = $object->post_type ?? $object->query_var;
-                    $meta = XAGIO_MODEL_SEO::formatMetaVariables(get_post_meta($object->ID));
+                    $type = $xagio_object->post_type ?? $xagio_object->query_var;
+                    $xagio_meta = XAGIO_MODEL_SEO::formatMetaVariables(get_post_meta($xagio_object->ID));
                 }
 
             } // If Term
-            else if ($object instanceof WP_Term) {
-                $type     = $object->taxonomy;
-                $meta     = xagio_get_term_meta($object->term_id);
+            else if ($xagio_object instanceof WP_Term) {
+                $type     = $xagio_object->taxonomy;
+                $xagio_meta     = xagio_get_term_meta($xagio_object->term_id);
                 $defaults = get_option('XAGIO_SEO_DEFAULT_TAXONOMIES');
             } // If Misc
             else if ($currentMisc = self::detectSpecialPages()) {
                 $defaults = get_option('XAGIO_SEO_DEFAULT_MISCELLANEOUS');
                 if (isset($defaults[$currentMisc])) {
-                    $meta = $defaults[$currentMisc];
+                    $xagio_meta = $defaults[$currentMisc];
                 }
             }
 
-            if (empty($meta)) {
+            if (empty($xagio_meta)) {
                 return FALSE;
             }
 
             // If XAGIO SEO SEARCH is turned OFF
-            if (($key === 'XAGIO_SEO_TITLE' || $key === 'XAGIO_SEO_DESCRIPTION')) {
+            if (($xagio_key === 'XAGIO_SEO_TITLE' || $xagio_key === 'XAGIO_SEO_DESCRIPTION')) {
                 // If meta does not exist SEO SEARCH is turned on by default
-                if (metadata_exists('post', @$object->ID, 'XAGIO_SEO_SEARCH_PREVIEW_ENABLE')) {
+                if (metadata_exists('post', @$xagio_object->ID, 'XAGIO_SEO_SEARCH_PREVIEW_ENABLE')) {
                     // If metadata exists we are checking if it's empty string(TURNED OFF) or 1(TUNED ON)
-                    $XAGIO_SEO_SEARCH_PREVIEW_ENABLE = get_post_meta(@$object->ID, 'XAGIO_SEO_SEARCH_PREVIEW_ENABLE', TRUE);
+                    $XAGIO_SEO_SEARCH_PREVIEW_ENABLE = get_post_meta(@$xagio_object->ID, 'XAGIO_SEO_SEARCH_PREVIEW_ENABLE', TRUE);
                     if ($XAGIO_SEO_SEARCH_PREVIEW_ENABLE === "")
                         $XAGIO_SEO_SEARCH_PREVIEW_ENABLE = 0;
                     if (abs(intval($XAGIO_SEO_SEARCH_PREVIEW_ENABLE)) === 0 && XAGIO_SEO_FORCE_ENABLE == 0) {
@@ -1522,166 +1634,168 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 }
             }
 
-            if (!empty($meta[$key])) {
-                return self::replaceVars($meta[$key], @$object->ID);
-            } else {
+	        if ( ! empty( $xagio_meta[ $xagio_key ] ) ) {
+		        return self::replaceVars( $xagio_meta[ $xagio_key ], $xagio_object->ID ?? 0 );
+	        } else {
 
-                $template = @$defaults[$type][$key];
-                $template = self::replaceVars($template, @$object->ID);
+		        $xagio_template = $defaults[ $type ][ $xagio_key ] ?? '';
+		        $xagio_template = self::replaceVars( $xagio_template, $xagio_object->ID ?? 0 );
 
-                if (!empty($template)) {
-                    return $template;
-                }
-            }
-            return FALSE;
+		        if ( ! empty( $xagio_template ) ) {
+			        return $xagio_template;
+		        }
+	        }
+	        return FALSE;
 
         }
 
         public static function getOG()
         {
-            $object = $GLOBALS['wp_query']->get_queried_object();
-            if (is_object($object) && isset($object->ID)) {
+            $xagio_object = $GLOBALS['wp_query']->get_queried_object();
+            if (is_object($xagio_object) && isset($xagio_object->ID)) {
 
                 $defaults = get_option('XAGIO_SEO_DEFAULT_OG');
-                $meta     = XAGIO_MODEL_SEO::formatMetaVariables(get_post_meta($object->ID));
+                $xagio_meta     = XAGIO_MODEL_SEO::formatMetaVariables(get_post_meta($xagio_object->ID));
 
-                if (is_front_page() || is_home() || $object->ID == get_option('page_on_front')) {
+                if (is_front_page() || is_home() || $xagio_object->ID == get_option('page_on_front')) {
                     $type = 'homepage';
                 } else {
-                    $type = $object->post_type ?? $object->query_var;
+                    $type = $xagio_object->post_type ?? $xagio_object->query_var;
                 }
 
-                if (isset($meta['XAGIO_SEO']) && !$meta['XAGIO_SEO']) {
+                if (isset($xagio_meta['XAGIO_SEO']) && !$xagio_meta['XAGIO_SEO']) {
                     return FALSE;
                 }
 
                 // If meta does not exist XAGIO_SEO_SOCIAL_ENABLE is turned on by default
-                if (metadata_exists('post', $object->ID, 'XAGIO_SEO_SOCIAL_ENABLE')) {
+                if (metadata_exists('post', $xagio_object->ID, 'XAGIO_SEO_SOCIAL_ENABLE')) {
                     // If metadata exists we are checking if it's empty string(TURNED OFF) or 1(TUNED ON)
-                    $XAGIO_SEO_SOCIAL_ENABLE = get_post_meta($object->ID, 'XAGIO_SEO_SOCIAL_ENABLE', TRUE);
+                    $XAGIO_SEO_SOCIAL_ENABLE = get_post_meta($xagio_object->ID, 'XAGIO_SEO_SOCIAL_ENABLE', TRUE);
                     if ($XAGIO_SEO_SOCIAL_ENABLE === "") {
                         return FALSE;
                     }
                 }
 
-                $og = '';
+                $xagio_og = '';
 
                 if (!isset($_SERVER['REQUEST_URI'])) {
                     wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
                 }
 
-                $og .= '<meta property="og:locale" content="' . esc_attr(get_locale()) . '"/>' . "\n";
-                $og .= '<meta property="og:type" content="article"/>' . "\n";
-                $og .= '<meta property="og:url" content="' . get_site_url() . sanitize_text_field(wp_unslash($_SERVER['REQUEST_URI'])) . '"/>' . "\n";
-                $og .= '<meta property="og:site_name" content="' . get_bloginfo('name') . '"/>' . "\n";
+                $xagio_og .= '<meta property="og:locale" content="' . esc_attr(get_locale()) . '"/>' . "\n";
+                $xagio_og .= '<meta property="og:type" content="article"/>' . "\n";
+                $xagio_og .= '<meta property="og:url" content="' . get_site_url() . sanitize_text_field(wp_unslash($_SERVER['REQUEST_URI'])) . '"/>' . "\n";
+                $xagio_og .= '<meta property="og:site_name" content="' . get_bloginfo('name') . '"/>' . "\n";
 
                 // Facebook Vars
-                $fbId    = @$meta['XAGIO_SEO_FACEBOOK_APP_ID'];
-                $fbTitle = @$meta['XAGIO_SEO_FACEBOOK_TITLE'];
-                $fbDesc  = @$meta['XAGIO_SEO_FACEBOOK_DESCRIPTION'];
-                $fbImg   = @$meta['XAGIO_SEO_FACEBOOK_IMAGE'];
+	            $fbId    = $xagio_meta['XAGIO_SEO_FACEBOOK_APP_ID'] ?? '';
+	            $fbTitle = $xagio_meta['XAGIO_SEO_FACEBOOK_TITLE'] ?? '';
+	            $fbDesc  = $xagio_meta['XAGIO_SEO_FACEBOOK_DESCRIPTION'] ?? '';
+	            $fbImg   = $xagio_meta['XAGIO_SEO_FACEBOOK_IMAGE'] ?? '';
 
-                // if any of the OG tags are empty, we will use defaults
-                if (empty($fbId)) {
-                    $fbId = @$defaults[$type]['XAGIO_SEO_FACEBOOK_APP_ID'];
-                }
-                if (empty($fbTitle)) {
-                    $fbTitle = @$defaults[$type]['XAGIO_SEO_FACEBOOK_TITLE'];
-                }
-                if (empty($fbDesc)) {
-                    $fbDesc = @$defaults[$type]['XAGIO_SEO_FACEBOOK_DESCRIPTION'];
-                }
-                if (empty($fbImg)) {
-                    $fbImg = @$defaults[$type]['XAGIO_SEO_FACEBOOK_IMAGE'];
-                }
+				// if any of the OG tags are empty, we will use defaults
+	            if ( empty( $fbId ) ) {
+		            $fbId = $defaults[ $type ]['XAGIO_SEO_FACEBOOK_APP_ID'] ?? '';
+	            }
+	            if ( empty( $fbTitle ) ) {
+		            $fbTitle = $defaults[ $type ]['XAGIO_SEO_FACEBOOK_TITLE'] ?? '';
+	            }
+	            if ( empty( $fbDesc ) ) {
+		            $fbDesc = $defaults[ $type ]['XAGIO_SEO_FACEBOOK_DESCRIPTION'] ?? '';
+	            }
+	            if ( empty( $fbImg ) ) {
+		            $fbImg = $defaults[ $type ]['XAGIO_SEO_FACEBOOK_IMAGE'] ?? '';
+	            }
 
-                /**
+	            /**
                  *   Facebook AppId
                  */
                 if (!empty($fbId)) {
                     $fbId = self::replaceVars($fbId);
-                    $og   .= '<meta property="fb:app_id" content="' . $fbId . '"/>' . "\n";
+                    $xagio_og   .= '<meta property="fb:app_id" content="' . $fbId . '"/>' . "\n";
                 }
 
                 /**
                  *   Facebook Title
                  */
-                if (xagio_parse_bool(@$meta['XAGIO_SEO_FACEBOOK_TITLE_USE_FROM_SEO']) || empty($fbTitle)) {
-                    $fbTitle = self::getMeta('XAGIO_SEO_TITLE');
-                }
-                $fbTitle = self::replaceVars(xagio_spintax($fbTitle));
-                $og      .= '<meta property="og:title" content="' . $fbTitle . '"/>' . "\n";
+	            if ( xagio_parse_bool( $xagio_meta['XAGIO_SEO_FACEBOOK_TITLE_USE_FROM_SEO'] ?? false ) || empty( $fbTitle ) ) {
+		            $fbTitle = self::getMeta( 'XAGIO_SEO_TITLE' );
+	            }
+	            $fbTitle = self::replaceVars(xagio_spintax($fbTitle));
+                $xagio_og      .= '<meta property="og:title" content="' . $fbTitle . '"/>' . "\n";
 
-                /**
-                 *   Facebook Description
-                 */
-                if (xagio_parse_bool(@$meta['XAGIO_SEO_FACEBOOK_DESCRIPTION_USE_FROM_SEO']) || empty($fbDesc)) {
-                    $fbDesc = self::getMeta('XAGIO_SEO_DESCRIPTION');
-                }
-                $fbDesc = self::replaceVars(xagio_spintax($fbDesc));
-                $og     .= '<meta property="og:description" content="' . $fbDesc . '"/>' . "\n";
+	            /**
+	             *   Facebook Description
+	             */
+	            if ( xagio_parse_bool( $xagio_meta['XAGIO_SEO_FACEBOOK_DESCRIPTION_USE_FROM_SEO'] ?? false ) || empty( $fbDesc ) ) {
+		            $fbDesc = self::getMeta( 'XAGIO_SEO_DESCRIPTION' );
+	            }
+	            $fbDesc = self::replaceVars( xagio_spintax( $fbDesc ) );
+	            $xagio_og     .= '<meta property="og:description" content="' . esc_attr( $fbDesc ) . '"/>' . "\n";
 
-                /**
-                 *   Facebook Image
-                 */
-                if (xagio_parse_bool(@$meta['XAGIO_SEO_FACEBOOK_USE_FEATURED_IMAGE']) || empty($fbImg)) {
-                    $attachment_id = get_post_meta($object->ID, '_thumbnail_id', true);
-                    $fbImg         = wp_get_attachment_image_src($attachment_id, 'full');
-                }
-                $fbImg = self::replaceVars($fbImg);
-                if (!empty($fbImg)) {
-                    $og .= '<meta property="og:image" content="' . $fbImg . '"/>' . "\n";
-                }
+	            /**
+	             *   Facebook Image
+	             */
+	            if ( xagio_parse_bool( $xagio_meta['XAGIO_SEO_FACEBOOK_USE_FEATURED_IMAGE'] ?? false ) || empty( $fbImg ) ) {
+		            $attachment_id = get_post_meta( $xagio_object->ID ?? 0, '_thumbnail_id', true );
+		            $fbImg         = wp_get_attachment_image_src( $attachment_id, 'full' );
+		            $fbImg         = is_array( $fbImg ) ? $fbImg[0] : '';
+	            }
+	            $fbImg = self::replaceVars( $fbImg );
+	            if ( ! empty( $fbImg ) ) {
+		            $xagio_og .= '<meta property="og:image" content="' . esc_url( $fbImg ) . '"/>' . "\n";
+	            }
 
-                // Twitter Vars
-                $twTitle = @$meta['XAGIO_SEO_TWITTER_TITLE'];
-                $twDesc  = @$meta['XAGIO_SEO_TWITTER_DESCRIPTION'];
-                $twImg   = @$meta['XAGIO_SEO_TWITTER_IMAGE'];
+	            // Twitter Vars
+	            $twTitle = $xagio_meta['XAGIO_SEO_TWITTER_TITLE'] ?? '';
+	            $twDesc  = $xagio_meta['XAGIO_SEO_TWITTER_DESCRIPTION'] ?? '';
+	            $twImg   = $xagio_meta['XAGIO_SEO_TWITTER_IMAGE'] ?? '';
 
-                // if any of the OG tags are empty, we will use defaults
-                if (empty($twTitle)) {
-                    $twTitle = @$defaults[$type]['XAGIO_SEO_TWITTER_TITLE'];
-                }
-                if (empty($twDesc)) {
-                    $twDesc = @$defaults[$type]['XAGIO_SEO_TWITTER_DESCRIPTION'];
-                }
-                if (empty($twImg)) {
-                    $twImg = @$defaults[$type]['XAGIO_SEO_TWITTER_IMAGE'];
-                }
+				// if any of the OG tags are empty, we will use defaults
+	            if ( empty( $twTitle ) ) {
+		            $twTitle = $defaults[ $type ]['XAGIO_SEO_TWITTER_TITLE'] ?? '';
+	            }
+	            if ( empty( $twDesc ) ) {
+		            $twDesc = $defaults[ $type ]['XAGIO_SEO_TWITTER_DESCRIPTION'] ?? '';
+	            }
+	            if ( empty( $twImg ) ) {
+		            $twImg = $defaults[ $type ]['XAGIO_SEO_TWITTER_IMAGE'] ?? '';
+	            }
 
-                $og .= '<meta name="twitter:card" content="summary"/>' . "\n";
+	            $xagio_og .= '<meta name="twitter:card" content="summary"/>' . "\n";
 
-                /**
-                 *   Twitter Title
-                 */
-                if (xagio_parse_bool(@$meta['XAGIO_SEO_TWITTER_TITLE_USE_FROM_SEO']) || empty($twTitle)) {
-                    $twTitle = self::getMeta('XAGIO_SEO_TITLE');
-                }
-                $twTitle = self::replaceVars(xagio_spintax($twTitle));
-                $og      .= '<meta name="twitter:title" content="' . $twTitle . '"/>' . "\n";
+	            /**
+	             *   Twitter Title
+	             */
+	            if ( xagio_parse_bool( $xagio_meta['XAGIO_SEO_TWITTER_TITLE_USE_FROM_SEO'] ?? false ) || empty( $twTitle ) ) {
+		            $twTitle = self::getMeta( 'XAGIO_SEO_TITLE' );
+	            }
+	            $twTitle = self::replaceVars( xagio_spintax( $twTitle ) );
+	            $xagio_og      .= '<meta name="twitter:title" content="' . esc_attr( $twTitle ) . '"/>' . "\n";
 
-                /**
-                 *   Twitter Description
-                 */
-                if (xagio_parse_bool(@$meta['XAGIO_SEO_TWITTER_DESCRIPTION_USE_FROM_SEO']) || empty($twDesc)) {
-                    $twDesc = self::getMeta('XAGIO_SEO_DESCRIPTION');
-                }
-                $twDesc = self::replaceVars(xagio_spintax($twDesc));
-                $og     .= '<meta name="twitter:description" content="' . $twDesc . '"/>' . "\n";
+	            /**
+	             *   Twitter Description
+	             */
+	            if ( xagio_parse_bool( $xagio_meta['XAGIO_SEO_TWITTER_DESCRIPTION_USE_FROM_SEO'] ?? false ) || empty( $twDesc ) ) {
+		            $twDesc = self::getMeta( 'XAGIO_SEO_DESCRIPTION' );
+	            }
+	            $twDesc = self::replaceVars( xagio_spintax( $twDesc ) );
+	            $xagio_og     .= '<meta name="twitter:description" content="' . esc_attr( $twDesc ) . '"/>' . "\n";
 
-                /**
-                 *   Twitter Image
-                 */
-                if (xagio_parse_bool(@$meta['XAGIO_SEO_TWITTER_USE_FEATURED_IMAGE']) || empty($twImg)) {
-                    $attachment_id = get_post_meta($object->ID, '_thumbnail_id', true);
-                    $twImg         = wp_get_attachment_image_src($attachment_id, 'full');
-                }
-                $twImg = self::replaceVars($twImg);
-                if (!empty($twImg)) {
-                    $og .= '<meta name="twitter:image" content="' . $twImg . '"/>';
-                }
+	            /**
+	             *   Twitter Image
+	             */
+	            if ( xagio_parse_bool( $xagio_meta['XAGIO_SEO_TWITTER_USE_FEATURED_IMAGE'] ?? false ) || empty( $twImg ) ) {
+		            $attachment_id = get_post_meta( $xagio_object->ID ?? 0, '_thumbnail_id', true );
+		            $twImg         = wp_get_attachment_image_src( $attachment_id, 'full' );
+		            $twImg         = is_array( $twImg ) ? $twImg[0] : '';
+	            }
+	            $twImg = self::replaceVars( $twImg );
+	            if ( ! empty( $twImg ) ) {
+		            $xagio_og .= '<meta name="twitter:image" content="' . esc_url( $twImg ) . '"/>';
+	            }
 
-                return $og;
+	            return $xagio_og;
             }
             return FALSE;
         }
@@ -1747,36 +1861,36 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             ];
 
             // trim down the content to 160 characters
-            $content = get_the_content(null, false, $post_id);
-            $content = wp_strip_all_tags($content);
-            if (strlen($content) > 160) {
-                $content = substr($content, 0, 157) . '...';
+            $xagio_content = get_the_content(null, false, $post_id);
+            $xagio_content = wp_strip_all_tags($xagio_content);
+            if (strlen($xagio_content) > 160) {
+                $xagio_content = substr($xagio_content, 0, 157) . '...';
             }
-            $vars['%%content%%'] = $content;
+            $vars['%%content%%'] = $xagio_content;
 
-            foreach ($pre_replace as $name => $value) {
-                if (is_array($name)) {
-                    $name = $name[0];
+            foreach ($pre_replace as $xagio_name => $xagio_value) {
+                if (is_array($xagio_name)) {
+                    $xagio_name = $xagio_name[0];
                 }
-                if (is_array($value)) {
-                    $value = $value[0];
+                if (is_array($xagio_value)) {
+                    $xagio_value = $xagio_value[0];
                 }
-                $string = str_replace($name, $value, $string);
+                $string = str_replace($xagio_name, $xagio_value, $string);
             }
-            foreach ($vars as $name => $value) {
-                if (is_array($name)) {
-                    $name = $name[0];
+            foreach ($vars as $xagio_name => $xagio_value) {
+                if (is_array($xagio_name)) {
+                    $xagio_name = $xagio_name[0];
                 }
-                if (is_array($value)) {
-                    $value = $value[0];
+                if (is_array($xagio_value)) {
+                    $xagio_value = $xagio_value[0];
                 }
-                $string = str_replace($name, $value, $string);
+                $string = str_replace($xagio_name, $xagio_value, $string);
             }
 
             return do_shortcode($string);
         }
 
-        public static function magicPageSaveUrl($old_value, $value, $option)
+        public static function magicPageSaveUrl($old_value, $xagio_value, $option)
         {
             global $wpdb;
 
@@ -1788,12 +1902,12 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                     $groups = [$groups];
                 }
 
-                foreach ($groups as $group) {
+                foreach ($groups as $xagio_group) {
 
                     $wpdb->update('xag_groups', [
-                        'url' => str_replace($old_value, $value, $group['url']),
+                        'url' => str_replace($old_value, $xagio_value, $xagio_group['url']),
                     ], [
-                        'id' => $group['id'],
+                        'id' => $xagio_group['id'],
                     ]);
 
                 }
@@ -1807,6 +1921,11 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             global $wpdb;
 
             if(get_option('XAGIO_HIDDEN')) {
+                return $post_id;
+            }
+
+            $post_type = get_post_type($post_id);
+            if ($post_type === 'wpcf7_contact_form') {
                 return $post_id;
             }
 
@@ -1896,7 +2015,7 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                     $update_data['description'] = sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_DESCRIPTION']));
                 }
                 if (isset($_POST['XAGIO_SEO_NOTES'])) {
-                    $update_data['notes'] = sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_NOTES']));
+                    $update_data['notes'] = base64_encode(wp_unslash($_POST['XAGIO_SEO_NOTES']));
                 }
 
                 $wpdb->update('xag_groups', $update_data, ['id_page_post' => $post_id]);
@@ -2097,7 +2216,7 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                     FILTER_VALIDATE_BOOLEAN
                 ],
                 'XAGIO_SEO_NOTES' => [
-                    'sanitize_textarea_field',
+                    'base64_encode',
                     false
                 ]
             ];
@@ -2105,20 +2224,20 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             // Only process fields that are actually set in $_POST
             foreach ($field_configs as $field => $config) {
                 if (isset($_POST[$field])) {
-                    $value = wp_unslash($_POST[$field]);
+                    $xagio_value = wp_unslash($_POST[$field]);
 
                     // Handle special cases for filter_var and wp_kses
                     if ($config[0] === 'filter_var') {
-                        $value = filter_var($value, $config[1]);
+                        $xagio_value = filter_var($xagio_value, $config[1]);
                     } elseif ($config[0] === 'wp_kses') {
-                        $value = wp_kses($value, $config[1]);
+                        $xagio_value = wp_kses($xagio_value, $config[1]);
                         // Keep slashes for script fields
-                        $value = wp_slash($value);
+                        $xagio_value = wp_slash($xagio_value);
                     } else {
-                        $value = $config[0]($value);
+                        $xagio_value = $config[0]($xagio_value);
                     }
 
-                    update_post_meta($post_id, $field, $value);
+                    update_post_meta($post_id, $field, $xagio_value);
                 }
             }
 
@@ -2128,22 +2247,6 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 update_post_meta($post_id, 'XAGIO_SEO_META_ROBOTS_ADVANCED', $robots_advanced);
             } else {
                 update_post_meta($post_id, 'XAGIO_SEO_META_ROBOTS_ADVANCED', []);
-            }
-
-            /** Handle post URL update */
-            if (isset($newUrl)) {
-                remove_action('save_post', [
-                    'XAGIO_MODEL_SEO',
-                    'savePost'
-                ]);
-                wp_update_post([
-                    'ID'        => $post_id,
-                    'post_name' => $newUrl
-                ]);
-                add_action('save_post', [
-                    'XAGIO_MODEL_SEO',
-                    'savePost'
-                ]);
             }
 
             return $post_id;
@@ -2191,57 +2294,57 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             require_once(dirname(__FILE__) . '/../metabox/terms.php');
         }
 
-        public static function formatMetaVariables($meta)
+        public static function formatMetaVariables($xagio_meta)
         {
             $tmp = [];
-            if (empty($meta) || !$meta) {
+            if (empty($xagio_meta) || !$xagio_meta) {
                 return $tmp;
             }
-            foreach ($meta as $key => $value) {
-                $tmp[$key] = $value[0];
+            foreach ($xagio_meta as $xagio_key => $xagio_value) {
+                $tmp[$xagio_key] = $xagio_value[0];
             }
             return $tmp;
         }
 
         public static function extract_url_parts($id, $check_terms_first = false)
         {
-            $url  = null;
+            $xagio_url  = null;
             $post = null;
 
             if ($check_terms_first) {
                 // Check terms first
                 if (term_exists($id)) {
-                    $url = get_term_link($id);
-                    if (is_wp_error($url)) {
+                    $xagio_url = get_term_link($id);
+                    if (is_wp_error($xagio_url)) {
                         return false;
                     }
                 } else {
                     // Fallback to post check
                     $post = get_post($id);
                     if ($post) {
-                        $url = get_permalink($id);
+                        $xagio_url = get_permalink($id);
                     }
                 }
             } else {
                 // Check posts first (default behavior)
                 $post = get_post($id);
                 if ($post) {
-                    $url = get_permalink($id);
+                    $xagio_url = get_permalink($id);
                 } else if (term_exists($id)) {
-                    $url = get_term_link($id);
-                    if (is_wp_error($url)) {
+                    $xagio_url = get_term_link($id);
+                    if (is_wp_error($xagio_url)) {
                         return false;
                     }
                 }
             }
 
             // If no valid URL was found, return false
-            if (!$url) {
+            if (!$xagio_url) {
                 return false;
             }
 
-            $url  = wp_parse_url($url);
-            $host = $url['scheme'] . "://" . $url['host'];
+            $xagio_url  = wp_parse_url($xagio_url);
+            $host = $xagio_url['scheme'] . "://" . $xagio_url['host'];
 
             $final = [
                 'host' => $host
@@ -2264,58 +2367,58 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 $final['parts']        = $url_structure;
                 $final['editable_url'] = $permalink;
             } else {
-                $path = explode('/', $url['path']);
+                $path = explode('/', $xagio_url['path']);
                 $path = array_values(array_filter($path));
 
-                $name = "";
+                $xagio_name = "";
                 if (sizeof($path) > 0) {
                     if (sizeof($path) === 1) {
-                        $name = $path[0];
+                        $xagio_name = $path[0];
                         $path = [];
                     } else {
-                        $name = end($path);
+                        $xagio_name = end($path);
                         array_pop($path);
                     }
                 }
 
                 $final['parts']        = $path;
-                $final['editable_url'] = $name;
+                $final['editable_url'] = $xagio_name;
             }
 
             return $final;
         }
 
-        public static function extract_url_name($url)
+        public static function extract_url_name($xagio_url)
         {
-            $url = explode("/", $url);
-            if (isset($url[sizeof($url) - 2])) {
-                $url = $url[sizeof($url) - 2];
+            $xagio_url = explode("/", $xagio_url);
+            if (isset($xagio_url[sizeof($xagio_url) - 2])) {
+                $xagio_url = $xagio_url[sizeof($xagio_url) - 2];
             } else {
-                $url = $url[0];
+                $xagio_url = $xagio_url[0];
             }
-            return $url;
+            return $xagio_url;
         }
 
         public static function extract_url($id, $taxonomy = FALSE)
         {
             if ($taxonomy == FALSE) {
-                $url = get_permalink($id);
+                $xagio_url = get_permalink($id);
             } else {
                 $term = get_term($id);
-                $url  = get_term_link($term);
+                $xagio_url  = get_term_link($term);
             }
 
             $site_url = get_site_url();
 
             if (!isset($_SERVER['HTTP_HOST'])) {
-                return $url;
+                return $xagio_url;
             }
 
-            $url = str_replace($site_url, '', $url);
-            $url = str_replace(sanitize_text_field(wp_unslash($_SERVER['HTTP_HOST'])), '', $url);
-            $url = str_replace('http://', '', $url);
-            $url = str_replace('https://', '', $url);
-            return $url;
+            $xagio_url = str_replace($site_url, '', $xagio_url);
+            $xagio_url = str_replace(sanitize_text_field(wp_unslash($_SERVER['HTTP_HOST'])), '', $xagio_url);
+            $xagio_url = str_replace('http://', '', $xagio_url);
+            $xagio_url = str_replace('https://', '', $xagio_url);
+            return $xagio_url;
         }
 
         public static function is_homepage($post_id = null) {
@@ -2323,13 +2426,13 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
             if ($post_id === null) {
                 return (is_front_page() && 'page' == $show_on_front && is_page(get_option('page_on_front'))) || // static homepage
-                       (is_home() && 'page' == $show_on_front) || // posts page
-                       (is_home() && 'posts' == $show_on_front);  // blog homepage
+                    (is_home() && 'page' == $show_on_front) || // posts page
+                    (is_home() && 'posts' == $show_on_front);  // blog homepage
             }
 
             return ('page' == $show_on_front && $post_id == get_option('page_on_front')) || // static homepage
-                   ('page' == $show_on_front && $post_id == get_option('page_for_posts')) || // posts page
-                   ('posts' == $show_on_front && $post_id == get_option('page_on_front'));   // blog homepage
+                ('page' == $show_on_front && $post_id == get_option('page_for_posts')) || // posts page
+                ('posts' == $show_on_front && $post_id == get_option('page_on_front'));   // blog homepage
         }
 
         public static function is_home_static_page()
@@ -2349,9 +2452,9 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
         public static function is_sub_page()
         {
-            $object = $GLOBALS['wp_query']->get_queried_object();
-            if (is_object($object) && isset($object->post_parent)) {
-                if (is_page() && $object->post_parent > 0) {
+            $xagio_object = $GLOBALS['wp_query']->get_queried_object();
+            if (is_object($xagio_object) && isset($xagio_object->post_parent)) {
+                if (is_page() && $xagio_object->post_parent > 0) {
                     return TRUE;
                 }
                 return FALSE;
@@ -2397,109 +2500,138 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             if ($all == TRUE) {
                 return get_taxonomies();
             } else {
-                $taxonomies = get_taxonomies([
+                $xagio_taxonomies = get_taxonomies([
                     'public'   => TRUE,
                     '_builtin' => TRUE,
                 ]);
-                return $taxonomies;
+                return $xagio_taxonomies;
             }
         }
 
         public static function getAllPostTypes()
         {
-            $post_types = [
+            $xagio_post_types = [
                 'post',
                 'page'
             ];
             foreach (get_post_types([
                 '_builtin' => FALSE,
                 'public'   => TRUE
-            ], 'names') as $k => $p) {
-                $post_types[] = $p;
+            ], 'names') as $xagio_k => $xagio_p) {
+                $xagio_post_types[] = $xagio_p;
             }
-            return $post_types;
+            return $xagio_post_types;
+        }
+
+        public static function getAllCategoriesAndTags()
+        {
+            $data = [];
+
+            // Get categories as id => name
+            $categories = get_terms([
+                'taxonomy'   => 'category',
+                'hide_empty' => false,
+            ]);
+
+            $data['categories'] = [];
+            foreach ($categories as $category) {
+                $data['categories'][$category->term_id] = $category->name;
+            }
+
+            // Get tags as id => name
+            $tags = get_terms([
+                'taxonomy'   => 'post_tag',
+                'hide_empty' => false,
+            ]);
+
+            $data['tags'] = [];
+            foreach ($tags as $tag) {
+                $data['tags'][$tag->name] = $tag->name;
+            }
+
+            return $data;
         }
 
         public static function getAllPostObjects()
         {
-            $post_types = [
+            $xagio_post_types = [
                 'post',
                 'page'
             ];
             foreach (get_post_types([
                 '_builtin' => FALSE,
                 'public'   => TRUE
-            ], 'objects') as $k => $p) {
-                if (is_object($p)) {
-                    if (isset($p->name) && isset($p->label)) {
-                        $post_types[] = [
-                            'name'  => $p->name,
-                            'label' => $p->label,
+            ], 'objects') as $xagio_k => $xagio_p) {
+                if (is_object($xagio_p)) {
+                    if (isset($xagio_p->name) && isset($xagio_p->label)) {
+                        $xagio_post_types[] = [
+                            'name'  => $xagio_p->name,
+                            'label' => $xagio_p->label,
                         ];
                     }
                 }
             }
-            return $post_types;
+            return $xagio_post_types;
         }
 
         public static function getOtherPostObjects()
         {
-            $post_types = [];
+            $xagio_post_types = [];
             foreach (get_post_types([
                 '_builtin' => FALSE,
                 'public'   => TRUE
-            ], 'objects') as $k => $p) {
-                if (is_object($p)) {
-                    if (isset($p->name) && isset($p->label)) {
-                        $post_types[] = [
-                            'name'  => $p->name,
-                            'label' => $p->label,
+            ], 'objects') as $xagio_k => $xagio_p) {
+                if (is_object($xagio_p)) {
+                    if (isset($xagio_p->name) && isset($xagio_p->label)) {
+                        $xagio_post_types[] = [
+                            'name'  => $xagio_p->name,
+                            'label' => $xagio_p->label,
                         ];
                     }
                 }
             }
-            return $post_types;
+            return $xagio_post_types;
         }
 
         public static function getAllCustomPostObjects()
         {
-            $post_types = [];
+            $xagio_post_types = [];
             foreach (get_post_types([
                 '_builtin' => FALSE,
                 'public'   => TRUE
-            ], 'objects') as $k => $p) {
-                if (is_object($p)) {
-                    if (isset($p->name) && isset($p->label)) {
-                        $post_types[] = [
-                            'name'  => $p->name,
-                            'label' => $p->label,
+            ], 'objects') as $xagio_k => $xagio_p) {
+                if (is_object($xagio_p)) {
+                    if (isset($xagio_p->name) && isset($xagio_p->label)) {
+                        $xagio_post_types[] = [
+                            'name'  => $xagio_p->name,
+                            'label' => $xagio_p->label,
                         ];
                     }
                 }
             }
-            return $post_types;
+            return $xagio_post_types;
         }
 
         public static function getAllPosts($ONLY_IDS = FALSE)
         {
             global $wpdb;
-            $post_types = self::getAllPostTypes();
+            $xagio_post_types = self::getAllPostTypes();
 
             // Create placeholders for the post types
-            $placeholders = implode(', ', array_fill(0, count($post_types), '%s'));
+            $xagio_placeholders = implode(', ', array_fill(0, count($xagio_post_types), '%s'));
 
             // Execute the query
             $out = $wpdb->get_results(
                 $wpdb->prepare(
-                    "SELECT * FROM $wpdb->posts WHERE post_status = %s AND post_type IN ($placeholders)", ...array_merge(['publish'], $post_types)
+                    "SELECT * FROM $wpdb->posts WHERE post_status = %s AND post_type IN ($xagio_placeholders)", ...array_merge(['publish'], $xagio_post_types)
                 ), ARRAY_A
             );
 
             // If only IDs are requested, extract and return them
             if ($ONLY_IDS) {
                 $n = [];
-                foreach ($out as $p) {
-                    $n[] = intval($p['ID']);
+                foreach ($out as $xagio_p) {
+                    $n[] = intval($xagio_p['ID']);
                 }
                 $out = $n;
             }
@@ -2596,9 +2728,9 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 $keywords = array_values(array_unique($keywords));
 
                 $keywords_data = XAGIO_API::apiRequest(
-                    $apiEndpoint = 'get_volume_cpc', $method = 'POST', $args = [
+                    $apiEndpoint = 'get_volume_cpc', $method = 'POST', $xagio_args = [
                     'keywords' => join(',', $keywords),
-                ], $http_code, $without_license = TRUE
+                ], $xagio_http_code, $without_license = TRUE
                 );
 
                 foreach ($keywords as $keyword) {
@@ -2630,9 +2762,9 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
         public static function xagio_file_get_contents_utf8($fn)
         {
-            $content = xagio_file_get_contents($fn);
+            $xagio_content = xagio_file_get_contents($fn);
             return mb_convert_encoding(
-                $content, 'UTF-8', mb_detect_encoding($content, 'UTF-8, ISO-8859-1', true)
+                $xagio_content, 'UTF-8', mb_detect_encoding($xagio_content, 'UTF-8, ISO-8859-1', true)
             );
         }
 

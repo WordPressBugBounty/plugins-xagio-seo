@@ -162,32 +162,31 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                 unset($projectData);
             }
 
-            $output = '"Project Name","' . $projectName . '",';
-            $output .= "\n";
-            $output .= '"Total Groups","' . count($selectedGroups) . '",';
-            $output .= "\n";
-            foreach ($selectedGroups as $group) {
-                $group_id = $group['id'];
+            $xagio_output = '"Project Name","' . $projectName . '",';
+            $xagio_output .= "\n";
+            $xagio_output .= '"Total Groups","' . count($selectedGroups) . '",';
+            $xagio_output .= "\n";
+            foreach ($selectedGroups as $xagio_group) {
+                $group_id = $xagio_group['id'];
                 $keywords = $wpdb->get_results($wpdb->prepare("SELECT * FROM xag_keywords WHERE group_id = %d", $group_id), ARRAY_A);
-                $output   .= "\n";
-                $output   .= 'Group,Title,URL,DESC,H1,';
-                $output   .= "\n";
-                $output   .= '"' . $group['group_name'] . '","' . $group['title'] . '","' . $group['url'] . '","' . $group['description'] . '","' . $group['h1'] . '",';
-                $output   .= "\n";
-                $output   .= 'Keyword,Volume,CPC,inTITLE,inURL,"' . count($keywords) . '",';
-                $output   .= "\n";
+                $xagio_output   .= "\n";
+                $xagio_output   .= 'Group,Title,URL,DESC,H1,';
+                $xagio_output   .= "\n";
+                $xagio_output   .= '"' . $xagio_group['group_name'] . '","' . $xagio_group['title'] . '","' . $xagio_group['url'] . '","' . $xagio_group['description'] . '","' . $xagio_group['h1'] . '",';
+                $xagio_output   .= "\n";
+                $xagio_output   .= 'Keyword,Volume,CPC,inTITLE,inURL,"' . count($keywords) . '",';
+                $xagio_output   .= "\n";
                 foreach ($keywords as $keyword) {
-                    $output .= '"' . $keyword['keyword'] . '",="' . $keyword['volume'] . '",="' . $keyword['cpc'] . '",="' . $keyword['intitle'] . '",="' . $keyword['inurl'] . '",';
-                    $output .= "\n";
+                    $xagio_output .= '"' . $keyword['keyword'] . '",="' . $keyword['volume'] . '",="' . $keyword['cpc'] . '",="' . $keyword['intitle'] . '",="' . $keyword['inurl'] . '",';
+                    $xagio_output .= "\n";
                 }
             }
             $filename = $projectName . ".csv";
             header('Content-type: application/csv');
             header('Content-Disposition: attachment; filename=' . $filename);
 
-            echo wp_kses_data($output);
+            echo wp_kses_data($xagio_output);
             exit;
-
 
         }
 
@@ -203,6 +202,7 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
 
             $project_id = sanitize_text_field($_POST['project_id']);
             $group_id   = sanitize_text_field($_POST['group_id']);
+            $keep_copy   = sanitize_text_field($_POST['keep_copy']);
 
             $group_ids = explode(",", $group_id);
 
@@ -221,6 +221,47 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                 }
 
                 foreach ($group_ids as $g_id) {
+
+                    if ($keep_copy) {
+                        $group_row = $wpdb->get_row($wpdb->prepare("SELECT * FROM xag_groups WHERE id = %d", $g_id), ARRAY_A);
+
+                        $wpdb->insert('xag_groups', [
+                            'project_id'      => $group_row['project_id'],
+                            'id_page_post'    => $group_row['id_page_post'],
+                            'group_name'      => $group_row['group_name'],
+                            'title'           => $group_row['title'],
+                            'url'             => $group_row['url'],
+                            'description'     => $group_row['description'],
+                            'h1'              => $group_row['h1'],
+                            'date_created'    => $group_row['date_created'],
+                            'position'        => $group_row['position'],
+                            'notes'           => $group_row['notes'],
+                            'id_taxonomy'     => $group_row['id_taxonomy'],
+                            'external_domain' => $group_row['external_domain'],
+                        ]);
+
+                        $inserted_group_id = $wpdb->insert_id;
+
+                        $keyword_rows = $wpdb->get_results($wpdb->prepare("SELECT * FROM xag_keywords WHERE group_id = %d", $g_id), ARRAY_A);
+
+                        if (sizeof($keyword_rows) > 0) {
+                            foreach ($keyword_rows as $k_row) {
+                                $wpdb->insert('xag_keywords', [
+                                    'group_id'      => $inserted_group_id,
+                                    'keyword'       => $k_row['keyword'],
+                                    'volume'        => $k_row['volume'],
+                                    'cpc'           => $k_row['cpc'],
+                                    'inurl'         => $k_row['inurl'],
+                                    'intitle'       => $k_row['intitle'],
+                                    'date_created'  => $k_row['date_created'],
+                                    'position'      => $k_row['position'],
+                                    'queued'        => $k_row['queued'],
+                                    'rank'          => $k_row['rank']
+                                ]);
+                            }
+                        }
+                    }
+
                     $wpdb->update('xag_groups', [
                         'project_id' => $project_id,
                     ], [
@@ -283,7 +324,6 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
             }
 
             global $wpdb;
-
             $projectID = sanitize_text_field(wp_unslash($_POST['project']));
 
             if (isset($_FILES['file-import'])) {
@@ -292,7 +332,7 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                     require_once(ABSPATH . 'wp-admin/includes/file.php');
                 }
 
-                $upload_overrides = array('test_form' => false);
+                $upload_overrides = ['test_form' => false];
 
                 // Use wp_handle_upload to manage file uploads
                 $uploaded_file = wp_handle_upload($_FILES['file-import'], $upload_overrides);
@@ -304,188 +344,119 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
 
                     wp_delete_file($csv_path);
 
-                    $kw_data = [];
-                    $rows    = explode("\n", $file_contents);
-                    $rows[0] = trim($rows[0]);
+                    $rows = array_map('str_getcsv', explode("\n", $file_contents));
+                    if (empty($rows)) return;
 
-                    if (!isset($_FILES['file-import']['name'])) {
-                        return;
-                    }
-
-                    $group_name = sanitize_file_name($_FILES['file-import']['name']);
-                    $group_name = str_replace('.csv', '', $group_name);
+                    $isSurfer = false;
 
                     // Check if CSV is from SurferSEO
-                    $isSurfer = false;
-                    if (strpos($rows[0], "Cluster Name") !== false) {
+                    if (isset($rows[0][0]) && stripos($rows[0][0], 'Cluster Name') !== false) {
                         $isSurfer = true;
                     }
 
-                    if (($rows[0] == '"Keyword","Words","Volume","Cost Per Click","Competition","Date Added"') || ($rows[0] == '"Keyword","Words","Search Volume","Cost Per Click","Competition"')) {
-                        unset($rows[0]);
-                        $data = [
-                            'project_id' => $projectID,
-                            'group_name' => $group_name,
-                            'title'      => $group_name,
-                            'url'        => strtolower(sanitize_title($group_name)),
-                            'h1'         => $group_name,
-                        ];
+                    if ($isSurfer) {
+                        // Remove header
+                        array_shift($rows);
 
-                        $wpdb->insert('xag_groups', $data);
-                        $group_id = $wpdb->insert_id;
+                        $groupMap = [];
 
-                        $used_keywords = [];
+                        foreach ($rows as $columns) {
+                            $columns = array_map('trim', $columns);
+                            if (count($columns) < 3) continue;
 
-                        foreach ($rows as $row) {
-                            $row = explode(',', $row);
-                            for ($i = 0; $i < sizeof($row); $i++) {
-                                $row[$i] = ltrim($row[$i], '"');
-                                $row[$i] = rtrim($row[$i], '"');
-                            }
-                            if (empty($row[0])) {
-                                continue;
-                            }
-                            if (strlen($row[0]) < 3) {
-                                continue;
-                            }
-                            if (in_array($row[0], $used_keywords)) {
-                                continue;
+                            $groupName = sanitize_text_field($columns[0]);
+                            $keyword   = sanitize_text_field($columns[1]);
+                            $volume    = str_replace(['"', '='], '', $columns[2]);
+
+                            if (strlen($keyword) < 3) continue;
+
+                            if (!isset($groupMap[$groupName])) {
+                                $wpdb->insert('xag_groups', [
+                                    'project_id'   => $projectID,
+                                    'group_name'   => $groupName,
+                                    'title'        => $groupName,
+                                    'url'          => strtolower(sanitize_title($groupName)),
+                                    'h1'           => $groupName,
+                                    'date_created' => gmdate('Y-m-d H:i:s')
+                                ]);
+                                $group_id = $wpdb->insert_id;
+                                $groupMap[$groupName] = $group_id;
+                            } else {
+                                $group_id = $groupMap[$groupName];
                             }
 
-                            $keyword_data = [
+                            $wpdb->insert('xag_keywords', [
                                 'group_id' => $group_id,
-                                'keyword'  => $row[0],
-                                'volume'   => $row[2],
-                                'cpc'      => $row[3],
-                            ];
-
-                            $wpdb->insert('xag_keywords', $keyword_data);
-                            $keywords[]      = $wpdb->insert_id;
-                            $used_keywords[] = $row[0];
+                                'keyword'  => $keyword,
+                                'volume'   => is_numeric($volume) ? $volume : 0,
+                                'cpc'      => '0.00',
+                            ]);
                         }
+
                         return;
                     }
 
-                    unset($rows[0]);
-                    foreach ($rows as $row) {
-                        $r = explode("\t", $row);
-                        if (sizeof($r) < 2) {
-                            $r = explode(',', $row);
-                        }
-                        for ($i = 0; $i < sizeof($r); $i++) {
-                            $r[$i] = trim($r[$i]);
-                            if (!is_numeric($r[$i])) {
-                                if ($r[$i] == "N/A") {
-                                    $r[$i] = 0;
-                                } else {
-                                    $r[$i] = preg_replace('/\s+/', ' ', trim($r[$i]));
-                                    $r[$i] = preg_replace('/[^\p{L}\p{N}\s]/u', '', $r[$i]);
-                                    $r[$i] = str_replace('Keywords like ', '', $r[$i]);
-                                }
-                            }
-                        }
-                        $kw_column = 1;
-                        $vo_column = 3;
-                        if ($isSurfer) {
-                            $vo_column = 2;
-                        }
-                        $cp_column = 5;
+                    // Xagio CSV structure
+                    $group_id = 0;
+                    $expectGroup = false;
 
-                        // Custom
-                        if (sizeof($r) == 3) {
-                            $kw_column = 0;
-                            $vo_column = 1;
-                            $cp_column = 2;
-                        }
+                    foreach ($rows as $columns) {
+                        $columns = array_map('trim', $columns);
 
-                        if (isset($r[0])) {
-                            if ($r[0] == '') {
-                                continue;
-                            }
-                        }
-                        // Check if bad csv
-                        if (ctype_alpha($r[3])) {
-                            $vo_column++;
-                            $cp_column++;
-                        }
-                        $volume = explode('  ', $r[$vo_column]);
-
-                        if (isset($volume[1])) {
-                            $volume = trim(@$volume[1]);
-                        } else {
-                            $volume = trim(@$volume[0]);
-                        }
-
-                        $volume = str_replace('K', '000', $volume);
-                        $volume = str_replace('M', '000000', $volume);
-
-                        $cpc = $r[$cp_column];
-                        if (empty($cpc)) {
-                            $cpc = '0.00';
-                        }
-
-                        // Custom
-                        if (sizeof($r) == 3) {
-
-                            if (!isset($kw_data['Custom Import'])) {
-                                $kw_data['Custom Import'] = [];
-                            }
-                            $kw_data['Custom Import'][] = [
-                                'keyword' => $r[$kw_column],
-                                'volumn'  => $volume,
-                                'cpc'     => $cpc,
-                            ];
-
-                        } else {
-
-                            if (!isset($kw_data[$r[0]])) {
-                                $kw_data[$r[0]]   = [];
-                                $kw_data[$r[0]][] = [
-                                    'keyword' => $r[$kw_column],
-                                    'volumn'  => $volume,
-                                    'cpc'     => $cpc,
-                                ];
-                            } else {
-                                $kw_data[$r[0]][] = [
-                                    'keyword' => $r[$kw_column],
-                                    'volumn'  => $volume,
-                                    'cpc'     => $cpc,
-                                ];
-                            }
-
-                        }
-                    }
-
-                    $keywords = [];
-                    foreach ($kw_data as $groupName => $groupData) {
-                        if (sizeof($groupData) < 1) {
+                        if (empty(array_filter($columns))) {
+                            $expectGroup = true;
                             continue;
                         }
-                        $data = [
-                            'project_id' => $projectID,
-                            'group_name' => $groupName,
-                            'title'      => $groupName,
-                            'url'        => strtolower(sanitize_title($groupName)),
-                            'h1'         => $groupName,
-                        ];
 
-                        $wpdb->insert('xag_groups', $data);
-                        $group_id = $wpdb->insert_id;
-
-                        foreach ($groupData as $keyword) {
-                            $keyword_data = [
-                                'group_id' => $group_id,
-                                'keyword'  => $keyword['keyword'],
-                                'volume'   => $keyword['volumn'],
-                                'cpc'      => $keyword['cpc'],
-                            ];
-
-                            $wpdb->insert('xag_keywords', $keyword_data);
-                            $keywords[] = $wpdb->insert_id;
+                        if (in_array(strtolower($columns[0]), ['project name', 'total groups', 'group'])) {
+                            continue;
                         }
+
+                        if ($expectGroup || $group_id === 0) {
+                            $expectGroup = false;
+
+                            $group_name = sanitize_text_field($columns[0] ?? '');
+                            $title      = sanitize_text_field($columns[1] ?? '');
+                            $xagio_url        = sanitize_text_field($columns[2] ?? '');
+                            $xagio_desc       = sanitize_text_field($columns[3] ?? '');
+                            $h1         = sanitize_text_field($columns[4] ?? '');
+
+                            $wpdb->insert('xag_groups', [
+                                'project_id'   => $projectID,
+                                'group_name'   => $group_name,
+                                'title'        => $title,
+                                'url'          => $xagio_url,
+                                'description'  => $xagio_desc,
+                                'h1'           => $h1,
+                                'date_created' => gmdate('Y-m-d H:i:s')
+                            ]);
+                            $group_id = $wpdb->insert_id;
+                            continue;
+                        }
+
+                        // Keyword row
+                        $keyword = sanitize_text_field(str_replace('"', '', $columns[0] ?? ''));
+                        if (strlen($keyword) < 3) continue;
+
+                        if (!is_numeric(str_replace(['"', '='], '', $columns[1] ?? ''))) {
+                            continue;
+                        }
+
+                        $volume   = str_replace(['"', '='], '', $columns[1] ?? '0');
+                        $cpc      = str_replace(['"', '='], '', $columns[2] ?? '0.00');
+                        $intitle  = str_replace(['"', '='], '', $columns[3] ?? '');
+                        $inurl    = str_replace(['"', '='], '', $columns[4] ?? '');
+
+                        $wpdb->insert('xag_keywords', [
+                            'group_id' => $group_id,
+                            'keyword'  => $keyword,
+                            'volume'   => is_numeric($volume) ? $volume : 0,
+                            'cpc'      => is_numeric($cpc) ? $cpc : '0.00',
+                            'intitle'  => is_numeric($intitle) ? $intitle : '',
+                            'inurl'    => is_numeric($inurl) ? $inurl : '',
+                        ]);
                     }
                 } else {
-                    // Handle upload error
                     xagio_jsonc([
                         "status"  => "error",
                         "message" => "Failed to upload the file: " . $uploaded_file['error'],
@@ -493,7 +464,6 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                 }
             }
         }
-
 
         public static function newGroup()
         {
@@ -532,7 +502,7 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
 
         }
 
-        public static function newGroupFromExistingPost($project_id, $group_name, $post_id = '', $title = '', $url = '', $description = '', $h1 = '', $notes = '')
+        public static function newGroupFromExistingPost($project_id, $group_name, $post_id = '', $title = '', $xagio_url = '', $xagio_description = '', $h1 = '', $notes = '')
         {
             global $wpdb;
 
@@ -541,8 +511,8 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                 'group_name'   => $group_name,
                 'id_page_post' => $post_id,
                 'title'        => $title,
-                'url'          => $url,
-                'description'  => $description,
+                'url'          => $xagio_url,
+                'description'  => $xagio_description,
                 'h1'           => $h1,
                 'notes'        => $notes,
                 'date_created' => gmdate('Y-m-d H:i:s'),
@@ -563,12 +533,12 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                 $project_id = intval($_POST['project_id']);
             }
 
-            $r = $wpdb->query($wpdb->prepare("DELETE g, k FROM xag_groups g LEFT JOIN xag_keywords k ON g.id = k.group_id WHERE g.project_id = %d", $project_id));
+            $xagio_r = $wpdb->query($wpdb->prepare("DELETE g, k FROM xag_groups g LEFT JOIN xag_keywords k ON g.id = k.group_id WHERE g.project_id = %d", $project_id));
 
             if ($return !== TRUE) {
                 xagio_json('success', 'All Groups from Project successfully deleted!');
             } else {
-                return $r;
+                return $xagio_r;
             }
 
             return FALSE;
@@ -594,30 +564,30 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
             $groups = $wpdb->get_results($wpdb->prepare("SELECT g.id, COUNT(k.id) as count, g.title, g.description, g.h1 FROM xag_groups as g LEFT JOIN xag_keywords as k ON k.group_id = g.id WHERE g.project_id = %d GROUP BY g.id", $project_id), ARRAY_A);
 
             $deleteGroupIds = [];
-            foreach ($groups as $group) {
-                $keyword_count        = (int)$group['count'];
-                $group['title']       = $group['title'] ?? "";
-                $group['description'] = $group['description'] ?? "";
-                $group['h1']          = $group['h1'] ?? "";
+            foreach ($groups as $xagio_group) {
+                $keyword_count        = (int)$xagio_group['count'];
+                $xagio_group['title']       = $xagio_group['title'] ?? "";
+                $xagio_group['description'] = $xagio_group['description'] ?? "";
+                $xagio_group['h1']          = $xagio_group['h1'] ?? "";
 
                 // Only check groups with no keywords
                 if ($keyword_count === 0) {
                     // Check if user wants to save groups that has no keywords but has title, description, or h1
                     if ($skipGroups) {
                         // Check if group has no title, description, or h1
-                        if (empty($group['title']) && empty($group['description']) && empty($group['h1'])) {
-                            $deleteGroupIds[] = $group['id'];
+                        if (empty($xagio_group['title']) && empty($xagio_group['description']) && empty($xagio_group['h1'])) {
+                            $deleteGroupIds[] = $xagio_group['id'];
                         }
                     } else {
-                        $deleteGroupIds[] = $group['id'];
+                        $deleteGroupIds[] = $xagio_group['id'];
                     }
                 }
             }
 
-            $placeholders = implode(',', array_fill(0, count($deleteGroupIds), '%d'));
+            $xagio_placeholders = implode(',', array_fill(0, count($deleteGroupIds), '%d'));
 
             if(sizeof($deleteGroupIds) > 0) {
-                $wpdb->query($wpdb->prepare("DELETE FROM xag_groups WHERE project_id = %d AND id IN ($placeholders)", $project_id, ...$deleteGroupIds));
+                $wpdb->query($wpdb->prepare("DELETE FROM xag_groups WHERE project_id = %d AND id IN ($xagio_placeholders)", $project_id, ...$deleteGroupIds));
             }
 
             xagio_json('success', 'Empty groups successfully deleted!');
@@ -636,11 +606,11 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
             if ($return !== TRUE) {
                 $group_ids    = explode(',', sanitize_text_field(wp_unslash($_POST['group_ids'])));
                 $group_ids    = array_map('absint', $group_ids);
-                $placeholders = implode(',', array_fill(0, count($group_ids), '%d'));
+                $xagio_placeholders = implode(',', array_fill(0, count($group_ids), '%d'));
 
                 $deleteRanks = filter_var(wp_unslash($_POST['deleteRanks']), FILTER_VALIDATE_BOOLEAN);
                 if ($deleteRanks) {
-                    $rankedKeywords = $wpdb->get_results($wpdb->prepare("SELECT `keyword` FROM xag_keywords WHERE `group_id` IN ($placeholders) AND `rank` != '0'", ...$group_ids), ARRAY_A);
+                    $rankedKeywords = $wpdb->get_results($wpdb->prepare("SELECT `keyword` FROM xag_keywords WHERE `group_id` IN ($xagio_placeholders) AND `rank` != '0'", ...$group_ids), ARRAY_A);
 
                     if (!empty($rankedKeywords)) {
                         $keywordsToDelete = [];
@@ -651,12 +621,12 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                 }
             }
 
-            $r = $wpdb->query($wpdb->prepare("DELETE g, k FROM xag_groups g LEFT JOIN xag_keywords k ON g.id = k.group_id WHERE g.id IN ($placeholders)", ...$group_ids));
+            $xagio_r = $wpdb->query($wpdb->prepare("DELETE g, k FROM xag_groups g LEFT JOIN xag_keywords k ON g.id = k.group_id WHERE g.id IN ($xagio_placeholders)", ...$group_ids));
 
             if ($return !== TRUE) {
                 xagio_json('success', 'Groups successfully deleted!');
             } else {
-                return $r;
+                return $xagio_r;
             }
 
             return FALSE;
@@ -665,11 +635,11 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
         public static function deleteKeywordRanks($keywords)
         {
             // Send keywords to panel, so we can delete them on our RankTracker
-            $result = XAGIO_API::apiRequest(
+            $xagio_result = XAGIO_API::apiRequest(
                 $endpoint = 'delete_rank_tracker', $method = 'POST', [
                 'url'      => site_url(),
                 'keywords' => $keywords,
-            ], $http_code
+            ], $xagio_http_code
             );
         }
 
@@ -698,12 +668,12 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                 }
             }
 
-            $r = $wpdb->query($wpdb->prepare("DELETE g, k FROM xag_groups g LEFT JOIN xag_keywords k ON g.id = k.group_id WHERE g.id = %d", $group_id));
+            $xagio_r = $wpdb->query($wpdb->prepare("DELETE g, k FROM xag_groups g LEFT JOIN xag_keywords k ON g.id = k.group_id WHERE g.id = %d", $group_id));
 
             if ($return !== TRUE) {
                 xagio_json('success', 'Group successfully deleted!');
             } else {
-                return $r;
+                return $xagio_r;
             }
 
             return FALSE;
@@ -743,8 +713,8 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
             }
 
 
-            $placeholders = implode(',', array_fill(0, count($keywords), '%d'));
-            $wpdb->query($wpdb->prepare("DELETE FROM xag_keywords WHERE id IN ($placeholders)", ...$keywords));
+            $xagio_placeholders = implode(',', array_fill(0, count($keywords), '%d'));
+            $wpdb->query($wpdb->prepare("DELETE FROM xag_keywords WHERE id IN ($xagio_placeholders)", ...$keywords));
 
             wp_send_json([
                 'status'  => 'success',
@@ -803,14 +773,14 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
 
             if (!empty($duplicatekeywordIds)) {
                 // Create a string of placeholders for the IN clause
-                $placeholders = implode(',', array_fill(0, count($duplicatekeywordIds), '%d'));
+                $xagio_placeholders = implode(',', array_fill(0, count($duplicatekeywordIds), '%d'));
 
                 // Prepare the query with placeholders
 
                 // Execute the prepared query
                 $deletedKeywords = $wpdb->query(
                     $wpdb->prepare(
-                        "DELETE FROM xag_keywords WHERE id IN ($placeholders)", ...$duplicatekeywordIds
+                        "DELETE FROM xag_keywords WHERE id IN ($xagio_placeholders)", ...$duplicatekeywordIds
                     )
                 );
 
@@ -871,21 +841,22 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
             $group_id    = intval($_POST['group_id']);
             $originalUrl = sanitize_text_field(wp_unslash($_POST['oriUrl']));
 
-            $group = $wpdb->get_row($wpdb->prepare('SELECT * FROM xag_groups WHERE `id` = %d', $group_id), ARRAY_A);
+            $xagio_group = $wpdb->get_row($wpdb->prepare('SELECT * FROM xag_groups WHERE `id` = %d', $group_id), ARRAY_A);
 
-            $post_id     = $group['id_page_post'];
-            $taxonomy_id = $group['id_taxonomy'];
+            $post_id     = $xagio_group['id_page_post'];
+            $taxonomy_id = $xagio_group['id_taxonomy'];
 
             $update_data = [
                 'h1'          => isset($_POST['h1']) ? sanitize_text_field(wp_unslash($_POST['h1'])) : '',
                 'url'         => isset($_POST['url']) ? sanitize_text_field(wp_unslash($_POST['url'])) : '',
                 'title'       => isset($_POST['title']) ? sanitize_text_field(wp_unslash($_POST['title'])) : '',
                 'description' => isset($_POST['description']) ? sanitize_text_field(wp_unslash($_POST['description'])) : '',
-                'notes'       => isset($_POST['notes']) ? sanitize_text_field(wp_unslash($_POST['notes'])) : '',
+                'notes'       => isset($_POST['notes']) ? base64_encode(wp_unslash($_POST['notes'])) : '',
                 'group_name'  => isset($_POST['group_name']) ? sanitize_text_field(wp_unslash($_POST['group_name'])) : '',
             ];
 
             if (!empty($taxonomy_id)) {
+
                 $term = get_term($taxonomy_id);
                 if ($term->taxonomy == 'location') {
                     unset($update_data['h1']);
@@ -930,7 +901,7 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
             if (!empty($post_id)) {
 
                 // Update the Post/Page Data
-                $post_data = [];
+                $xagio_post_data = [];
 
                 // Set the new URL
                 if (isset($_POST['url'])) {
@@ -942,7 +913,7 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                         XAGIO_MODEL_REDIRECTS::add($originalUrl, $newUrl);
                     }
 
-                    $post_data['post_name'] = XAGIO_MODEL_SEO::extract_url_name(sanitize_url(wp_unslash($_POST['url'])));
+                    $xagio_post_data['post_name'] = XAGIO_MODEL_SEO::extract_url_name(sanitize_url(wp_unslash($_POST['url'])));
 
                     update_post_meta($post_id, 'ps_seo_url', $newUrl);
                 }
@@ -950,7 +921,7 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                 // Set the new H1
                 if (!empty($_POST['h1'])) {
 
-                    $post_data['post_title'] = sanitize_text_field(wp_unslash($_POST['h1']));
+                    $xagio_post_data['post_title'] = sanitize_text_field(wp_unslash($_POST['h1']));
 
                     $post_type = get_post_type($post_id);
                     $operators = get_option(($post_type == 'page') ? 'xag_silo_pages' : 'xag_silo_posts');
@@ -974,10 +945,10 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
 
                 }
 
-                if (sizeof($post_data) > 0) {
-                    if ($group !== FALSE) {
-                        $post_data['ID'] = $post_id;
-                        wp_update_post($post_data);
+                if (sizeof($xagio_post_data) > 0) {
+                    if ($xagio_group !== FALSE) {
+                        $xagio_post_data['ID'] = $post_id;
+                        wp_update_post($xagio_post_data);
                     }
                 }
 
@@ -990,39 +961,59 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                 update_post_meta($post_id, 'XAGIO_SEO_TITLE', sanitize_text_field(wp_unslash($_POST['title'])));
                 update_post_meta($post_id, 'XAGIO_SEO_DESCRIPTION', sanitize_textarea_field(wp_unslash($_POST['description'])));
                 if (isset($_POST['notes'])) {
-                    update_post_meta($post_id, 'XAGIO_SEO_NOTES', sanitize_textarea_field(wp_unslash($_POST['notes'])));
+                    update_post_meta($post_id, 'XAGIO_SEO_NOTES', base64_encode(wp_unslash($_POST['notes'])));
                 }
 
             }
 
             if (!empty($taxonomy_id)) {
-                // Update the Taxonomy Data
 
-                // Set the new URL
-                if (isset($_POST['url'])) {
-
-                    wp_update_term($taxonomy_id, $term->taxonomy, [
-                        'slug' => XAGIO_MODEL_SEO::extract_url_name(sanitize_url(wp_unslash($_POST['url']))),
-                    ]);
-
-                }
-
-                // Set the new H1
-                if (!empty($_POST['h1'])) {
-
-                    wp_update_term($taxonomy_id, $term->taxonomy, [
-                        'name' => sanitize_text_field(wp_unslash($_POST['h1'])),
-                    ]);
-
-                }
-
+                // Ensure required parameters are set before proceeding
                 if (!isset($_POST['title']) || !isset($_POST['description'])) {
                     wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
                 }
 
+                // Retrieve existing term meta to ensure it is not lost
+                $existing_meta = get_term_meta($taxonomy_id);
+
+                // Prepare term update arguments
+                $update_args = [];
+
+                // Set the new URL slug if provided
+                if (!empty($_POST['url'])) {
+                    $update_args['slug'] = XAGIO_MODEL_SEO::extract_url_name(sanitize_url(wp_unslash($_POST['url'])));
+                }
+
+                // Set the new H1 name if provided
+                if (!empty($_POST['h1'])) {
+                    $update_args['name'] = sanitize_text_field(wp_unslash($_POST['h1']));
+                }
+
+                // Update term if there are changes
+                if (!empty($update_args)) {
+                    $update_result = wp_update_term($taxonomy_id, $term->taxonomy, $update_args);
+
+                    // Handle possible errors
+                    if (is_wp_error($update_result)) {
+                        wp_die('Failed to update term: ' . wp_kses_post($update_result->get_error_message()), 'Update Error', ['response' => 500]);
+                    }
+                }
+
+                // Reapply existing term meta (preserving old values)
+                if (!empty($existing_meta)) {
+                    foreach ($existing_meta as $xagio_key => $values) {
+                        foreach ($values as $xagio_value) {
+                            update_term_meta($taxonomy_id, $xagio_key, $xagio_value);
+                        }
+                    }
+                }
+
+                // Update term metadata with new values
                 update_term_meta($taxonomy_id, 'XAGIO_SEO_TITLE', sanitize_text_field(wp_unslash($_POST['title'])));
                 update_term_meta($taxonomy_id, 'XAGIO_SEO_DESCRIPTION', sanitize_textarea_field(wp_unslash($_POST['description'])));
+
             }
+
 
         }
 
@@ -1067,18 +1058,19 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                     $m->initXfields();
                 }
 
-                for ($i = 0; $i < sizeof($results); $i++) {
+                for ($xagio_i = 0; $xagio_i < sizeof($results); $xagio_i++) {
 
                     $group_post_type = FALSE;
                     $magicPage       = FALSE;
 
-                    $results[$i]['h1']          = stripslashes($results[$i]['h1'] ?? '');
-                    $results[$i]['title']       = stripslashes($results[$i]['title'] ?? '');
-                    $results[$i]['description'] = stripslashes($results[$i]['description'] ?? '');
+                    $results[$xagio_i]['h1']          = stripslashes($results[$xagio_i]['h1'] ?? '');
+                    $results[$xagio_i]['title']       = stripslashes($results[$xagio_i]['title'] ?? '');
+                    $results[$xagio_i]['description'] = stripslashes($results[$xagio_i]['description'] ?? '');
+                    $results[$xagio_i]['notes']       = xagio_maybe_decode($results[$xagio_i]['notes'] ?? '');
 
-                    if (!empty($results[$i]['id_page_post'])) {
+                    if (!empty($results[$xagio_i]['id_page_post'])) {
 
-                        $post = get_post($results[$i]['id_page_post']);
+                        $post = get_post($results[$xagio_i]['id_page_post']);
 
                         $group_post_type = @$post->post_type;
 
@@ -1086,13 +1078,13 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                         setup_postdata($post);
 
                         $wp_query = new WP_Query([
-                            'p' => $results[$i]['id_page_post'],
+                            'p' => $results[$xagio_i]['id_page_post'],
                         ]);
                     }
 
-                    if (!empty($results[$i]['id_taxonomy'])) {
+                    if (!empty($results[$xagio_i]['id_taxonomy'])) {
 
-                        $term = get_term($results[$i]['id_taxonomy']);
+                        $term = get_term($results[$xagio_i]['id_taxonomy']);
 
                         $group_post_type = @$term->taxonomy;
 
@@ -1118,30 +1110,30 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                         }
                     }
 
-                    $keywords = XAGIO_MODEL_KEYWORDS::getKeywords(TRUE, $results[$i]['id']);
+                    $keywords = XAGIO_MODEL_KEYWORDS::getKeywords(TRUE, $results[$xagio_i]['id']);
                     if (!$keywords) {
                         $keywords = [];
                     }
 
-                    if (isset($group_ai_status[$results[$i]['id']])) {
-                        $results[$i]['ai_status'] = $group_ai_status[$results[$i]['id']]['status'];
-                        $results[$i]['ai_input']  = $group_ai_status[$results[$i]['id']]['input'];
+                    if (isset($group_ai_status[$results[$xagio_i]['id']])) {
+                        $results[$xagio_i]['ai_status'] = $group_ai_status[$results[$xagio_i]['id']]['status'];
+                        $results[$xagio_i]['ai_input']  = $group_ai_status[$results[$xagio_i]['id']]['input'];
                     } else {
-                        $results[$i]['ai_status'] = 'none';
-                        $results[$i]['ai_input']  = 'SEO_SUGGESTIONS';
+                        $results[$xagio_i]['ai_status'] = 'none';
+                        $results[$xagio_i]['ai_input']  = 'SEO_SUGGESTIONS';
                     }
 
-                    $results[$i]['keywords']  = $keywords;
-                    $results[$i]['post_type'] = $group_post_type;
+                    $results[$xagio_i]['keywords']  = $keywords;
+                    $results[$xagio_i]['post_type'] = $group_post_type;
 
-                    $results[$i]['h1_sh']          = xagio_spintax($results[$i]['h1']);
-                    $results[$i]['title_sh']       = xagio_spintax($results[$i]['title']);
-                    $results[$i]['description_sh'] = xagio_spintax($results[$i]['description']);
+                    $results[$xagio_i]['h1_sh']          = xagio_spintax($results[$xagio_i]['h1']);
+                    $results[$xagio_i]['title_sh']       = xagio_spintax($results[$xagio_i]['title']);
+                    $results[$xagio_i]['description_sh'] = xagio_spintax($results[$xagio_i]['description']);
 
                     if ($magicPage == TRUE) {
-                        $results[$i]['h1']          = xagio_spintax($results[$i]['h1']);
-                        $results[$i]['title']       = xagio_spintax($results[$i]['title']);
-                        $results[$i]['description'] = xagio_spintax($results[$i]['description']);
+                        $results[$xagio_i]['h1']          = xagio_spintax($results[$xagio_i]['h1']);
+                        $results[$xagio_i]['title']       = xagio_spintax($results[$xagio_i]['title']);
+                        $results[$xagio_i]['description'] = xagio_spintax($results[$xagio_i]['description']);
 
                         // Get the magic page
                         $magicpage_id = get_posts([
@@ -1149,19 +1141,19 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                         ]);
                         $magicpage_id = $magicpage_id[0]->ID;
 
-                        if (empty($results[$i]['title'])) {
-                            $results[$i]['title']    = xagio_spintax(get_post_meta($magicpage_id, 'XAGIO_SEO_TITLE', TRUE));
-                            $results[$i]['title_sh'] = $results[$i]['title'];
+                        if (empty($results[$xagio_i]['title'])) {
+                            $results[$xagio_i]['title']    = xagio_spintax(get_post_meta($magicpage_id, 'XAGIO_SEO_TITLE', TRUE));
+                            $results[$xagio_i]['title_sh'] = $results[$xagio_i]['title'];
                         }
-                        if (empty($results[$i]['description'])) {
-                            $results[$i]['description']    = xagio_spintax(get_post_meta($magicpage_id, 'XAGIO_SEO_DESCRIPTION', TRUE));
-                            $results[$i]['description_sh'] = $results[$i]['description'];
+                        if (empty($results[$xagio_i]['description'])) {
+                            $results[$xagio_i]['description']    = xagio_spintax(get_post_meta($magicpage_id, 'XAGIO_SEO_DESCRIPTION', TRUE));
+                            $results[$xagio_i]['description_sh'] = $results[$xagio_i]['description'];
                         }
                     }
 
-                    $results[$i]['id_taxonomy_term'] = get_term($results[$i]['id_taxonomy']);
+                    $results[$xagio_i]['id_taxonomy_term'] = get_term($results[$xagio_i]['id_taxonomy']);
 
-                    $outputArray[] = $results[$i];
+                    $outputArray[] = $results[$xagio_i];
                 }
 
             }
@@ -1188,6 +1180,7 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                     $keywords = [];
                 }
                 $results['keywords'] = $keywords;
+                $results['notes']    = xagio_maybe_decode($results['notes'] ?? '');
             }
             wp_send_json($results);
         }
@@ -1229,7 +1222,7 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
             }
 
             // Sanitize the 'name' field
-            $name = sanitize_text_field(wp_unslash($_POST['name']));
+            $xagio_name = sanitize_text_field(wp_unslash($_POST['name']));
 
             // Define and sanitize the required fields from $_POST
             $volume_red         = isset($_POST['volume_red']) ? absint(wp_unslash($_POST['volume_red'])) : 0;
@@ -1269,18 +1262,18 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                 'ur_goldbar_intitle' => $ur_goldbar_intitle,
             ];
 
-            foreach ($fields as $key => $val) {
+            foreach ($fields as $xagio_key => $val) {
                 if ($val < 0 || $val === '') {
                     wp_send_json([
                         'status'  => 'error',
-                        'message' => "<i class='uk-icon-exclamation'></i> All fields must be at least 0 and cannot be empty, field $key"
+                        'message' => "<i class='uk-icon-exclamation'></i> All fields must be at least 0 and cannot be empty, field $xagio_key"
                     ]);
                 }
             }
 
             // Prepare the option to save
-            $option[$name] = [
-                'name' => $name,
+            $option[$xagio_name] = [
+                'name' => $xagio_name,
                 'data' => $fields,
             ];
 
@@ -1295,7 +1288,7 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                 ]);
             } else {
                 $XAGIO_CF_TEMPLATES        = get_option('XAGIO_CF_TEMPLATES');
-                $XAGIO_CF_TEMPLATES[$name] = $option[$name];
+                $XAGIO_CF_TEMPLATES[$xagio_name] = $option[$xagio_name];
                 update_option('XAGIO_CF_TEMPLATES', $XAGIO_CF_TEMPLATES);
 
                 wp_send_json([
@@ -1342,14 +1335,14 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
             }
 
             // Sanitize the 'name' field
-            $name = sanitize_text_field(wp_unslash($_POST['name']));
+            $xagio_name = sanitize_text_field(wp_unslash($_POST['name']));
 
             // Unset unnecessary data
             unset($_POST['action']);
             unset($_POST['name']);
 
             // Check if the name is empty
-            if (empty($name) || $name == "") {
+            if (empty($xagio_name) || $xagio_name == "") {
                 wp_send_json([
                     'status'  => 'error',
                     'message' => "<i class='uk-icon-exclamation'></i> Template name not defined"
@@ -1394,18 +1387,18 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                 'ur_goldbar_intitle' => $ur_goldbar_intitle,
             ];
 
-            foreach ($fields as $key => $val) {
+            foreach ($fields as $xagio_key => $val) {
                 if ($val < 0 || $val === '') {
                     wp_send_json([
                         'status'  => 'error',
-                        'message' => "<i class='uk-icon-exclamation'></i> All fields must be at least 0 and cannot be empty, field $key"
+                        'message' => "<i class='uk-icon-exclamation'></i> All fields must be at least 0 and cannot be empty, field $xagio_key"
                     ]);
                 }
             }
 
             // Prepare the option to save
-            $option[$name] = [
-                'name' => $name,
+            $option[$xagio_name] = [
+                'name' => $xagio_name,
                 'data' => $fields,
             ];
 
@@ -1413,7 +1406,7 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
             if (!get_option('XAGIO_CF_TEMPLATES')) {
                 update_option('XAGIO_CF_TEMPLATES', $option);
                 if (!get_option('XAGIO_CF_DEFAULT_TEMPLATE')) {
-                    update_option('XAGIO_CF_DEFAULT_TEMPLATE', $name);
+                    update_option('XAGIO_CF_DEFAULT_TEMPLATE', $xagio_name);
                 }
                 wp_send_json([
                     'status'  => 'success',
@@ -1423,16 +1416,16 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
             } else {
                 $XAGIO_CF_TEMPLATES = get_option('XAGIO_CF_TEMPLATES');
 
-                if (isset($XAGIO_CF_TEMPLATES[$name])) {
+                if (isset($XAGIO_CF_TEMPLATES[$xagio_name])) {
                     wp_send_json([
                         'status'  => 'error',
                         'message' => "<i class='uk-icon-exclamation'></i> Template with this name already exists, please choose a different name"
                     ]);
                 } else {
-                    $XAGIO_CF_TEMPLATES[$name] = $option[$name];
+                    $XAGIO_CF_TEMPLATES[$xagio_name] = $option[$xagio_name];
 
                     if (!get_option('XAGIO_CF_DEFAULT_TEMPLATE')) {
-                        update_option('XAGIO_CF_DEFAULT_TEMPLATE', $name);
+                        update_option('XAGIO_CF_DEFAULT_TEMPLATE', $xagio_name);
                     }
 
                     update_option('XAGIO_CF_TEMPLATES', $XAGIO_CF_TEMPLATES);
@@ -1453,9 +1446,9 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $name = sanitize_text_field(wp_unslash($_POST['templateName']));
+            $xagio_name = sanitize_text_field(wp_unslash($_POST['templateName']));
 
-            if (empty($name) || $name == "") {
+            if (empty($xagio_name) || $xagio_name == "") {
                 wp_send_json([
                     'status'  => 'error',
                     'message' => "<i class='uk-icon-exclamation'></i> Template name not defined"
@@ -1470,7 +1463,7 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                     ]);
                 }
             } else {
-                if (get_option('XAGIO_CF_DEFAULT_TEMPLATE') == $name) {
+                if (get_option('XAGIO_CF_DEFAULT_TEMPLATE') == $xagio_name) {
                     wp_send_json([
                         'status'  => 'error',
                         'message' => "<i class='uk-icon-exclamation'></i> You cannot delete Default Template"
@@ -1479,7 +1472,7 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
             }
 
             $XAGIO_CF_TEMPLATES = get_option('XAGIO_CF_TEMPLATES');
-            unset($XAGIO_CF_TEMPLATES[$name]);
+            unset($XAGIO_CF_TEMPLATES[$xagio_name]);
             update_option('XAGIO_CF_TEMPLATES', $XAGIO_CF_TEMPLATES);
             wp_send_json([
                 'status'  => 'success',

@@ -626,6 +626,11 @@ div.tagsinput span.tag a {
     margin-right: 6px !important;
 }
 
+.select2-container--default .select2-selection--single .select2-selection__clear {
+    font-size: 24px;
+    font-weight: 500;
+}
+
 span.select2-selection.select2-selection--multiple {
     border-color: #cccccc !important;
 }
@@ -1483,8 +1488,13 @@ table.groupSettings tr > td:first-child + td {
 }
 
 .data > div[data-name] {
-    width: calc(50% - 40px);
+    width: calc(50% - 20px);
     margin-bottom: 40px;
+}
+
+.data > div[data-name]:nth-child(even) {
+    right: 0;
+    left: unset !important;
 }
 
 /*@media (max-width:1350px) {*/
@@ -3041,27 +3051,41 @@ div.tagsinput span.tag a {
     white-space: nowrap;
     border-radius: 100vh;
     position: absolute;
+    z-index: 10;
 }
-.cluster_group_keywords {
+
+.cluster_group ul.cluster_group_keywords {
     font-size: 13px;
     margin-bottom: 15px;
     overflow: hidden;
     font-weight: 500;
     border: 1px solid #8ca2b9;
     border-radius: 10px;
+    list-style: none;
     margin-top: 17px;
     padding-top: 19px;
+    
 }
-.cluster_group_keywords > div {
+
+.cluster_group_keywords > li {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     padding: 4px 16px;
     color: #404040;
+    cursor: move;
 }
-.cluster_group_keywords > div:last-child {
+.cluster_group_keywords > li:last-child {
     padding-bottom: 11px;
 }
+.cluster_group_keywords > li.drop-placeholder {
+    border: 1px dashed;
+    background: #f1f1bf !important;
+}
+.cluster_group_keywords > li.selected {
+    background: #cee1ff !important;
+}
+
 .cluster-preview.loading-cluster {
     text-align: center;
     column-count: 1;
@@ -3765,27 +3789,6 @@ button.xagio-button.xagio-button-primary.xagio-action-button.uk-form-select {
 .xagio-header-actions-in-project {
     display: flex;
     gap: var(--xagio-gap-small);
-    align-items: center;
-}
-.xagio-credits > ul {
-    padding: 0;
-    display: flex;
-    gap: var(--xagio-gap-small);
-    margin: 0;
-}
-.xagio-credits > ul > li {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 0;
-    background: #383ee2;
-    color: white;
-    padding: 10px 23px;
-    border-radius: 100vh;
-    font-weight: bold;
-}
-.xagio-credits {
-    margin-right: 10px;
 }
 h1.project-name {
     font-size: 23px;
@@ -4239,23 +4242,8 @@ ul.migration-list {
     margin-left: 20px;
 }
 
-.ai-wizard-cost-label {
-    background: var(--color-xagio-blue-gradient);
-    color: white;
-    padding: 12px 30px;
-    border-radius: 10px;
-    font-size: 15px;
-}
-
-.modal-audit-cost {
-    color: #545454;
-    font-size: var(--xagio-main-info-font-size);
-    display: flex;
-    align-items: center;
-}
-.modal-audit-cost p {
-    margin: 0;
-    font-size: var(--xagio-main-info-font-size);
+.ai-wizard-cost-label #xagsCost div {
+    padding: 6px 8px;
 }
 
 .cf-actions-holder h2 {
@@ -4421,4 +4409,142 @@ input[type="range"]::-webkit-slider-thumb {
 }
 .xagio-modal p.xagio-slider-label {
     font-size: 18px;
+}
+
+input.select-project {
+    border-radius: 5px !important;
+    width: 20px;
+    height: 20px;
+    border-color: #1a4674;
+}
+
+input[type=checkbox].select-project:checked::before {
+    content: "";
+    background-image: url(/wp-content/plugins/xagio-seo/assets/css/icons/check.svg);
+    background-size: 100%;
+    background-repeat: no-repeat;
+    width: 100% !important;
+    height: 100%;
+    background-color: #1e4674;
+    border-radius: 5px;
+    margin: 0 !important;
+}
+
+input.select-all-projects {
+    height: 30px !important;
+    width: 30px !important;
+    border-radius: 6px !important;
+    margin: 0;
+}
+
+input[type=checkbox].select-all-projects:checked::before {
+    content: "";
+    background-image: url(/wp-content/plugins/xagio-seo/assets/css/icons/check.svg);
+    background-size: 100%;
+    background-repeat: no-repeat;
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #1e4674;
+    border-radius: 5px;
+}
+
+
+.keyword-cloud-global-holder {
+    display: flex;
+    gap: 30px;
+    padding: 0 30px 30px 0;
+}
+
+.xagio-keyword-cloud-global.generated {
+    border-color: #a3a3a33b;
+    background: white;
+    flex: 1;
+}
+
+span.seed_keywords_selected {
+    color: #afb5bd;
+    font-weight: 100;
+}
+
+.seed-keywords-global {
+    flex-basis: 31%;
+    background: #f6f7fb;
+    border-radius: 10px;
+    display: flex;
+    font-size: 25px;
+    font-weight: 600;
+    text-align: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    place-content: baseline;
+    padding: 30px;
+}
+
+.seed-keywords-panel-start i {
+    font-size: 55px;
+    margin-bottom: 16px;
+    color: #214674;
+    justify-self: center;
+}
+.seed-keywords-panel-start {
+    flex: 1;
+    height: 100%;
+    place-content: center;
+}
+
+.seed-panel-name-container .xagio-input-text-mini {
+    background: #2f2ae8;
+    width: 130px !important;
+    color: white;
+    border-radius: 100vh !important;
+    font-size: 16px;
+}
+.seed-keywords-inputs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    flex: 1;
+}
+.seed-keywords-panel-select {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    flex: 1;
+    height: 100%;
+}
+
+.seed-keywords-panel-select div:first-child {
+    align-self: baseline;
+}
+
+.seed-keywords-panel-select button:last-child {
+    align-self: end;
+}
+form#seedPanelForm {
+    height: 100%;
+}
+
+#top-ten-location-text, #top-ten-keyword {
+    text-transform: lowercase;
+}
+
+.loading {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #d1d1d1cf;
+    z-index: 999;
+}
+
+.loading .ocw-loading-text {
+    position: absolute;
+    display: flex;
+    inset: 0;
+    justify-content: center;
+    color: #1d2327;
+    font-size: 80px;
+    top: 13%;
 }

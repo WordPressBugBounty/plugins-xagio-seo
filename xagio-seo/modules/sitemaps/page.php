@@ -15,7 +15,7 @@
 if (!defined('ABSPATH'))
     exit; // Exit if accessed directly
 
-$MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
+$XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 ?>
 <div class="xagio-main-header xagio-main-header-big-gaps">
     <img class="logo-image repo-xagio" src="<?php echo esc_url(XAGIO_URL); ?>assets/img/logo-xagio.webp"/>
@@ -23,7 +23,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
         Sitemaps
     </h2>
 
-    <?php if(isset($MEMBERSHIP_INFO["membership"]) && $MEMBERSHIP_INFO["membership"] === "Xagio AI Free") { ?>
+    <?php if(isset($XAGIO_MEMBERSHIP_INFO["membership"]) && $XAGIO_MEMBERSHIP_INFO["membership"] === "Xagio AI Free") { ?>
         <div class="xagio-header-actions">
             <a href="https://xagio.com/?goto=wppremfeatures" target="_blank" class="xagio-button xagio-button-secondary xagio-button-premium-button">
                 See Xagio Premium Features
@@ -108,20 +108,6 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                 </p>
                             </div>
 
-                            <!-- Dont Index Subpages -->
-                            <div class="xagio-slider-container">
-                                <input type="hidden" name="XAGIO_DONT_INDEX_SUBPAGES"
-                                       id="XAGIO_DONT_INDEX_SUBPAGES"
-                                       value="<?php echo XAGIO_DONT_INDEX_SUBPAGES ? 1 : 0; ?>"/>
-                                <div class="xagio-slider-frame">
-                                        <span class="xagio-slider-button <?php echo XAGIO_DONT_INDEX_SUBPAGES ? 'on' : ''; ?>"
-                                              data-element="XAGIO_DONT_INDEX_SUBPAGES"></span>
-                                </div>
-                                <p class="xagio-slider-label">Don't Index Sub-pages <i
-                                            class="xagio-icon xagio-icon-info" data-xagio-tooltip
-                                            data-xagio-title="Don't Index Sub-pages"></i>
-                                </p>
-                            </div>
                         </div>
                     </div>
 
@@ -140,7 +126,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 
             <form class="content">
 
-                <?php $SETT = get_option('XAGIO_SITEMAP_CONTENT_SETTINGS'); ?>
+                <?php $XAGIO_SETT = get_option('XAGIO_SITEMAP_CONTENT_SETTINGS'); ?>
 
                 <input type="hidden" name="action" value="xagio_content_settings"/>
 
@@ -148,13 +134,13 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                     <h5 class="xagio-panel-title">Post Types</h5>
 
                     <div class="xagio-3-columns">
-                        <?php foreach (XAGIO_MODEL_SEO::getAllPostTypes() as $postType): ?>
+                        <?php foreach (XAGIO_MODEL_SEO::getAllPostTypes() as $xagio_postType): ?>
 
                             <?php
-                            if (!isset($SETT['post_types']))
-                                $SETT = ['post_types' => []];
-                            if (!isset($SETT['post_types'][$postType]))
-                                $SETT['post_types'][$postType] = [
+                            if (!isset($XAGIO_SETT['post_types']))
+                                $XAGIO_SETT = ['post_types' => []];
+                            if (!isset($XAGIO_SETT['post_types'][$xagio_postType]))
+                                $XAGIO_SETT['post_types'][$xagio_postType] = [
                                     'enabled'          => 0,
                                     'priority'         => 1.0,
                                     'change_frequency' => 'daily',
@@ -164,75 +150,75 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                             ?>
 
                             <div class="content-settings">
-                                <input type="hidden" name="values[post_types][<?php echo esc_attr($postType); ?>][name]"
-                                       value="<?php echo esc_attr($postType); ?>"/>
+                                <input type="hidden" name="values[post_types][<?php echo esc_attr($xagio_postType); ?>][name]"
+                                       value="<?php echo esc_attr($xagio_postType); ?>"/>
 
                                 <div class="content-settings-header">
                                     <!-- Include in Sitemaps -->
                                     <div class="xagio-slider-container">
                                         <input type="hidden"
-                                               name="values[post_types][<?php echo esc_attr($postType); ?>][enabled]"
-                                               id="XAGIO_POST_TYPE_<?php echo esc_attr(strtoupper($postType)); ?>_ENABLED"
-                                               value="<?php echo @$SETT['post_types'][$postType]['enabled'] ? 1 : 0; ?>"/>
+                                               name="values[post_types][<?php echo esc_attr($xagio_postType); ?>][enabled]"
+                                               id="XAGIO_POST_TYPE_<?php echo esc_attr(strtoupper($xagio_postType)); ?>_ENABLED"
+                                               value="<?php echo ($XAGIO_SETT['post_types'][$xagio_postType]['enabled'] ?? 0) ? 1 : 0; ?>"/>
                                         <div class="xagio-slider-frame">
-                                        <span class="xagio-slider-button <?php echo @$SETT['post_types'][$postType]['enabled'] ? 'on' : ''; ?>"
-                                              data-element="XAGIO_POST_TYPE_<?php echo esc_attr(strtoupper($postType)); ?>_ENABLED"></span>
+                                        <span class="xagio-slider-button <?php echo ($XAGIO_SETT['post_types'][$xagio_postType]['enabled'] ?? 0) ? 'on' : ''; ?>"
+                                              data-element="XAGIO_POST_TYPE_<?php echo esc_attr(strtoupper($xagio_postType)); ?>_ENABLED"></span>
                                         </div>
                                     </div>
-                                    <h3 class="post-type"><?php echo esc_html(ucfirst($postType)); ?></h3>
+                                    <h3 class="post-type"><?php echo esc_html(ucfirst($xagio_postType)); ?></h3>
                                 </div>
 
 
-                                <label for="<?php echo esc_attr($postType); ?>_prio">Priority <i
+                                <label for="<?php echo esc_attr($xagio_postType); ?>_prio">Priority <i
                                             class="xagio-icon xagio-icon-info" data-xagio-tooltip
                                             data-xagio-title="The priority element in a sitemap is a hint to search engines about the importance of a particular URL relative to other URLs on the same site. This can be used by search engines to determine how to prioritize the indexing of the pages on your site."></i></label>
 
                                 <div class="xagio-flex-row">
-                                    <input id="<?php echo esc_attr($postType); ?>_prio" type="range"
-                                           value="<?php echo esc_attr(@$SETT['post_types'][$postType]['priority']); ?>"
+                                    <input id="<?php echo esc_attr($xagio_postType); ?>_prio" type="range"
+                                           value="<?php echo esc_attr($XAGIO_SETT['post_types'][$xagio_postType]['priority'] ?? ''); ?>"
                                            min="0.0" max="1.0" step="0.1"
-                                           name="values[post_types][<?php echo esc_attr($postType); ?>][priority]"
+                                           name="values[post_types][<?php echo esc_attr($xagio_postType); ?>][priority]"
                                            class="xagio-range"> <span
-                                            class="current-value"><?php echo esc_html(@$SETT['post_types'][$postType]['priority']); ?></span>
+                                            class="current-value"><?php echo esc_html($XAGIO_SETT['post_types'][$xagio_postType]['priority'] ?? ''); ?></span>
                                 </div>
 
 
-                                <label for="<?php echo esc_attr($postType); ?>_freq">Change Frequency <i
+                                <label for="<?php echo esc_attr($xagio_postType); ?>_freq">Change Frequency <i
                                             class="xagio-icon xagio-icon-info" data-xagio-tooltip
                                             data-xagio-title="The change freq element in a sitemap is a hint to search engines about how frequently a particular URL is likely to change. This can be used by search engines to determine how often to crawl a particular page."></i></label>
-                                <select class="xagio-input-select" id="<?php echo esc_attr($postType); ?>_freq"
-                                        name="values[post_types][<?php echo esc_attr($postType); ?>][change_frequency]">
-                                    <option <?php echo (@$SETT['post_types'][$postType]['change_frequency'] == 'always') ? 'selected' : ''; ?>
+                                <select class="xagio-input-select" id="<?php echo esc_attr($xagio_postType); ?>_freq"
+                                        name="values[post_types][<?php echo esc_attr($xagio_postType); ?>][change_frequency]">
+                                    <option <?php echo (($XAGIO_SETT['post_types'][$xagio_postType]['change_frequency'] ?? '') == 'always') ? 'selected' : ''; ?>
                                             value="always">Always
                                     </option>
-                                    <option <?php echo (@$SETT['post_types'][$postType]['change_frequency'] == 'hourly') ? 'selected' : ''; ?>
+                                    <option <?php echo (($XAGIO_SETT['post_types'][$xagio_postType]['change_frequency'] ?? '') == 'hourly') ? 'selected' : ''; ?>
                                             value="hourly">Hourly
                                     </option>
-                                    <option <?php echo (@$SETT['post_types'][$postType]['change_frequency'] == 'daily') ? 'selected' : ''; ?>
+                                    <option <?php echo (($XAGIO_SETT['post_types'][$xagio_postType]['change_frequency'] ?? '') == 'daily') ? 'selected' : ''; ?>
                                             value="daily">Daily
                                     </option>
-                                    <option <?php echo (@$SETT['post_types'][$postType]['change_frequency'] == 'weekly') ? 'selected' : ''; ?>
+                                    <option <?php echo (($XAGIO_SETT['post_types'][$xagio_postType]['change_frequency'] ?? '') == 'weekly') ? 'selected' : ''; ?>
                                             value="weekly">Weekly
                                     </option>
-                                    <option <?php echo (@$SETT['post_types'][$postType]['change_frequency'] == 'monthly') ? 'selected' : ''; ?>
+                                    <option <?php echo (($XAGIO_SETT['post_types'][$xagio_postType]['change_frequency'] ?? '') == 'monthly') ? 'selected' : ''; ?>
                                             value="monthly">Monthly
                                     </option>
-                                    <option <?php echo (@$SETT['post_types'][$postType]['change_frequency'] == 'yearly') ? 'selected' : ''; ?>
+                                    <option <?php echo (($XAGIO_SETT['post_types'][$xagio_postType]['change_frequency'] ?? '') == 'yearly') ? 'selected' : ''; ?>
                                             value="yearly">Yearly
                                     </option>
-                                    <option <?php echo (@$SETT['post_types'][$postType]['change_frequency'] == 'never') ? 'selected' : ''; ?>
+                                    <option <?php echo (($XAGIO_SETT['post_types'][$xagio_postType]['change_frequency'] ?? '') == 'never') ? 'selected' : ''; ?>
                                             value="never">Never
                                     </option>
                                 </select>
 
-                                <label for="<?php echo esc_attr($postType); ?>_ex">Exclusions (exclude specific content
+                                <label for="<?php echo esc_attr($xagio_postType); ?>_ex">Exclusions (exclude specific content
                                     by ID) <i class="xagio-icon xagio-icon-info" data-xagio-tooltip
                                               data-xagio-title="Content with these IDs will be skipped from going into the sitemap."></i></label>
                                 <input class="xagio-input-text-mini xagio-input-text-white"
-                                       id="<?php echo esc_attr($postType); ?>_ex" type="text"
+                                       id="<?php echo esc_attr($xagio_postType); ?>_ex" type="text"
                                        placeholder="eg. 102,333,40"
-                                       name="values[post_types][<?php echo esc_attr($postType); ?>][exclusions]"
-                                       value="<?php echo esc_attr(@$SETT['post_types'][$postType]['exclusions']); ?>">
+                                       name="values[post_types][<?php echo esc_attr($xagio_postType); ?>][exclusions]"
+                                       value="<?php echo esc_attr($XAGIO_SETT['post_types'][$xagio_postType]['exclusions'] ?? ''); ?>">
 
                             </div>
 
@@ -248,10 +234,10 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                         <?php foreach (XAGIO_MODEL_SEO::getAllTaxonomies() as $taxonomy): ?>
 
                             <?php
-                            if (!isset($SETT['taxonomies']))
-                                $SETT = ['taxonomies' => []];
-                            if (!isset($SETT['taxonomies'][$taxonomy]))
-                                $SETT['post_types'][$taxonomy] = [
+                            if (!isset($XAGIO_SETT['taxonomies']))
+                                $XAGIO_SETT = ['taxonomies' => []];
+                            if (!isset($XAGIO_SETT['taxonomies'][$taxonomy]))
+                                $XAGIO_SETT['post_types'][$taxonomy] = [
                                     'enabled'          => 0,
                                     'priority'         => 1.0,
                                     'change_frequency' => 'daily',
@@ -270,9 +256,9 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                         <input type="hidden"
                                                name="values[taxonomies][<?php echo esc_attr($taxonomy); ?>][enabled]"
                                                id="XAGIO_TAXONOMY_<?php echo esc_attr(strtoupper($taxonomy)); ?>_ENABLED"
-                                               value="<?php echo @$SETT['taxonomies'][$taxonomy]['enabled'] ? 1 : 0; ?>"/>
+                                               value="<?php echo ($XAGIO_SETT['taxonomies'][$taxonomy]['enabled'] ?? 0) ? 1 : 0; ?>"/>
                                         <div class="xagio-slider-frame">
-                                        <span class="xagio-slider-button <?php echo @$SETT['taxonomies'][$taxonomy]['enabled'] ? 'on' : ''; ?>"
+                                        <span class="xagio-slider-button <?php echo ($XAGIO_SETT['taxonomies'][$taxonomy]['enabled'] ?? 0) ? 'on' : ''; ?>"
                                               data-element="XAGIO_TAXONOMY_<?php echo esc_attr(strtoupper($taxonomy)); ?>_ENABLED"></span>
                                         </div>
                                     </div>
@@ -287,11 +273,11 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 
                                 <div class="xagio-flex-row">
                                     <input id="<?php echo esc_attr($taxonomy); ?>_prio" type="range"
-                                           value="<?php echo esc_attr(@$SETT['taxonomies'][$taxonomy]['priority']); ?>"
+                                           value="<?php echo esc_attr($XAGIO_SETT['taxonomies'][$taxonomy]['priority'] ?? '0.5'); ?>"
                                            min="0.0" max="1.0" step="0.1"
                                            name="values[taxonomies][<?php echo esc_attr($taxonomy); ?>][priority]"
                                            class="xagio-range"> <span
-                                            class="current-value"><?php echo esc_attr(@$SETT['taxonomies'][$taxonomy]['priority']); ?></span>
+                                            class="current-value"><?php echo esc_attr($XAGIO_SETT['taxonomies'][$taxonomy]['priority'] ?? '0.5'); ?></span>
                                 </div>
 
 
@@ -300,25 +286,25 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                             data-xagio-title="The change freq element in a sitemap is a hint to search engines about how frequently a particular URL is likely to change. This can be used by search engines to determine how often to crawl a particular page."></i></label>
                                 <select class="xagio-input-select" id="<?php echo esc_attr($taxonomy); ?>_freq"
                                         name="values[taxonomies][<?php echo esc_attr($taxonomy); ?>][change_frequency]">
-                                    <option <?php echo (@$SETT['taxonomies'][$taxonomy]['change_frequency'] == 'always') ? 'selected' : ''; ?>
+                                    <option <?php echo (($XAGIO_SETT['taxonomies'][$taxonomy]['change_frequency'] ?? '') == 'always') ? 'selected' : ''; ?>
                                             value="always">Always
                                     </option>
-                                    <option <?php echo (@$SETT['taxonomies'][$taxonomy]['change_frequency'] == 'hourly') ? 'selected' : ''; ?>
+                                    <option <?php echo (($XAGIO_SETT['taxonomies'][$taxonomy]['change_frequency'] ?? '') == 'hourly') ? 'selected' : ''; ?>
                                             value="hourly">Hourly
                                     </option>
-                                    <option <?php echo (@$SETT['taxonomies'][$taxonomy]['change_frequency'] == 'daily') ? 'selected' : ''; ?>
+                                    <option <?php echo (($XAGIO_SETT['taxonomies'][$taxonomy]['change_frequency'] ?? '') == 'daily') ? 'selected' : ''; ?>
                                             value="daily">Daily
                                     </option>
-                                    <option <?php echo (@$SETT['taxonomies'][$taxonomy]['change_frequency'] == 'weekly') ? 'selected' : ''; ?>
+                                    <option <?php echo (($XAGIO_SETT['taxonomies'][$taxonomy]['change_frequency'] ?? '') == 'weekly') ? 'selected' : ''; ?>
                                             value="weekly">Weekly
                                     </option>
-                                    <option <?php echo (@$SETT['taxonomies'][$taxonomy]['change_frequency'] == 'monthly') ? 'selected' : ''; ?>
+                                    <option <?php echo (($XAGIO_SETT['taxonomies'][$taxonomy]['change_frequency'] ?? '') == 'monthly') ? 'selected' : ''; ?>
                                             value="monthly">Monthly
                                     </option>
-                                    <option <?php echo (@$SETT['taxonomies'][$taxonomy]['change_frequency'] == 'yearly') ? 'selected' : ''; ?>
+                                    <option <?php echo (($XAGIO_SETT['taxonomies'][$taxonomy]['change_frequency'] ?? '') == 'yearly') ? 'selected' : ''; ?>
                                             value="yearly">Yearly
                                     </option>
-                                    <option <?php echo (@$SETT['taxonomies'][$taxonomy]['change_frequency'] == 'never') ? 'selected' : ''; ?>
+                                    <option <?php echo (($XAGIO_SETT['taxonomies'][$taxonomy]['change_frequency'] ?? '') == 'never') ? 'selected' : ''; ?>
                                             value="never">Never
                                     </option>
                                 </select>
@@ -331,7 +317,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                        id="<?php echo esc_attr($taxonomy); ?>_ex" type="text"
                                        placeholder="eg. 102,333,40"
                                        name="values[taxonomies][<?php echo esc_attr($taxonomy); ?>][exclusions]"
-                                       value="<?php echo esc_attr(@$SETT['taxonomies'][$taxonomy]['exclusions']); ?>">
+                                       value="<?php echo esc_attr($XAGIO_SETT['taxonomies'][$taxonomy]['exclusions'] ?? ''); ?>">
 
                             </div>
                         <?php endforeach; ?>

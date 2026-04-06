@@ -1,9 +1,102 @@
 var history_chart = null;
 let selected_keywords = {};
+let table = '';
 
-let loading_keywords_tr = '<tr><td colspan="6" class="loading-niche-keywords">Loading keywords... <i class="xagio-icon xagio-icon-sync xagio-icon-spin"></i></td></tr>';
+let loading_keywords_tr = '<tr><td colspan="10" class="loading-niche-keywords">Loading keywords... <i class="xagio-icon xagio-icon-sync xagio-icon-spin"></i></td></tr>';
 
 let NICHE_HUNTER_COST = "";
+let COMPETITION_COST = "";
+let nicheCompetitionBatchCron;
+
+let cf_templates = {
+    Default  : {
+        name: "Default",
+        data: {
+            volume_red  : 20,
+            volume_green: 100,
+
+            cpc_red  : 0.59,
+            cpc_green: 1.00,
+
+            intitle_red  : 1000,
+            intitle_green: 250,
+
+            inurl_red  : 1000,
+            inurl_green: 250,
+
+            title_ratio_red  : 1,
+            title_ratio_green: 0.25,
+
+            url_ratio_red  : 1,
+            url_ratio_green: 0.25,
+
+            tr_goldbar_volume : 1000,
+            tr_goldbar_intitle: 20,
+
+            ur_goldbar_volume : 1000,
+            ur_goldbar_intitle: 20
+        }
+    },
+    Affiliate: {
+        name: "Affiliate",
+        data: {
+            volume_red  : 100,
+            volume_green: 1000,
+
+            cpc_red  : 1.00,
+            cpc_green: 2.00,
+
+            intitle_red  : 10000,
+            intitle_green: 1000,
+
+            inurl_red  : 10000,
+            inurl_green: 1000,
+
+            title_ratio_red  : 1,
+            title_ratio_green: 0.25,
+
+            url_ratio_red  : 1,
+            url_ratio_green: 0.25,
+
+            tr_goldbar_volume : 1000,
+            tr_goldbar_intitle: 20,
+
+            ur_goldbar_volume : 1000,
+            ur_goldbar_intitle: 20
+        }
+    },
+    Local    : {
+        name: "Local",
+        data: {
+            volume_red  : 10,
+            volume_green: 100,
+
+            cpc_red  : 2.00,
+            cpc_green: 5.00,
+
+            intitle_red  : 1000,
+            intitle_green: 100,
+
+            inurl_red  : 1000,
+            inurl_green: 100,
+
+            title_ratio_red  : 1,
+            title_ratio_green: 0.25,
+
+            url_ratio_red  : 1,
+            url_ratio_green: 0.25,
+
+            tr_goldbar_volume : 1000,
+            tr_goldbar_intitle: 20,
+
+            ur_goldbar_volume : 1000,
+            ur_goldbar_intitle: 20
+        }
+    }
+};
+
+let cf_default_template = 'Default';
+let cf_template = cf_templates[cf_default_template].data;
 
 (function ($) {
     'use strict';
@@ -21,6 +114,16 @@ let NICHE_HUNTER_COST = "";
         actions.openQuora();
         actions.viewGoogleTrends();
         actions.viewSearchVolumeHistory();
+        actions.loadCfTemplates();
+        actions.openCompetitionModal();
+        actions.getCompetition();
+        actions.competitionSingleKeyword();
+        actions.clearSelectedKeywords();
+        actions.selectAllKeywords();
+        actions.deleteKeywords();
+        actions.deleteHistoryGroup();
+        actions.copyToClipboard();
+        actions.searchNicheHistory();
 
         actions.allowances = {
             xags_allowance        : $('#xags-allowance'),
@@ -39,13 +142,23 @@ let NICHE_HUNTER_COST = "";
             myTLDsSelect.val(selectedTLDs.split(',')).trigger('change');
         }
 
-        $(document).on('submit', '.niche-tlds-settings', function (e) {
-           e.preventDefault();
-           let form = $(this);
-           let button = form.find('button[type="submit"]');
-           let selected_tlds = $('#mytld').val();
+        $("#getCompetition_languageCode").select2({
+            width: '100%',
+            dropdownParent: $("#getHunterCompetitionModal")
+        });
 
-           button.disable();
+        $("#getCompetition_locationCode").select2({
+            width: '100%',
+            dropdownParent: $("#getHunterCompetitionModal")
+        });
+
+        $(document).on('submit', '.niche-tlds-settings', function (e) {
+            e.preventDefault();
+            let form = $(this);
+            let button = form.find('button[type="submit"]');
+            let selected_tlds = $('#mytld').val();
+
+            button.disable();
 
             $.post(xagio_data.wp_post, form.serialize(), function (d) {
                 button.disable();
@@ -96,15 +209,16 @@ let NICHE_HUNTER_COST = "";
             let selected_group   = $('#moveToGroupInput').val();
             let modal = $('#copyToProjectPlannerModal');
             let modal_btn = modal.find('.copy-niche-keywords');
-            
+
             let form_data = new FormData();
 
             let count = 0;
             for (const key in selected_keywords) {
-                console.log(selected_keywords[key]);
                 form_data.append(`keywords[${count}][keyword]`, selected_keywords[key].keyword);
                 form_data.append(`keywords[${count}][volume]`, selected_keywords[key].volume);
                 form_data.append(`keywords[${count}][cpc]`, selected_keywords[key].cpc);
+                form_data.append(`keywords[${count}][intitle]`, selected_keywords[key].intitle);
+                form_data.append(`keywords[${count}][inurl]`, selected_keywords[key].inurl);
                 count++;
             }
 
@@ -155,26 +269,37 @@ let NICHE_HUNTER_COST = "";
                 });
 
             });
-
-            console.log(select.val());
         });
 
 
         $(document).on('input', '.select-niche-keywords', function () {
-            let checkbox = $(this);
+            if ($('.select-niche-keywords:checked').length === $('.select-niche-keywords').length) {
+                $(".select-all-niche-keywords").prop('checked', true);
+            } else {
+                $(".select-all-niche-keywords").prop('checked', false);
+            }
 
+            let checkbox = $(this);
             let id = checkbox.data('id');
             let keyword = checkbox.data('keyword');
             let volume = checkbox.data('volume');
             let cpc = checkbox.data('cpc');
+            let intitle = checkbox.data('intitle');
+            let inurl = checkbox.data('inurl');
 
+            if (checkbox.hasClass('selected')) {
+                checkbox.removeClass('selected');
+            } else {
+                checkbox.addClass('selected');
+            }
 
             if(checkbox.prop('checked')) {
-
                 selected_keywords[id] = {
                     "keyword" : keyword,
                     "volume" : volume,
                     "cpc" : cpc,
+                    "intitle" : intitle,
+                    "inurl" : inurl,
                 };
             } else {
                 delete selected_keywords[id];
@@ -182,51 +307,101 @@ let NICHE_HUNTER_COST = "";
 
             let size = Object.keys(selected_keywords).length;
             if(size > 0){
-                $('.copy-keywords-to-project').show();
+                $('.copy-keywords-to-project-container').show();
                 $('.niche-selected-keywords').html(size);
+                $('.delete-keywords span').text(size);
             } else {
-                $('.copy-keywords-to-project').hide();
+                $('.copy-keywords-to-project-container').hide();
                 $('.niche-selected-keywords').html('');
+                $('.delete-keywords span').text('0');
             }
 
         });
 
         $(document).on('input', '.select-all-niche-keywords', function () {
-            let checkbox = $(this);
             let all_checkboxes = $('.select-niche-keywords');
 
-            all_checkboxes.each(function (i) {
+            let allChecked = false;
 
-                let id = $(this).data('id');
-                let keyword = $(this).data('keyword');
-                let volume = $(this).data('volume');
-                let cpc = $(this).data('cpc');
+            if ($('.select-niche-keywords:checked').length === all_checkboxes.length) {
+                allChecked = true;
+            }
 
-                if($(this).prop('checked')) {
-                    delete selected_keywords[id];
-                    $(this).prop('checked', false);
-                } else {
-                    selected_keywords[id] = {
-                        "keyword" : keyword,
-                        "volume" : volume,
-                        "cpc" : cpc,
-                    };
-                    $(this).prop('checked', true);
-                }
-            });
+            if (allChecked) {
+                all_checkboxes.each(function (i) {
+                    let id = $(this).data('id');
+
+                    if($(this).prop('checked')) {
+                        delete selected_keywords[id];
+                        $(this).prop('checked', false);
+                    }
+                });
+            } else {
+                all_checkboxes.each(function (i) {
+                    let id = $(this).data('id');
+                    let keyword = $(this).data('keyword');
+                    let volume = $(this).data('volume');
+                    let cpc = $(this).data('cpc');
+                    let intitle = $(this).data('intitle');
+                    let inurl = $(this).data('inurl');
+
+                    if(!$(this).prop('checked')) {
+                        selected_keywords[id] = {
+                            "keyword" : keyword,
+                            "volume" : volume,
+                            "cpc" : cpc,
+                            "intitle" : intitle,
+                            "inurl" : inurl,
+                        };
+                        $(this).prop('checked', true);
+                    }
+                });
+            }
 
             let size = Object.keys(selected_keywords).length;
             if(size > 0){
-                $('.copy-keywords-to-project').show();
+                $('.copy-keywords-to-project-container').show();
                 $('.niche-selected-keywords').html(size);
+                $('.delete-keywords span').text(size);
             } else {
-                $('.copy-keywords-to-project').hide();
+                $('.copy-keywords-to-project-container').hide();
                 $('.niche-selected-keywords').html('');
+                $('.delete-keywords span').text('0');
             }
         });
     });
 
     let actions = {
+        xagsCostOutput: function (cost) {
+            let xReview = parseFloat(actions.allowances.xags_allowance.find('.value').html().trim());
+            let xBank = parseFloat(actions.allowances.xags.find('.value').html().trim());
+
+            let output = "";
+            if (cost <= xReview) {
+                output = `<div><img class="xags" src="${siteUrl}/assets/img/logos/xRenew.png" alt="xRenew"/><span>${cost}</span></div>`;
+            } else if (xReview == 0) {
+                output = `<div><img class="xags" src="${siteUrl}/assets/img/logos/xBanks.png" alt="xBanks"/><span>${cost}</span></div>`;
+            } else if (xBank > cost || (xReview + xBank) >= cost) {
+                let remaining_cost = parseFloat(cost - xReview).toFixed(2);
+
+                output = `<div><img class="xags" src="${siteUrl}/assets/img/logos/xRenew.png" alt="xRenew"/><span>${xReview}</span></div> and <div><img class="xags" src="${siteUrl}/assets/img/logos/xBanks.png" alt="xBanks"/><span>${remaining_cost}</span></div>`;
+            }
+
+            return output;
+        },
+        loadCfTemplates : function () {
+            $.post(xagio_data.wp_post, 'action=xagio_getCfTemplates', function (d) {
+                if (d.status == 'success') {
+                    cf_templates = $.extend(cf_templates, d.data)
+                }
+
+                let template = cf_templates[d.default];
+
+                // Set default template globally
+                cf_template = template.data;
+                cf_default_template = d.default;
+            }, 'json');
+        },
         viewSearchVolumeHistory: function() {
             let now = new Date();
             let months = ["Jan", "Feb", "Mar", "Apr", "May","June", "July", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -549,6 +724,7 @@ let NICHE_HUNTER_COST = "";
 
                 } else {
                     NICHE_HUNTER_COST = d.data.xags_cost["hunter"];
+                    COMPETITION_COST = d.data.xags_cost["comp"];
 
                     actions.allowances.xags_allowance.find('.value').html(parseFloat(d.data['xags_allowance']).toFixed(2));
 
@@ -556,6 +732,7 @@ let NICHE_HUNTER_COST = "";
                         actions.allowances.xags.find('.value').html(parseFloat(d.data['xags']).toFixed(2));
                     } else {
                         actions.allowances.xags.hide();
+                        $('.xags-divider').hide();
                     }
 
                     actions.allowances.xags_total = d.data['xags_total'];
@@ -565,6 +742,9 @@ let NICHE_HUNTER_COST = "";
         loadHistoryItem     : function () {
             $(document).on('click', '.hunter-single-history-item', function (e) {
                 e.preventDefault();
+
+                $(".hunter-single-history-item").removeClass("selected");
+                $(this).addClass("selected");
 
                 let id = $(this).attr('data-id');
                 let lang = $(this).attr('data-language');
@@ -632,29 +812,47 @@ let NICHE_HUNTER_COST = "";
 
             });
         },
-        getHistory          : function () {
+        getHistory          : function (id = 0) {
             $.post(xagio_data.wp_post, 'action=xagio_niche_hunter_history', function (d) {
                 let container = $('.hunter-history-holder');
                 container.empty();
 
-                if(d.length < 1) {
-                    container.html('No History Saved for this website, when you Generate keywords, history will automatically show.');
+                if (d.length > 0) {
+                    for (let i = 0; i < d.length; i++) {
+                        const data = d[i];
+                        let filters = btoa(JSON.stringify(data.filters));
+
+                        let className = 'hunter-single-history-item';
+                        if (id == data.id) {
+                            className += ' selected'; // add any class you want here
+                        }
+
+                        let html = `
+                                          <div 
+                                            data-filters="${filters}" 
+                                            data-language="${data.language}" 
+                                            data-keyword="${data.keyword_name}" 
+                                            data-id="${data.id}" 
+                                            class="${className} xagio-flex-row xagio-flex-align-top">
+                                            <div>
+                                              <h3 class="history-name">
+                                                ${data.keyword_name} <span>(${data.count})</span>
+                                              </h3>
+                                              <span class="history-date">Date Added: ${data.date_created}</span>
+                                            </div>
+                                            <button
+                                             class="xagio-button xagio-button-danger xagio-button-mini delete-history-group"
+                                             data-id="${data.id}">
+                                              <i class="xagio-icon xagio-icon-delete"></i>
+                                            </button>
+                                          </div>
+                                        `;
+                        container.append(html);
+                    }
+                    container.addClass("xagio-grid-4-columns");
+                } else {
+                    container.text("No History Saved for this website, when you Generate keywords, history will automatically show.");
                 }
-
-                for (let i = 0; i < d.length; i++) {
-                    const data = d[i];
-                    let filters = btoa(JSON.stringify(data.filters));
-
-                    let html = '<div data-filters="'+filters+'" data-language="' + data.language + '" data-keyword="'+data.keyword_name+'" data-id="' + data.id +
-                               '" class="hunter-single-history-item">' +
-                               '          <h3 class="history-name">' + data.keyword_name + ' <span>(' + data.count +
-                               ')</span></h3>' +
-                               '          <span class="history-date">Date Added: ' + data.date_created + '</span>' +
-                               '       </div>';
-                    container.append(html);
-
-                }
-
             });
         },
         submitForm          : function () {
@@ -668,7 +866,9 @@ let NICHE_HUNTER_COST = "";
 
                 btn.disable();
 
-                xagioModal("Are you sure?", `This action will cost you ${NICHE_HUNTER_COST} XAGS`, function (yes) {
+                let output = actions.xagsCostOutput(NICHE_HUNTER_COST);
+
+                xagioModal("Are you sure?", `<i class="xagio-icon xagio-icon-info"></i> This action will cost you ${output}. Do you want to continue?`, function (yes) {
                     if (yes) {
                         $.post(xagio_data.wp_post, `${data}&filters[language]=${language}`, function (d) {
 
@@ -692,11 +892,12 @@ let NICHE_HUNTER_COST = "";
                     } else {
                         btn.disable();
                     }
-                })
+                }, 'niche_hunter_cost_modal')
             });
         },
         loadTable           : function (data, language) {
-            $('.results-table').dataTable({
+            data = data || [];
+            table = $('.results-table').DataTable({
                 language: {
                     search: "_INPUT_",
                     searchPlaceholder: "Search keywords...",
@@ -706,7 +907,7 @@ let NICHE_HUNTER_COST = "";
                     infoEmpty: "0 to 0 of 0 keywords",
                     infoFiltered: ""
                 },
-                "dom": '<f>rt<"xagio-table-bottom"<>p>',
+                "dom": 'rt<"xagio-table-bottom"lp>',
                 'data': data,
                 "bDestroy": true,
                 "sFilterInput": "xagio-input-text-mini",
@@ -715,7 +916,8 @@ let NICHE_HUNTER_COST = "";
                 "bFilter": true,
                 "bProcessing": true,
                 "bServerSide": false,
-                "iDisplayLength": 100,
+                "iDisplayLength": 10,
+                "aLengthMenu": [[5, 10, 50, 100, -1], [5, 10, 50, 100, 'All']],
                 "aaSorting": [
                     [
                         2,
@@ -729,7 +931,9 @@ let NICHE_HUNTER_COST = "";
                         "mRender": function (data, type, row) {
                             let volume = row.search_volume;
                             let cpc = parseFloat(row.cost_per_click).toFixed(2);
-                            return `<input type="checkbox" data-id="${row.id}" data-keyword="${row.keyword}" data-volume="${volume}" data-cpc="${cpc}" class="xagio-input-checkbox select-niche-keywords">`;
+                            let inTitle = row.intitle ?? "";
+                            let inUrl = row.inurl ?? "";
+                            return `<input type="checkbox" data-id="${row.id}" data-keyword="${row.keyword}" data-volume="${volume}" data-cpc="${cpc}" data-intitle="${inTitle}" data-inurl="${inUrl}" class="xagio-input-checkbox select-niche-keywords">`;
                         }
                     },
                     {
@@ -772,14 +976,166 @@ let NICHE_HUNTER_COST = "";
                                 competitionText = 'High';
                             }
 
-                            return '<div class="xagio-progress ' + colorClass + '">' +
-                                '    <div class="xagio-progress-bar" style="width: ' +
-                                competition + '%">' + competitionText + '</div>' +
-                                '</div>';
+                            return `<div class="xagio-progress ${colorClass}">
+                                <div class="xagio-progress-bar" style="width: ${competition}%">
+                                    <p>${competitionText} (${parseFloat(row.competition).toFixed(2)})</p>
+                                </div>
+                            </div>`;
                         }
-                    },{
+                    },
+                    {
+                        "sClass": "text-left intitle",
+                        "bSortable": true,
+                        "mRender": function (data, type, row) {
+                            if (row.status === 'completed' && row.intitle != null) {
+                                return row.intitle;
+                            } else if (row.status === 'queued') {
+                                return `<i class="xagio-icon xagio-icon-sync xagio-icon-spin" data-xagio-tooltip data-xagio-title="This value is currently under analysis. Please check back later to see the results."></i>`
+                            } else {
+                                return '-';
+                            }
+                        }
+                    },
+                    {
+                        "sClass": "text-left inurl",
+                        "bSortable": true,
+                        "mRender": function (data, type, row) {
+                            if (row.status === 'completed' && row.inurl != null) {
+                                return row.inurl;
+                            } else if (row.status === 'queued') {
+                                return `<i class="xagio-icon xagio-icon-sync xagio-icon-spin" data-xagio-tooltip data-xagio-title="This value is currently under analysis. Please check back later to see the results."></i>`
+                            } else {
+                                return '-';
+                            }
+                        }
+                    },
+                    {
+                        data: null,
+                        sClass: "text-left tr",
+                        bSortable: true,
+                        render: {
+                            display: function (data, type, row) {
+                                let inTitle = row.intitle;
+                                let searchVol = row.search_volume;
+                                let title_ratio = "";
+
+                                if (row.status === 'completed' && inTitle != null) {
+                                    if (inTitle == 0 && inTitle !== "") {
+                                        title_ratio = "0";
+                                    } else if (searchVol !== "" && inTitle !== "") {
+                                        if (searchVol != 0) {
+                                            title_ratio = inTitle / searchVol;
+                                        }
+                                    }
+
+                                    let tr_color = '';
+                                    if (title_ratio !== "") {
+                                        if (parseFloat(title_ratio) >= parseFloat(cf_template.title_ratio_red)) {
+                                            tr_color = 'tr_red';
+                                        } else if (
+                                            parseFloat(title_ratio) < parseFloat(cf_template.title_ratio_red) &&
+                                            parseFloat(title_ratio) > parseFloat(cf_template.title_ratio_green)
+                                        ) {
+                                            tr_color = 'tr_yellow';
+                                        } else if (parseFloat(title_ratio) <= parseFloat(cf_template.title_ratio_green)) {
+                                            tr_color = 'tr_green';
+                                        }
+                                    }
+
+                                    let tr_output = `<p class="${tr_color} margin-none">${parseFloat(title_ratio).toFixed(3)}</p>`;
+
+                                    if (
+                                        tr_color === "tr_green" &&
+                                        parseFloat(cf_template.tr_goldbar_volume) >= parseFloat(searchVol) &&
+                                        parseFloat(cf_template.tr_goldbar_intitle) >= parseFloat(inTitle)
+                                    ) {
+                                        tr_output = `<div contenteditable="false" data-xagio-tooltip data-xagio-title="Value: ${parseFloat(title_ratio).toFixed(3)}"><img src="${xagio_data.plugins_url}assets/img/gold.webp" alt="Goldbar"></div>`;
+                                    }
+
+                                    return tr_output;
+                                } else {
+                                    return '-';
+                                }
+                            },
+                            sort: function (data, type, row) {
+                                let inTitle = row.intitle;
+                                let searchVol = row.search_volume;
+
+                                if (
+                                    row.status === 'completed' &&
+                                    inTitle != null && inTitle !== "" &&
+                                    searchVol !== "" && searchVol != 0
+                                ) {
+                                    const ratio = inTitle / searchVol;
+                                    if (!isNaN(ratio)) return ratio;
+                                }
+                                return Number.MAX_VALUE;
+                            }
+                        }
+                    },
+                    {
+                        "data": null,
+                        "sClass": "text-left ur",
+                        "bSortable": true,
+                        "render": {
+                            display: function (data, type, row) {
+                                let inURL = row.inurl;
+                                let searchVol = row.search_volume;
+                                let url_ratio = "";
+
+                                if (row.status === 'completed' && inURL != null) {
+                                    if (inURL == 0 && inURL !== "") {
+                                        url_ratio = "0";
+                                    } else if (searchVol !== "" && inURL !== "") {
+                                        if (searchVol != 0) {
+                                            url_ratio = inURL / searchVol;
+                                        }
+                                    }
+
+                                    let ur_color;
+                                    if (url_ratio === "") {
+                                        ur_color = '';
+                                    } else if (parseFloat(url_ratio) >= parseFloat(cf_template.url_ratio_red)) {
+                                        ur_color = 'tr_red';
+                                    } else if (parseFloat(url_ratio) < parseFloat(cf_template.url_ratio_red) && parseFloat(url_ratio) > parseFloat(cf_template.url_ratio_green)) {
+                                        ur_color = 'tr_yellow';
+                                    } else if (parseFloat(url_ratio) <= parseFloat(cf_template.url_ratio_green)) {
+                                        ur_color = 'tr_green';
+                                    }
+
+                                    let tr_output = `<p class="${ur_color} margin-none">${parseFloat(url_ratio).toFixed(3)}</p>`
+
+                                    if (ur_color == "tr_green" && (parseFloat(cf_template.tr_goldbar_volume) >= parseFloat(searchVol) && parseFloat(cf_template.tr_goldbar_intitle) >= parseFloat(inURL))) {
+                                        tr_output = '<div contenteditable="false" data-xagio-tooltip data-xagio-title="Value: ' + parseFloat(url_ratio).toFixed(3) + '"><img src="' +
+                                            xagio_data.plugins_url + 'assets/img/gold.webp" alt="Goldbar"></div>';
+                                    }
+
+                                    return tr_output;
+                                } else {
+                                    return '-';
+                                }
+                            },
+                            sort: function (data, type, row) {
+                                let inURL = row.inurl;
+                                let searchVol = row.search_volume;
+
+                                if (
+                                    row.status === 'completed' &&
+                                    inURL != null && inURL !== "" &&
+                                    searchVol !== "" && searchVol != 0
+                                ) {
+                                    const ratio = inURL / searchVol;
+                                    if (!isNaN(ratio)) return ratio;
+                                }
+
+                                return Number.MAX_VALUE;  // Push rows with invalid or empty ratio to the bottom
+                            }
+                        }
+                    },
+                    {
                         "sClass": "text-left",
                         "bSortable": false,
+                        "sWidth": "200px",
                         "mRender": function (data, type, row) {
 
                             let history = [];
@@ -808,9 +1164,9 @@ let NICHE_HUNTER_COST = "";
                                 '" class="xagio-button xagio-button-primary xagio-button-mini multiple-links" data-xagio-tooltip data-xagio-title="Search keyword in Google">' +
                                 '        <i class="xagio-icon xagio-icon-google"></i></button>' +
 
-                                '    <button data-keyword="' + row.keyword +
-                                '" class="xagio-button xagio-button-primary xagio-button-mini open_quora" data-xagio-tooltip data-xagio-title="Search keyword in Quora">' +
-                                '        <i class="xagio-icon xagio-icon-quora"></i></button>' +
+                                '    <button data-id="' + row.id +
+                                '" class="xagio-button xagio-button-primary xagio-button-mini get-competition-single-keyword" data-xagio-tooltip data-xagio-title="Get competition">' +
+                                '        <i class="xagio-icon xagio-icon-key"></i></button>' +
 
                                 '    <button data-keyword="' + row.keyword +
                                 '" data-history="' + history +
@@ -820,10 +1176,17 @@ let NICHE_HUNTER_COST = "";
                         }
                     }
                 ],
-                fnInitComplete: function () {
-                    $('.dataTables_filter input[type="search"]').addClass('xagio-input-text-mini');
-                }
+            });
 
+            $('.niche-keywords').empty().html(table.rows().count() + " Keywords");
+            $('#select-all-keywords .count').empty().html(table.rows().count());
+
+            $('#customSearch').on('input', function () {
+                table.search(this.value).draw();
+
+                // number of keywords after search
+                $('.niche-keywords').empty().html(table.rows({ filter: 'applied' }).count() + " Keywords");
+                $('#select-all-keywords .count').empty().text(table.rows({ filter: 'applied' }).count());
             });
         },
         initSliders         : function () {
@@ -942,7 +1305,289 @@ let NICHE_HUNTER_COST = "";
                 domain = "defaultdomain";
             }
             return domain;
+        },
+        openCompetitionModal: function () {
+            $(document).on("click", ".get-competition", function (e) {
+                e.preventDefault();
+
+                let size = Object.keys(selected_keywords).length;
+
+                if (size > 0) {
+                    let cost = COMPETITION_COST * size;
+                    let output = actions.xagsCostOutput(cost);
+                    let modal = $("#getHunterCompetitionModal");
+
+                    modal.find('#xagsCost').html(`This action will cost you ${output}. Do you want to continue?`);
+
+                    let keys = Object.keys(selected_keywords);
+                    modal.find(".ids").val(keys);
+
+                    modal[0].showModal();
+                } else {
+                    xagioNotify('error', 'Please select some keywords!')
+                }
+            })
+        },
+        getCompetition: function () {
+            $(document).on("submit", "#getHunterCompetitionForm", function (e) {
+                e.preventDefault();
+
+                let modal = $("#getHunterCompetitionModal");
+                let data = $(this).serialize();
+                let ids = modal.find(".ids").val();
+                let idsArray = ids.split(",");
+                let btn = $(this).find("button[type='submit']");
+
+                data += "&action=xagio_get_niche_competition";
+
+                btn.disable();
+
+                $.post(xagio_data.wp_post, data, function (d) {
+                    if (d.status === 'success') {
+                        modal[0].close();
+
+                        actions.refreshXags();
+
+                        idsArray.forEach(function(value, index) {
+                            let selector = $(`.select-niche-keywords[data-id="${value}"]`).parents('tr');
+
+                            selector.find('td.intitle').html(`<i class="xagio-icon xagio-icon-sync xagio-icon-spin" data-xagio-tooltip data-xagio-title="This value is currently under analysis. Please check back later to see the results."></i>`);
+                            selector.find('td.inurl').html(`<i class="xagio-icon xagio-icon-sync xagio-icon-spin" data-xagio-tooltip data-xagio-title="This value is currently under analysis. Please check back later to see the results."></i>`);
+                        });
+
+                        btn.disable();
+                        actions.checkIfNicheBatchIsDone();
+
+                        xagioNotify(d.status, d.message);
+                    }
+                })
+            })
+        },
+        checkIfNicheBatchIsDone: function () {
+            clearTimeout(nicheCompetitionBatchCron);
+            nicheCompetitionBatchCron = setTimeout(function () {
+
+                $.post(xagio_data.wp_post, 'action=xagio_check_if_niche_batch_is_done', function (d) {
+                    if (d.status == 'success') {
+                        let id;
+                        let lang;
+                        let selectedItem = $(".hunter-single-history-item.selected");
+
+                        if (selectedItem.length) {
+                            id = selectedItem.data("id");
+                            lang = selectedItem.data('language');
+                        }
+
+                        $('.results-table').find('tbody').html(loading_keywords_tr);
+                        $.post(xagio_data.wp_post, 'action=xagio_niche_hunter_keywords&id=' + id, function (d) {
+                            actions.loadTable(d, lang);
+                            selected_keywords = {};
+                            $('.copy-keywords-to-project-container').hide();
+                        });
+                    } else {
+                        actions.checkIfNicheBatchIsDone();
+                    }
+                });
+
+            }, 5000);
+        },
+        competitionSingleKeyword: function () {
+            $(document).on('click', '.get-competition-single-keyword', function (e) {
+                e.preventDefault();
+
+                let id = $(this).attr('data-id');
+                let output = actions.xagsCostOutput(COMPETITION_COST);
+                let modal = $("#getHunterCompetitionModal");
+
+                modal.find('#xagsCost').html(`This action will cost you ${output}. Do you want to continue?`);
+                modal.find(".ids").val(id);
+
+                modal[0].showModal();
+            });
+        },
+        clearSelectedKeywords: function () {
+            $(document).on('click', '#clear-selected-keywords', function () {
+                table.rows({ search: 'applied' }).every(function () {
+                    let row = this.node();
+                    let checkbox = $(row).find('.select-niche-keywords');
+
+                    // Check the checkbox
+                    checkbox.prop('checked', false).removeClass('selected');;
+                })
+
+                $('.select-all-niche-keywords').prop('checked', false);
+
+                selected_keywords = {};
+                $('.copy-keywords-to-project-container').hide();
+                $('.delete-keywords span').text("0");
+            })
+        },
+        selectAllKeywords: function () {
+            $(document).on('click', '#select-all-keywords', function() {
+
+                table.rows({ search: 'applied' }).every(function () {
+                    let row = this.node();
+                    let checkbox = $(row).find('.select-niche-keywords');
+
+                    let id = checkbox.data('id');
+                    let keyword = checkbox.data('keyword');
+                    let volume = checkbox.data('volume');
+                    let cpc = checkbox.data('cpc');
+                    let intitle = checkbox.data('intitle');
+                    let inurl = checkbox.data('inurl');
+
+                    // Check the checkbox
+                    checkbox.prop('checked', true);
+
+                    selected_keywords[id] = {
+                        "keyword" : keyword,
+                        "volume" : volume,
+                        "cpc" : cpc,
+                        "intitle" : intitle,
+                        "inurl" : inurl,
+                    };
+                });
+
+                $(".select-all-niche-keywords").prop('checked', true);
+
+                let size = Object.keys(selected_keywords).length;
+                if(size > 0){
+                    $('.copy-keywords-to-project-container').show();
+                    $('.niche-selected-keywords').html(size);
+                    $('.delete-keywords span').text(size);
+                } else {
+                    $('.copy-keywords-to-project-container').hide();
+                    $('.niche-selected-keywords').html('');
+                    $('.delete-keywords span').text('0');
+                }
+            });
+        },
+        deleteKeywords: function () {
+            $(document).on('click', '.delete-keywords', function (e) {
+                let button = $(this);
+                let ids = Object.keys(selected_keywords);
+                let size = ids.length;
+                if (size < 1) {
+                    xagioNotify("warning", "Please select at least one keyword.");
+                    return false;
+                }
+
+                xagioModal('Confirm', 'Are you sure you want to delete selected keywords?', function(yes) {
+                    if (yes) {
+                        $.post(xagio_data.wp_post, `action=xagio_delete_keywords&ids=${ids}`, function (d) {
+                            if (d.status == 'success') {
+                                let id;
+                                let lang;
+                                let selectedItem = $(".hunter-single-history-item.selected");
+
+                                if (selectedItem.length) {
+                                    id = selectedItem.data("id");
+                                    lang = selectedItem.data('language');
+                                }
+
+                                actions.getHistory(id);
+
+                                $('.results-table').find('tbody').html(loading_keywords_tr);
+                                $.post(xagio_data.wp_post, 'action=xagio_niche_hunter_keywords&id=' + id, function (d) {
+                                    actions.loadTable(d, lang);
+                                    selected_keywords = {};
+                                    $('.copy-keywords-to-project-container').hide();
+                                    button.find('span').text("0");
+                                });
+
+                                xagioNotify(d.status, d.message);
+                            }
+                        });
+                    }
+                });
+            })
+        },
+        deleteHistoryGroup: function () {
+            $(document).on('click', '.delete-history-group', function (e) {
+                e.stopPropagation();
+                let button = $(this);
+                let groupId = button.attr('data-id');
+
+                xagioModal('Confirm', 'Are you sure you want to delete this group?', function(yes) {
+                    if (yes) {
+                        $.post(xagio_data.wp_post, `action=xagio_delete_history_group&group_id=${groupId}`, function (d) {
+                            if (d.status == 'success') {
+                                let id;
+                                let lang;
+                                let selectedItem = $(".hunter-single-history-item.selected");
+
+                                if (selectedItem.length) {
+                                    id = selectedItem.data("id");
+                                    lang = selectedItem.data('language');
+                                }
+
+                                actions.getHistory(id);
+
+                                $('.results-table').find('tbody').html(loading_keywords_tr);
+                                $.post(xagio_data.wp_post, 'action=xagio_niche_hunter_keywords&id=0' + id, function (d) {
+                                    actions.loadTable(d, lang);
+                                });
+
+                                xagioNotify(d.status, d.message);
+                            }
+                        });
+                    }
+                });
+            })
+        },
+        copyToClipboard: function () {
+            $(document).on('click', '.copy-to-clipboard', function (e) {
+                e.preventDefault();
+
+                let size = Object.keys(selected_keywords).length;
+                if (size < 1) {
+                    xagioNotify("error", "Please select at least one keyword.");
+                    return false;
+                }
+
+                let ids = Object.keys(selected_keywords);
+
+                $.post(xagio_data.wp_post, `action=xagio_copy_to_clipboard&ids=${ids}`, function (d) {
+                    if (d.status == 'success') {
+                        navigator.clipboard.writeText(d.data).then(() => {
+                            xagioNotify("success", "Keywords copied to clipboard.");
+                        }).catch(err => {
+                            xagioNotify("danger", `Failed to copy keywords: ${err}.`);
+                        });
+                    }
+                });
+
+            });
+        },
+        debounce: function(func, delay) {
+            let timeoutId;
+            return function (...args) {
+                clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => func.apply(this, args), delay);
+            };
+        },
+        searchNicheHistory: function () {
+            const debouncedSearch = actions.debounce(function (input) {
+                let value = input.val().toLowerCase();
+
+                $('.hunter-single-history-item').each(function() {
+                    let keyword = $(this).data('keyword').toLowerCase();
+
+                    if (keyword.includes(value)) {
+                        $(this).show();  // show matching
+                    } else {
+                        $(this).hide();  // hide non-matching
+                    }
+                });
+
+                $("#no-hiche-history-found").toggle($(".hunter-single-history-item:visible").length === 0);
+            }, 500);
+
+            $(document).on('keyup', '.search-niche-history', function (e) {
+                debouncedSearch($(this));
+            });
         }
+
     }
 
 

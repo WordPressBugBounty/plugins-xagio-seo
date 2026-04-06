@@ -33,10 +33,6 @@ if (!class_exists('XAGIO_SYNC')) {
                 wp_schedule_event(time(), 'daily', 'xagio_getSharedScripts');
             }
 
-            if (!get_option('XAGIO_ACCOUNT_DETAILS')) {
-                self::getMembershipInfo();
-            }
-
             add_action('xagio_getMembershipInfo', [
                 'XAGIO_SYNC',
                 'getMembershipInfo'
@@ -49,79 +45,82 @@ if (!class_exists('XAGIO_SYNC')) {
         public static function getMembershipInfo()
         {
 
-            $http_code = 0;
-            $result    = XAGIO_API::apiRequest(
+            $xagio_http_code = 0;
+            $xagio_result    = XAGIO_API::apiRequest(
                 $endpoint = 'info', $method = 'GET', [
-                    'type' => 'account',
-                ], $http_code
+                'type' => 'account',
+            ], $xagio_http_code
             );
 
-            if ($http_code == 200) {
-                update_option('XAGIO_ACCOUNT_DETAILS', $result);
+            if ($xagio_http_code == 200) {
+                update_option('XAGIO_ACCOUNT_DETAILS', $xagio_result);
             }
 
         }
 
         public static function getSharedScripts()
         {
-            $http_code = 0;
-            $result    = XAGIO_API::apiRequest(
+            $xagio_http_code = 0;
+            $xagio_result    = XAGIO_API::apiRequest(
                 $endpoint = 'info', $method = 'GET', [
-                    'type' => 'shared_scripts',
-                ], $http_code
+                'type' => 'shared_scripts',
+            ], $xagio_http_code
             );
 
-            if ($http_code == 200) {
-                update_option('XAGIO_SHARED_SCRIPTS', $result['shared_scripts']);
+            if ($xagio_http_code == 200) {
+                update_option('XAGIO_SHARED_SCRIPTS', $xagio_result['shared_scripts']);
             }
         }
 
         public static function getBackupSettings()
         {
-            $http_code = 0;
-            $result    = XAGIO_API::apiRequest(
+            $xagio_http_code = 0;
+            $xagio_result    = XAGIO_API::apiRequest(
                 $endpoint = 'info', $method = 'GET', [
-                    'type' => 'backup_settings',
-                ], $http_code
+                'type' => 'backup_settings'
+            ], $xagio_http_code
             );
 
-            if ($http_code == 200) {
-                update_option('XAGIO_BACKUP_SETTINGS', $result['backup_settings']);
+            if ($xagio_http_code == 200) {
+                update_option('XAGIO_BACKUP_SETTINGS', $xagio_result['backup_settings']);
             }
 
-            return $result;
+            return $xagio_result;
         }
 
         public static function updateBackupSettings()
         {
-            $http_code = 0;
-            $result    = XAGIO_API::apiRequest(
+            $xagio_http_code = 0;
+            $xagio_result    = XAGIO_API::apiRequest(
                 $endpoint = 'info', $method = 'POST', [
-                    'type'            => 'backup_settings',
-                    'settings'        => get_option('XAGIO_BACKUP_SETTINGS'),
-                    'domain_settings' => [
-                        'location' => get_option("XAGIO_BACKUP_LOCATION"),
-                        'limit'    => get_option("XAGIO_BACKUP_LIMIT"),
-                        'date'     => get_option("XAGIO_BACKUP_DATE")
-                    ]
 
-                ], $http_code
+                'type'            => 'backup_settings',
+                'settings'        => get_option('XAGIO_BACKUP_SETTINGS'),
+                'domain'          => XAGIO_DOMAIN,
+                'domain_settings' => [
+                    'location' => get_option("XAGIO_BACKUP_LOCATION"),
+                    'limit'    => get_option("XAGIO_BACKUP_LIMIT"),
+                    'date'     => get_option("XAGIO_BACKUP_DATE"),
+                    'next'     => wp_next_scheduled('xagio_doBackup')
+                ]
+
+            ], $xagio_http_code
             );
 
-            return $result;
+            return $xagio_result;
         }
 
         public static function getAPIKeys()
         {
-            $http_code = 0;
-            $result    = XAGIO_API::apiRequest(
+            $xagio_http_code = 0;
+            $xagio_result    = XAGIO_API::apiRequest(
                 $endpoint = 'info', $method = 'GET', [
-                    'type' => 'api_settings',
-                ], $http_code
+                'type' => 'api_settings',
+            ], $xagio_http_code
             );
 
-            if ($http_code == 200) {
-                update_option('XAGIO_API_SETTINGS', $result['api_settings']);
+            if ($xagio_http_code == 200) {
+                update_option('XAGIO_API_SETTINGS', $xagio_result['api_settings']);
             }
         }
 

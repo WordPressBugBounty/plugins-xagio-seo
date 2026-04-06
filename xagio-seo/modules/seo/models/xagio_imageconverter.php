@@ -27,19 +27,19 @@ if (!class_exists('XAGIO_MODEL_IMAGECONVERTER')) {
                 foreach ($attachment_ids as $id) {
 
                     $mime = get_post_mime_type($id);
-                    $file = get_attached_file($id);
+                    $xagio_file = get_attached_file($id);
 
                     if ($mime == 'image/png') {
-                        $image = imagecreatefrompng($file);
+                        $image = imagecreatefrompng($xagio_file);
                         $ext   = '.png';
                     } else if ($mime == 'image/gif') {
-                        $image = imagecreatefromgif($file);
+                        $image = imagecreatefromgif($xagio_file);
                         $ext   = '.gif';
                     } else {
                         continue;
                     }
 
-                    $outputFile = str_replace($ext, '.jpg', $file);
+                    $outputFile = str_replace($ext, '.jpg', $xagio_file);
 
                     imagejpeg($image, $outputFile, 100);
                     imagedestroy($image);

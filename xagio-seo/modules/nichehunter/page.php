@@ -14,27 +14,41 @@
  */
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
-$MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
+$XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 ?>
+
+<script>
+    let siteUrl = '<?php echo esc_url(XAGIO_URL); ?>';
+</script>
+
 <div class="xagio-main-header xagio-main-header-big-gaps">
     <img class="logo-image repo-xagio" src="<?php echo esc_url(XAGIO_URL); ?>assets/img/logo-xagio.webp"/>
     <h2 class="logo-title logo-title-big">
         Niche Hunter
     </h2>
     <div class="xagio-header-actions-in-project">
-        <div class="xagio-credits">
-            <ul>
-                <li id="xags-allowance" data-xagio-tooltip data-xagio-tooltip-position="bottom" data-xagio-title="These are your current XAGS (xRenew)">
-                    <img class="xags" src="<?php echo esc_url(plugins_url('xagio-seo/assets/img/xrenew_white.png')); ?>"/> <span class="value"><i class="xagio-icon xagio-icon-sync xagio-icon-spin"></i></span>
-                </li>
-                <li id="xags" data-xagio-tooltip data-xagio-tooltip-position="bottom" data-xagio-title="These are your current XAGS (xBank)">
-                    <img class="xags" src="<?php echo esc_url(plugins_url('xagio-seo/assets/img/xbank_white.png')); ?>"/> <span class="value"><i class="xagio-icon xagio-icon-sync xagio-icon-spin"></i></span>
-                </li>
-            </ul>
 
+        <div class="xags-container">
+            <div class="xags-item xrenew" id="xags-allowance" data-xagio-tooltip data-xagio-tooltip-position="bottom" data-xagio-title="These are your current XAGS (xRenew)">
+                <img src="<?php echo esc_url(XAGIO_URL); ?>assets/img/logos/xRenew.png" alt="xR"
+                     class="xags-icon">
+                <span class="value">0</span>
+            </div>
+            <span class="xags-divider"></span>
+            <div class="xags-item xbanks" id="xags" data-xagio-tooltip data-xagio-tooltip-position="bottom" data-xagio-title="These are your current XAGS (xBank)">
+                <img src="<?php echo esc_url(XAGIO_URL); ?>assets/img/logos/xBanks.png" alt="xB"
+                     class="xags-icon">
+                <span class="value">0</span>
+            </div>
         </div>
-        <a href="https://xagio.com/xbank-store/" target="_blank" class="xagio-button xagio-button-secondary"><i class="xagio-icon xagio-icon-store"></i> Buy XAGS</a>
-        <?php if(isset($MEMBERSHIP_INFO["membership"]) && $MEMBERSHIP_INFO["membership"] === "Xagio AI Free") { ?>
+
+        <?php if(XAGIO_CONNECTED) { ?>
+            <a href="https://xagio.com/store/" target="_blank" class="xagio-button xagio-button-secondary"><i class="xagio-icon xagio-icon-store"></i> Buy XAGS</a>
+        <?php } else { ?>
+            <a href="https://xagio.com/?goto=upluginplan" target="_blank" class="xagio-button xagio-button-secondary"><i class="xagio-icon xagio-icon-store"></i> TRY A XAGIO PLAN</a>
+        <?php } ?>
+
+        <?php if(isset($XAGIO_MEMBERSHIP_INFO["membership"]) && $XAGIO_MEMBERSHIP_INFO["membership"] === "Xagio AI Free") { ?>
             <a href="https://xagio.com/?goto=wppremfeatures" target="_blank" class="xagio-button xagio-button-secondary xagio-button-premium-button">
                 See Xagio Premium Features
             </a>
@@ -200,7 +214,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                         <div>
                             <h3 class="pop">Exclude Keywords</h3>
                             <input type="text" class="xagio-input-text-mini" name="filters[keyword_exclude]"
-                                    placeholder="eg. your keyword" value="">
+                                   placeholder="eg. your keyword" value="">
                         </div>
 
 
@@ -218,9 +232,9 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                 <!-- Slider -->
                                 <div class="range-input">
                                     <input type="range" class="min-range" name="gms-min" min="0" max="10000" value="0"
-                                            step="100">
+                                           step="100">
                                     <input type="range" class="max-range" name="gms-max" min="0" max="10000" value="10000"
-                                            step="100">
+                                           step="100">
                                 </div>
 
                                 <div class="xagio-slider-input">
@@ -287,22 +301,61 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
             </div>
 
             <div class="xagio-panel xagio-margin-bottom-medium niche-hunter-table-holder">
-                <h3 class="xagio-panel-title xagio-flex xagio-flex-gap-large">
-                    <div>
-                        <span class="niche-selected-keywords"></span> Keywords
+                <div class="xagio-panel-title xagio-flex-space-between">
+                    <div class="xagio-flex xagio-flex-gap-medium">
+                        <div>
+                            <span class="niche-keywords">Keywords</span>
+                        </div>
+                        <div class="xagio-flex xagio-flex-gap-small copy-keywords-to-project-container" style="display: none">
+                            <button class="xagio-button xagio-button-primary copy-keywords-to-project"><i class="xagio-icon xagio-icon-copy"></i> <span>Copy To Project (<span class="niche-selected-keywords"></span>)</span>
+                            </button>
+                            <button class="xagio-button xagio-button-outline" id="clear-selected-keywords" data-xagio-tooltip data-xagio-title="Clear Selected Rows">
+                                <i class="xagio-icon xagio-icon-close"></i>
+                            </button>
+                            <button class="xagio-button xagio-button-outline" id="select-all-keywords">
+                                <span>Select ALL <span class="count">-</span> Keywords?</span>
+                            </button>
+                        </div>
                     </div>
-                    <button class="xagio-button xagio-button-primary copy-keywords-to-project" style="display: none"><i class="xagio-icon xagio-icon-copy"></i> <span>Copy To Project (<span class="niche-selected-keywords"></span>)</span></button>
-                </h3>
+                    <div class="xagio-flex xagio-flex-gap-medium">
+                        <div class="xagio-dropdown-simple actions-button">
+                            <button class="xagio-button xagio-button-primary">Actions <i class="xagio-icon xagio-icon-arrow-down"></i></button>
+                            <ul class="xagio-button-dropdown">
+                                <li>
+                                    <a href="#" class="get-competition" data-xagio-dropdown-close>
+                                        Get Competition
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="#" class="copy-to-clipboard" data-xagio-dropdown-close>
+                                        Copy Selected Keywords To Clipboard
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="#" class="delete-keywords" data-xagio-dropdown-close>Delete Selected Keywords (<span>0</span>)
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                        <input type="text" id="customSearch" placeholder="Search keywords..." class="xagio-input-text-mini" />
+                    </div>
+                </div>
 
                 <div class="xagio-table-responsive niche-hunter-table">
                     <table class="xagio-table results-table">
                         <thead>
                         <tr>
-                            <th class="xagio-text-center"><input type="checkbox" data-id="" class="xagio-input-checkbox select-all-niche-keywords"></th>
+                            <th class="xagio-text-center">
+                                <input type="checkbox" data-id="" class="xagio-input-checkbox select-all-niche-keywords">
+                            </th>
                             <th>Keyword</th>
                             <th>Volume</th>
                             <th>CPC</th>
                             <th>Competition</th>
+                            <th>InTitle</th>
+                            <th>InURL</th>
+                            <th>TR</th>
+                            <th>UR</th>
                             <th style="width: 100px">Research It</th>
                         </tr>
                         </thead>
@@ -318,8 +371,17 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                 <div class="xagio-accordion-content">
                     <div>
                         <div class="xagio-accordion-panel">
+                            <div class="xagio-flex-row xagio-space-between xagio-align-center m-b-20">
+                                <input type="search" class="xagio-input-text-mini search-niche-history" placeholder="Search history...">
+                            </div>
                             <div class="hunter-history-holder">
-                                Loading ...
+                                <div class="loading">
+                                    Loading ...
+                                </div>
+                            </div>
+                            <div class="xagio-alert xagio-alert-primary xagio-text-center" id="no-hiche-history-found" style="display: none">
+                                <i class="xagio-icon xagio-icon-info"></i>
+                                No results found. Try a different keyword.
                             </div>
                         </div>
                     </div>
@@ -335,7 +397,6 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                         <h3 class="xagio-panel-title">Google Search Windows To Open</h3>
 
                         <form class="niche-settings">
-                            <!-- Enable/Disable Sitemaps -->
                             <div class="xagio-slider-container">
                                 <input type="hidden" name="XAGIO_GOOGLE_SEARCH_WINDOW_BROAD" id="XAGIO_GOOGLE_SEARCH_WINDOW_BROAD" value="<?php echo  (XAGIO_GOOGLE_SEARCH_WINDOW_BROAD == TRUE) ? 1 : 0; ?>"/>
                                 <div class="xagio-slider-frame">
@@ -825,7 +886,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                     <thead>
                     <tr>
                         <th class="text-center">Domain Name</th>
-<!--                        <th class="text-center">Available</th>-->
+                        <!--                        <th class="text-center">Available</th>-->
                         <th class="text-center">Action</th>
                     </tr>
                     </thead>
@@ -897,4 +958,337 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
     </dialog>
 
 </div> <!-- .wrap -->
+
+
+<!-- Get Competition Model -->
+<dialog id="getHunterCompetitionModal" class="xagio-modal xagio-modal-lg">
+    <div class="xagio-modal-header">
+        <h3 class="xagio-modal-title"><i class="xagio-icon xagio-icon-key"></i> Get Competition</h3>
+        <button class="xagio-modal-close"><i class="xagio-icon xagio-icon-close"></i></button>
+    </div>
+
+    <div class="xagio-modal-body">
+        <form id="getHunterCompetitionForm">
+            <input type="hidden" class="ids" name="ids">
+
+            <div class="xagio-flex-even-columns xagio-flex-gap-medium">
+                <div>
+                    <label class="modal-label" for="getCompetition_languageCode">Language</label>
+                    <select id="getCompetition_languageCode" class="xagio-input-select xagio-input-select-gray" name="language">
+                        <option value="">-- All Languages --</option>
+                        <option	value="ar">Arabic</option>
+                        <option	value="bn">Bengali</option>
+                        <option	value="bg">Bulgarian</option>
+                        <option	value="ca">Catalan</option>
+                        <option	value="zh_CN">Chinese (Simplified)</option>
+                        <option	value="zh_TW">Chinese (Traditional)</option>
+                        <option	value="hr">Croatian</option>
+                        <option	value="cs">Czech</option>
+                        <option	value="da">Danish</option>
+                        <option	value="nl">Dutch</option>
+                        <option	value="en" selected>English</option>
+                        <option	value="et">Estonian</option>
+                        <option	value="fa">Farsi</option>
+                        <option	value="fi">Finnish</option>
+                        <option	value="fr">French</option>
+                        <option	value="de">German</option>
+                        <option	value="el">Greek</option>
+                        <option	value="iw">Hebrew (old)</option>
+                        <option	value="hi">Hindi</option>
+                        <option	value="hu">Hungarian</option>
+                        <option	value="is">Icelandic</option>
+                        <option	value="id">Indonesian</option>
+                        <option	value="it">Italian</option>
+                        <option	value="ja">Japanese</option>
+                        <option	value="ko">Korean</option>
+                        <option	value="lv">Latvian</option>
+                        <option	value="lt">Lithuanian</option>
+                        <option	value="ms">Malay</option>
+                        <option	value="no">Norwegian</option>
+                        <option	value="pl">Polish</option>
+                        <option	value="pt">Portuguese</option>
+                        <option	value="ro">Romanian</option>
+                        <option	value="ru">Russian</option>
+                        <option	value="sr">Serbian</option>
+                        <option	value="sk">Slovak</option>
+                        <option	value="sl">Slovenian</option>
+                        <option	value="es">Spanish</option>
+                        <option	value="sv">Swedish</option>
+                        <option	value="tl">Tagalog</option>
+                        <option	value="ta">Tamil</option>
+                        <option	value="te">Telugu</option>
+                        <option	value="th">Thai</option>
+                        <option	value="tr">Turkish</option>
+                        <option	value="uk">Ukrainian</option>
+                        <option	value="ur">Urdu</option>
+                        <option	value="vi">Vietnamese</option>
+                        <option	value="zh_CN">Chinese (Simplified)</option>
+                        <option	value="zh_TW">Chinese (Traditional)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="modal-label" for="getCompetition_locationCode">Country</label>
+                    <select id="getCompetition_locationCode" class="xagio-input-select xagio-input-select-gray" name="location" data-default="<?php echo wp_kses_post($xagio_country ?? ''); ?>">
+                    <option	value="">WorldWide</option>
+                        <option	value="Afghanistan">Afghanistan</option>
+                        <option	value="Albania">Albania</option>
+                        <option	value="Antarctica">Antarctica</option>
+                        <option	value="Algeria">Algeria</option>
+                        <option	value="American Samoa">American Samoa</option>
+                        <option	value="Andorra">Andorra</option>
+                        <option	value="Angola">Angola</option>
+                        <option	value="Antigua and Barbuda">Antigua and Barbuda</option>
+                        <option	value="Azerbaijan">Azerbaijan</option>
+                        <option	value="Argentina">Argentina</option>
+                        <option	value="Australia">Australia</option>
+                        <option	value="Austria">Austria</option>
+                        <option	value="The Bahamas">The Bahamas</option>
+                        <option	value="Bahrain">Bahrain</option>
+                        <option	value="Bangladesh">Bangladesh</option>
+                        <option	value="Armenia">Armenia</option>
+                        <option	value="Barbados">Barbados</option>
+                        <option	value="Belgium">Belgium</option>
+                        <option	value="Bermuda">Bermuda</option>
+                        <option	value="Bhutan">Bhutan</option>
+                        <option	value="Bolivia">Bolivia</option>
+                        <option	value="Bosnia and Herzegovina">Bosnia and Herzegovina</option>
+                        <option	value="Botswana">Botswana</option>
+                        <option	value="Bouvet Island">Bouvet Island</option>
+                        <option	value="Brazil">Brazil</option>
+                        <option	value="Belize">Belize</option>
+                        <option	value="British Indian Ocean Territory">British Indian Ocean Territory</option>
+                        <option	value="Solomon Islands">Solomon Islands</option>
+                        <option	value="British Virgin Islands">British Virgin Islands</option>
+                        <option	value="Brunei">Brunei</option>
+                        <option	value="Bulgaria">Bulgaria</option>
+                        <option	value="Myanmar (Burma)">Myanmar (Burma)</option>
+                        <option	value="Burundi">Burundi</option>
+                        <option	value="Cambodia">Cambodia</option>
+                        <option	value="Cameroon">Cameroon</option>
+                        <option	value="Canada">Canada</option>
+                        <option	value="Cape Verde">Cape Verde</option>
+                        <option	value="Cayman Islands">Cayman Islands</option>
+                        <option	value="Central African Republic">Central African Republic</option>
+                        <option	value="Sri Lanka">Sri Lanka</option>
+                        <option	value="Chad">Chad</option>
+                        <option	value="Chile">Chile</option>
+                        <option	value="China">China</option>
+                        <option	value="Taiwan">Taiwan</option>
+                        <option	value="Christmas Island">Christmas Island</option>
+                        <option	value="Cocos (Keeling) Islands">Cocos (Keeling) Islands</option>
+                        <option	value="Colombia">Colombia</option>
+                        <option	value="Comoros">Comoros</option>
+                        <option	value="Mayotte">Mayotte</option>
+                        <option	value="Republic of the Congo">Republic of the Congo</option>
+                        <option	value="Democratic Republic of the Congo">Democratic Republic of the Congo</option>
+                        <option	value="Cook Islands">Cook Islands</option>
+                        <option	value="Costa Rica">Costa Rica</option>
+                        <option	value="Croatia">Croatia</option>
+                        <option	value="Cyprus">Cyprus</option>
+                        <option	value="Czechia">Czechia</option>
+                        <option	value="Benin">Benin</option>
+                        <option	value="Denmark">Denmark</option>
+                        <option	value="Dominica">Dominica</option>
+                        <option	value="Dominican Republic">Dominican Republic</option>
+                        <option	value="Ecuador">Ecuador</option>
+                        <option	value="El Salvador">El Salvador</option>
+                        <option	value="Equatorial Guinea">Equatorial Guinea</option>
+                        <option	value="Ethiopia">Ethiopia</option>
+                        <option	value="Eritrea">Eritrea</option>
+                        <option	value="Estonia">Estonia</option>
+                        <option	value="Faroe Islands">Faroe Islands</option>
+                        <option	value="Falkland Islands (Islas Malvinas)">Falkland Islands (Islas Malvinas)</option>
+                        <option	value="South Georgia and the South Sandwich Islands">South Georgia and the South Sandwich Islands</option>
+                        <option	value="Fiji">Fiji</option>
+                        <option	value="Finland">Finland</option>
+                        <option	value="France">France</option>
+                        <option	value="French Guiana">French Guiana</option>
+                        <option	value="French Polynesia">French Polynesia</option>
+                        <option	value="French Southern and Antarctic Lands">French Southern and Antarctic Lands</option>
+                        <option	value="Djibouti">Djibouti</option>
+                        <option	value="Gabon">Gabon</option>
+                        <option	value="Georgia">Georgia</option>
+                        <option	value="The Gambia">The Gambia</option>
+                        <option	value="Palestine">Palestine</option>
+                        <option	value="Germany">Germany</option>
+                        <option	value="Ghana">Ghana</option>
+                        <option	value="Gibraltar">Gibraltar</option>
+                        <option	value="Kiribati">Kiribati</option>
+                        <option	value="Greece">Greece</option>
+                        <option	value="Greenland">Greenland</option>
+                        <option	value="Grenada">Grenada</option>
+                        <option	value="Guadeloupe">Guadeloupe</option>
+                        <option	value="Guam">Guam</option>
+                        <option	value="Guatemala">Guatemala</option>
+                        <option	value="Guinea">Guinea</option>
+                        <option	value="Guyana">Guyana</option>
+                        <option	value="Haiti">Haiti</option>
+                        <option	value="Heard Island and McDonald Islands">Heard Island and McDonald Islands</option>
+                        <option	value="Vatican City">Vatican City</option>
+                        <option	value="Honduras">Honduras</option>
+                        <option	value="Hong Kong">Hong Kong</option>
+                        <option	value="Hungary">Hungary</option>
+                        <option	value="Iceland">Iceland</option>
+                        <option	value="India">India</option>
+                        <option	value="Indonesia">Indonesia</option>
+                        <option	value="Iraq">Iraq</option>
+                        <option	value="Ireland">Ireland</option>
+                        <option	value="Israel">Israel</option>
+                        <option	value="Italy">Italy</option>
+                        <option	value="Cote d'Ivoire">Cote d'Ivoire</option>
+                        <option	value="Jamaica">Jamaica</option>
+                        <option	value="Japan">Japan</option>
+                        <option	value="Kazakhstan">Kazakhstan</option>
+                        <option	value="Jordan">Jordan</option>
+                        <option	value="Kenya">Kenya</option>
+                        <option	value="South Korea">South Korea</option>
+                        <option	value="Kuwait">Kuwait</option>
+                        <option	value="Kyrgyzstan">Kyrgyzstan</option>
+                        <option	value="Laos">Laos</option>
+                        <option	value="Lebanon">Lebanon</option>
+                        <option	value="Lesotho">Lesotho</option>
+                        <option	value="Latvia">Latvia</option>
+                        <option	value="Liberia">Liberia</option>
+                        <option	value="Libya">Libya</option>
+                        <option	value="Liechtenstein">Liechtenstein</option>
+                        <option	value="Lithuania">Lithuania</option>
+                        <option	value="Luxembourg">Luxembourg</option>
+                        <option	value="Macao">Macao</option>
+                        <option	value="Madagascar">Madagascar</option>
+                        <option	value="Malawi">Malawi</option>
+                        <option	value="Malaysia">Malaysia</option>
+                        <option	value="Maldives">Maldives</option>
+                        <option	value="Mali">Mali</option>
+                        <option	value="Malta">Malta</option>
+                        <option	value="Martinique">Martinique</option>
+                        <option	value="Mauritania">Mauritania</option>
+                        <option	value="Mauritius">Mauritius</option>
+                        <option	value="Mexico">Mexico</option>
+                        <option	value="Monaco">Monaco</option>
+                        <option	value="Mongolia">Mongolia</option>
+                        <option	value="Moldova">Moldova</option>
+                        <option	value="Montenegro">Montenegro</option>
+                        <option	value="Montserrat">Montserrat</option>
+                        <option	value="Morocco">Morocco</option>
+                        <option	value="Mozambique">Mozambique</option>
+                        <option	value="Oman">Oman</option>
+                        <option	value="Namibia">Namibia</option>
+                        <option	value="Nauru">Nauru</option>
+                        <option	value="Nepal">Nepal</option>
+                        <option	value="Netherlands">Netherlands</option>
+                        <option	value="Curacao">Curacao</option>
+                        <option	value="Aruba">Aruba</option>
+                        <option	value="Sint Maarten">Sint Maarten</option>
+                        <option	value="Caribbean Netherlands">Caribbean Netherlands</option>
+                        <option	value="New Caledonia">New Caledonia</option>
+                        <option	value="Vanuatu">Vanuatu</option>
+                        <option	value="New Zealand">New Zealand</option>
+                        <option	value="Nicaragua">Nicaragua</option>
+                        <option	value="Niger">Niger</option>
+                        <option	value="Nigeria">Nigeria</option>
+                        <option	value="Niue">Niue</option>
+                        <option	value="Norfolk Island">Norfolk Island</option>
+                        <option	value="Norway">Norway</option>
+                        <option	value="Northern Mariana Islands">Northern Mariana Islands</option>
+                        <option	value="United States Minor Outlying Islands">United States Minor Outlying Islands</option>
+                        <option	value="Micronesia">Micronesia</option>
+                        <option	value="Marshall Islands">Marshall Islands</option>
+                        <option	value="Palau">Palau</option>
+                        <option	value="Pakistan">Pakistan</option>
+                        <option	value="Panama">Panama</option>
+                        <option	value="Papua New Guinea">Papua New Guinea</option>
+                        <option	value="Paraguay">Paraguay</option>
+                        <option	value="Peru">Peru</option>
+                        <option	value="Philippines">Philippines</option>
+                        <option	value="Pitcairn Islands">Pitcairn Islands</option>
+                        <option	value="Poland">Poland</option>
+                        <option	value="Portugal">Portugal</option>
+                        <option	value="Guinea-Bissau">Guinea-Bissau</option>
+                        <option	value="Timor-Leste">Timor-Leste</option>
+                        <option	value="Puerto Rico">Puerto Rico</option>
+                        <option	value="Qatar">Qatar</option>
+                        <option	value="Reunion">Reunion</option>
+                        <option	value="Romania">Romania</option>
+                        <option	value="Rwanda">Rwanda</option>
+                        <option	value="Saint Barthelemy">Saint Barthelemy</option>
+                        <option	value="Saint Helena, Ascension and Tristan da Cunha">Saint Helena, Ascension and Tristan da Cunha</option>
+                        <option	value="Saint Kitts and Nevis">Saint Kitts and Nevis</option>
+                        <option	value="Anguilla">Anguilla</option>
+                        <option	value="Saint Lucia">Saint Lucia</option>
+                        <option	value="Saint Martin">Saint Martin</option>
+                        <option	value="Saint Pierre and Miquelon">Saint Pierre and Miquelon</option>
+                        <option	value="Saint Vincent and the Grenadines">Saint Vincent and the Grenadines</option>
+                        <option	value="San Marino">San Marino</option>
+                        <option	value="Sao Tome and Principe">Sao Tome and Principe</option>
+                        <option	value="Saudi Arabia">Saudi Arabia</option>
+                        <option	value="Senegal">Senegal</option>
+                        <option	value="Serbia">Serbia</option>
+                        <option	value="Seychelles">Seychelles</option>
+                        <option	value="Sierra Leone">Sierra Leone</option>
+                        <option	value="Singapore">Singapore</option>
+                        <option	value="Slovakia">Slovakia</option>
+                        <option	value="Vietnam">Vietnam</option>
+                        <option	value="Slovenia">Slovenia</option>
+                        <option	value="Somalia">Somalia</option>
+                        <option	value="South Africa">South Africa</option>
+                        <option	value="Zimbabwe">Zimbabwe</option>
+                        <option	value="Spain">Spain</option>
+                        <option	value="South Sudan">South Sudan</option>
+                        <option	value="Western Sahara">Western Sahara</option>
+                        <option	value="Sudan">Sudan</option>
+                        <option	value="Suriname">Suriname</option>
+                        <option	value="Svalbard and Jan Mayen">Svalbard and Jan Mayen</option>
+                        <option	value="Eswatini">Eswatini</option>
+                        <option	value="Sweden">Sweden</option>
+                        <option	value="Switzerland">Switzerland</option>
+                        <option	value="Tajikistan">Tajikistan</option>
+                        <option	value="Thailand">Thailand</option>
+                        <option	value="Togo">Togo</option>
+                        <option	value="Tokelau">Tokelau</option>
+                        <option	value="Tonga">Tonga</option>
+                        <option	value="Trinidad and Tobago">Trinidad and Tobago</option>
+                        <option	value="United Arab Emirates">United Arab Emirates</option>
+                        <option	value="Tunisia">Tunisia</option>
+                        <option	value="Turkiye">Turkiye</option>
+                        <option	value="Turkmenistan">Turkmenistan</option>
+                        <option	value="Turks and Caicos Islands">Turks and Caicos Islands</option>
+                        <option	value="Tuvalu">Tuvalu</option>
+                        <option	value="Uganda">Uganda</option>
+                        <option	value="Ukraine">Ukraine</option>
+                        <option	value="North Macedonia">North Macedonia</option>
+                        <option	value="Egypt">Egypt</option>
+                        <option	value="United Kingdom">United Kingdom</option>
+                        <option	value="Guernsey">Guernsey</option>
+                        <option	value="Jersey">Jersey</option>
+                        <option	value="Isle of Man">Isle of Man</option>
+                        <option	value="Tanzania">Tanzania</option>
+                        <option	value="United States" selected>United States</option>
+                        <option	value="U.S. Virgin Islands">U.S. Virgin Islands</option>
+                        <option	value="Burkina Faso">Burkina Faso</option>
+                        <option	value="Uruguay">Uruguay</option>
+                        <option	value="Uzbekistan">Uzbekistan</option>
+                        <option	value="Venezuela">Venezuela</option>
+                        <option	value="Wallis and Futuna">Wallis and Futuna</option>
+                        <option	value="Samoa">Samoa</option>
+                        <option	value="Yemen">Yemen</option>
+                        <option	value="Zambia">Zambia</option>
+                        <option	value="Kosovo">Kosovo</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="xagio-flex-row xagio-space-between xagio-align-center gap-10 xagio-margin-top-large">
+                <div class="xag-cost-container xagio-flex-gap-small">
+                    <i class="xagio-icon xagio-icon-info"></i>
+                    <div id="xagsCost"></div>
+                </div>
+
+                <div class="xagio-flex-right xagio-flex-gap-medium">
+                    <button class="xagio-button xagio-button-outline" data-xagio-close-modal type="button"><i class="xagio-icon xagio-icon-close"></i> Cancel</button>
+                    <button class="xagio-button xagio-button-primary" type="submit"><i class="xagio-icon xagio-icon-check"></i> Get Competition</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</dialog>
 

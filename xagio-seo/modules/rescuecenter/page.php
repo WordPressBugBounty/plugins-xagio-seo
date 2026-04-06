@@ -12,19 +12,20 @@
  * Position: 13
  * Version: 1.0.0
  */
-if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
+if (!defined('ABSPATH'))
+    exit; // Exit if accessed directly
 
-
-$MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
+$XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 ?>
 <div class="xagio-main-header xagio-main-header-big-gaps">
-    <img class="logo-image repo-xagio" src="<?php echo  esc_url(XAGIO_URL); ?>assets/img/logo-xagio.webp"/>
+    <img class="logo-image repo-xagio" src="<?php echo esc_url(XAGIO_URL); ?>assets/img/logo-xagio.webp"/>
     <h2 class="logo-title logo-title-big">
         Rescue Center
     </h2>
-    <?php if(isset($MEMBERSHIP_INFO["membership"]) && $MEMBERSHIP_INFO["membership"] === "Xagio AI Free") { ?>
+    <?php if (isset($XAGIO_MEMBERSHIP_INFO["membership"]) && $XAGIO_MEMBERSHIP_INFO["membership"] === "Xagio AI Free") { ?>
         <div class="xagio-header-actions">
-            <a href="https://xagio.com/?goto=wppremfeatures" target="_blank" class="xagio-button xagio-button-secondary xagio-button-premium-button">
+            <a href="https://xagio.com/?goto=wppremfeatures" target="_blank"
+               class="xagio-button xagio-button-secondary xagio-button-premium-button">
                 See Xagio Premium Features
             </a>
         </div>
@@ -42,7 +43,10 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
         </h3>
         <div class="xagio-accordion-content">
             <div>
-                <div class="xagio-accordion-panel">This means that if you believe your website got hacked and some files are infected or added, you should use the Rescue Center to revert any changes to your WordPress back to initial state.</div>
+                <div class="xagio-accordion-panel">This means that if you believe your website got hacked and some files
+                    are infected or added, you should use the Rescue Center to revert any changes to your WordPress back
+                    to initial state.
+                </div>
             </div>
         </div>
     </div>
@@ -79,7 +83,8 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                         <p>If you want to remove all non-WordPress core files and overwrite existing core files with the
                             ones from WordPress repository, select this mode.</p>
 
-                        <button data-type="easy" class="xagio-button xagio-button-primary begin-core-rescue" type="button">
+                        <button data-type="easy" class="xagio-button xagio-button-primary begin-core-rescue"
+                                type="button">
                             Start Now
                         </button>
 
@@ -93,7 +98,8 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                         <p>If there are specific non-WordPress core files in your WordPress installation that you want
                             to keep while overwriting existing WordPress core files, select this mode.</p>
 
-                        <button data-type="advanced" class="xagio-button xagio-button-primary begin-core-rescue" type="button">
+                        <button data-type="advanced" class="xagio-button xagio-button-primary begin-core-rescue"
+                                type="button">
                             Start Now
                         </button>
 
@@ -126,8 +132,8 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 
                             <!-- There has to be a better way to do this -->
                             <optgroup label="All Versions">
-                                <?php foreach (XAGIO_MODEL_RESCUE::getAvailableCoreVersions() as $version) { ?>
-                                    <option value="<?php echo esc_attr($version); ?>"><?php echo esc_html($version); ?></option>
+                                <?php foreach (XAGIO_MODEL_RESCUE::getAvailableCoreVersions() as $xagio_version) { ?>
+                                    <option value="<?php echo esc_attr($xagio_version); ?>"><?php echo esc_html($xagio_version); ?></option>
                                 <?php } ?>
                             </optgroup>
 
@@ -135,7 +141,8 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                     </div>
 
                     <div class="xagio-alert xagio-alert-primary xagio-alert-large" data-uk-alert="">
-                        <p><i class="xagio-icon xagio-icon-info"></i>  If you choose to proceed, your WordPress core files will be downloaded to the following folder
+                        <p><i class="xagio-icon xagio-icon-info"></i> If you choose to proceed, your WordPress core
+                            files will be downloaded to the following folder
                             <br>
                             <b><?php echo esc_url(XAGIO_PATH); ?>/tmp/wordpress</b></p>
                     </div>
@@ -155,12 +162,14 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                 <!-- Download WP -->
                 <div class="rescue-core-download" style="display: none">
 
-                    <div class="download-core-message xagio-alert xagio-alert-primary xagio-alert-large xagio-margin-bottom-medium" data-uk-alert="">
+                    <div class="download-core-message xagio-alert xagio-alert-primary xagio-alert-large xagio-margin-bottom-medium"
+                         data-uk-alert="">
                         <h2>...</h2>
                         <p>...</p>
                     </div>
 
-                    <button class="xagio-button xagio-button-primary download-core-close rescue-core-close xagio-hidden" type="button"><i
+                    <button class="xagio-button xagio-button-primary download-core-close rescue-core-close xagio-hidden"
+                            type="button"><i
                                 class="xagio-icon xagio-icon-close"></i> Close
                     </button>
                     <button class="xagio-button xagio-button-primary preview-core-files" type="button"><i
@@ -172,7 +181,8 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                 <!-- Preview Files -->
                 <div class="rescue-core-files" style="display: none">
 
-                    <div class="xagio-alert xagio-alert-primary xagio-alert-large xagio-margin-bottom-medium" data-uk-alert="">
+                    <div class="xagio-alert xagio-alert-primary xagio-alert-large xagio-margin-bottom-medium"
+                         data-uk-alert="">
                         <h2>Preview files changes.</h2>
                         <p>
                             Below you'll see a list of files and their changes. <b data-action="overwrite">Black</b>
@@ -197,7 +207,8 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 
                     <div id="rescue-core-files-list"></div>
 
-                    <button class="xagio-margin-top-medium xagio-button xagio-button-primary xagio-button xagio-button-primary-large xagio-button xagio-button-primary-success start-core-rescue" type="button"><i
+                    <button class="xagio-margin-top-medium xagio-button xagio-button-primary xagio-button xagio-button-primary-large xagio-button xagio-button-primary-success start-core-rescue"
+                            type="button"><i
                                 class="xagio-icon xagio-icon-plus"></i> Start Rescue Operation
                     </button>
 
@@ -276,7 +287,8 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                 </div>
 
                 <div class="rescue-loading-skeleton second">
-                    <h3 class="xagio-panel-title"><i class="xagio-icon xagio-icon-sync xagio-icon-spin"></i> Analyzing your Uploads directory...</h3>
+                    <h3 class="xagio-panel-title"><i class="xagio-icon xagio-icon-sync xagio-icon-spin"></i> Analyzing
+                        your Uploads directory...</h3>
                     <div class="rescue-skelet"></div>
                     <div class="rescue-skelet"></div>
                     <div class="rescue-skelet"></div>
@@ -295,11 +307,11 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
         </div>
     </div>
 
-<!--    <ul class="repo-xagio uk-tab uk-tab-big" data-uk-tab="{connect:'#tab-content', animation: 'fade'}">-->
-<!--        <li class="uk-active"><a href="">WordPress</a></li>-->
-<!--        <li><a href="">Plugin & Themes</a></li>-->
-<!--        <li><a href="">Upload</a></li>-->
-<!--    </ul>-->
+    <!--    <ul class="repo-xagio uk-tab uk-tab-big" data-uk-tab="{connect:'#tab-content', animation: 'fade'}">-->
+    <!--        <li class="uk-active"><a href="">WordPress</a></li>-->
+    <!--        <li><a href="">Plugin & Themes</a></li>-->
+    <!--        <li><a href="">Upload</a></li>-->
+    <!--    </ul>-->
 
 
     <div id="tab-content" class="uk-switcher">
@@ -308,12 +320,10 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
         <div>
 
 
-
         </div>
 
 
         <div>
-
 
 
         </div>
@@ -347,7 +357,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 
         </div>
 
-        </div>
+    </div>
 
     <div class="rescue-plugin-theme-template xagio-hidden">
 

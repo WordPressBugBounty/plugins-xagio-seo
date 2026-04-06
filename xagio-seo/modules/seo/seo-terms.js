@@ -153,10 +153,26 @@
                 return $this;
             }).on('paste', '.xagio-editor[contenteditable="true"]', function (e) {
                 e.preventDefault();
-                // get text representation of clipboard
                 let text = (e.originalEvent || e).clipboardData.getData('text/plain');
-                // insert text manually
-                $(this).html($(this).html() + text).trigger('change');
+                let sel  = window.getSelection();
+                if (!sel.rangeCount) return;
+
+                // get the current range (where the caret is)
+                let range = sel.getRangeAt(0);
+                // remove any selected content
+                range.deleteContents();
+                // insert a plain text node
+                let node = document.createTextNode(text);
+                range.insertNode(node);
+
+                // move the caret to just after our inserted node
+                range.setStartAfter(node);
+                range.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(range);
+
+                // trigger your change event
+                $(this).trigger('change');
             });
             $('.xagio-editor').change(function (e) {
                 e.stopPropagation();

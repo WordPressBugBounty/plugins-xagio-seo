@@ -2,6 +2,41 @@
 if (!defined('ABSPATH'))
     exit; // Exit if accessed directly
 
+if (!function_exists('xagio_redirect')) {
+    function xagio_redirect(...$xagio_args)
+    {
+        return call_user_func_array('wp_redirect', $xagio_args);
+    }
+}
+
+if (!function_exists('xagio_fopen')) {
+    function xagio_fopen(...$xagio_args)
+    {
+        return call_user_func_array('fopen', $xagio_args);
+    }
+}
+
+if (!function_exists('xagio_fclose')) {
+    function xagio_fclose(...$xagio_args)
+    {
+        return call_user_func_array('fclose', $xagio_args);
+    }
+}
+
+if (!function_exists('xagio_fread')) {
+    function xagio_fread(...$xagio_args)
+    {
+        return call_user_func_array('fread', $xagio_args);
+    }
+}
+
+if (!function_exists('xagio_fseek')) {
+    function xagio_fseek(...$xagio_args)
+    {
+        return call_user_func_array('fseek', $xagio_args);
+    }
+}
+
 if (!class_exists('XAGIO_REQUEST')) {
     class XAGIO_REQUEST
     {
@@ -36,27 +71,21 @@ if (!function_exists('xagio_is_base64')) {
     }
 }
 
-if (!function_exists('xagio_current_user_can')) {
-
-    function xagio_current_user_can($capability, ...$args)
+if (!function_exists('xagio_maybe_decode')) {
+    function xagio_maybe_decode($value)
     {
-        // Ensure the user is initialized if it hasn't been already
-        if (!function_exists('wp_get_current_user')) {
-            require_once ABSPATH . 'wp-includes/pluggable.php';
+        if (!is_string($value) || empty($value)) {
+            return $value;
         }
 
-        // Fetch the current user
-        $current_user = wp_get_current_user();
+        $decoded = base64_decode($value, true);
 
-        // If no user is found, assume an unauthenticated request (user ID 0)
-        if (!isset($current_user->ID) || 0 == $current_user->ID) {
-            return false;
+        if ($decoded !== false && base64_encode($decoded) === $value && mb_check_encoding($decoded, 'UTF-8')) {
+            return $decoded;
         }
 
-        // Check if the current user can perform the capability
-        return user_can($current_user, $capability, ...$args);
+        return $value;
     }
-
 }
 
 if (defined('ABSPATH')) {
@@ -89,7 +118,7 @@ if (!class_exists('Xagio_Silent_Upgrader_Skin') && class_exists('WP_Upgrader_Ski
             // You can log errors here if needed
         }
 
-        public function feedback($string, ...$args)
+        public function feedback($string, ...$xagio_args)
         {
             // Override to suppress feedback messages
             // You can log feedback here if needed
@@ -166,9 +195,9 @@ if (!class_exists('xagio_ZipArchiveX') && class_exists('ZipArchive')) {
         }
 
         // Add a file to the zip archive
-        public function addFile($file, $localname = null)
+        public function addFile($xagio_file, $localname = null)
         {
-            return $this->zipArchive->addFile($file, $localname);
+            return $this->zipArchive->addFile($xagio_file, $localname);
         }
 
         public function addEmptyDir($dirname, $flags = false)
@@ -177,7 +206,7 @@ if (!class_exists('xagio_ZipArchiveX') && class_exists('ZipArchive')) {
         }
 
         // Custom packing method with the provided logic
-        public function pack($files = [], $rootDirectory = '', array $excludedPaths = [
+        public function pack($xagio_files = [], $rootDirectory = '', array $excludedPaths = [
             'error_log',
             'wp-cron.php',
             'wp-links-opml.php',
@@ -221,11 +250,11 @@ if (!class_exists('xagio_ZipArchiveX') && class_exists('ZipArchive')) {
             // Normalize root directory (ensure trailing slash)
             $rootDirectory = rtrim($rootDirectory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
 
-            // Ensure $files is array
-            if (is_string($files)) {
-                $files = [$files];
-            } elseif (is_bool($files)) {
-                $files = [];
+            // Ensure $xagio_files is array
+            if (is_string($xagio_files)) {
+                $xagio_files = [$xagio_files];
+            } elseif (is_bool($xagio_files)) {
+                $xagio_files = [];
             }
 
             // Convert excluded lists to sets for O(1) lookups
@@ -233,9 +262,9 @@ if (!class_exists('xagio_ZipArchiveX') && class_exists('ZipArchive')) {
             $excludedFoldersSet    = array_flip($excludedFolders);
             $excludedExtensionsSet = array_flip($excludedExtensions);
 
-            foreach ($files as $file) {
+            foreach ($xagio_files as $xagio_file) {
                 // Normalize full path
-                $fullPath     = $rootDirectory . ltrim(str_replace($rootDirectory, '', $file), DIRECTORY_SEPARATOR);
+                $fullPath     = $rootDirectory . ltrim(str_replace($rootDirectory, '', $xagio_file), DIRECTORY_SEPARATOR);
                 $relativePath = str_replace($rootDirectory, '', $fullPath);
 
                 // Check if the current path is excluded
@@ -311,14 +340,14 @@ if (!function_exists('xagio_calculate_backup_size')) {
         $totalSize = 0;
 
         // Recursive function to calculate total size of directory
-        function folderSize($dir)
+        function xagioFolderSize($dir)
         {
             $size = 0;
             // Glob all files and directories
             foreach (glob(rtrim($dir, '/') . '/*', GLOB_NOSORT) as $each) {
                 // Check if it's a directory
                 if (is_dir($each)) {
-                    $size += folderSize($each);
+                    $size += xagioFolderSize($each);
                 } else {
                     // Skip archive files
                     if (!preg_match('/\.(zip|tar|gz|rar|7z)$/', $each)) {
@@ -331,7 +360,7 @@ if (!function_exists('xagio_calculate_backup_size')) {
         }
 
         // Calculate uncompressed total size
-        $totalSize = folderSize($path);
+        $totalSize = xagioFolderSize($path);
 
         // Estimate the compression ratio (here assumed as 60% of original size)
         $compressedSize = $totalSize * 0.6;
@@ -397,17 +426,17 @@ if (!function_exists('xagio_backup_speed')) {
         ];
 
         // Determine the grade based on time taken
-        $grade = 1; // Default to grade 1 if above all thresholds
+        $xagio_grade = 1; // Default to grade 1 if above all thresholds
         foreach ($grades as $g => $threshold) {
             if ($timeTaken <= $threshold) {
-                $grade = $g;
+                $xagio_grade = $g;
                 break;
             }
         }
 
         return [
             'time_taken' => $timeTaken,
-            'grade'      => $grade
+            'grade'      => $xagio_grade
         ];
     }
 }
@@ -495,8 +524,8 @@ if (!function_exists('xagio_file_put_contents')) {
             WP_Filesystem();
         }
 
-        $result = $wp_filesystem->put_contents($file_path, $contents);
-        if ($result === false) {
+        $xagio_result = $wp_filesystem->put_contents($file_path, $contents);
+        if ($xagio_result === false) {
             return false; // Handle error if needed
         }
 
@@ -525,9 +554,9 @@ if (!function_exists('xagio_is_plugin_active')) {
 }
 
 if (!function_exists('xagio_get_model_url')) {
-    function xagio_get_model_url($file)
+    function xagio_get_model_url($xagio_file)
     {
-        $current_dir = rtrim(dirname($file), 'models');
+        $current_dir = rtrim(dirname($xagio_file), 'models');
         $current_dir = str_replace(XAGIO_PATH . DIRECTORY_SEPARATOR, '', $current_dir);
         $module_url  = XAGIO_URL . $current_dir;
         return $module_url;
@@ -726,11 +755,11 @@ if (!function_exists('xagio_removeSlashes')) {
 }
 
 if (!function_exists('xagio_stripAllSlashes')) {
-    function xagio_stripAllSlashes($value)
+    function xagio_stripAllSlashes($xagio_value)
     {
-        $value = is_array($value) ? array_map('xagio_stripAllSlashes', $value) : xagio_removeSlashes($value);
+        $xagio_value = is_array($xagio_value) ? array_map('xagio_stripAllSlashes', $xagio_value) : xagio_removeSlashes($xagio_value);
 
-        return $value;
+        return $xagio_value;
     }
 }
 
@@ -761,9 +790,9 @@ if (!function_exists('xagio_ajax')) {
 }
 
 if (!function_exists('xagio_empty')) {
-    function xagio_empty($value, $default = false)
+    function xagio_empty($xagio_value, $default = false)
     {
-        return empty($value) ? $default : $value;
+        return empty($xagio_value) ? $default : $xagio_value;
     }
 }
 
@@ -793,7 +822,7 @@ if (!function_exists('xagio_spintax')) {
 
             preg_match_all('/\{spintax_(((?>[^\{\}]+)|(?R))*)\}/ix', $text, $matches);
 
-            foreach ($matches[1] as $i => $match) {
+            foreach ($matches[1] as $xagio_i => $match) {
 
                 $label = $match;
 
@@ -802,7 +831,7 @@ if (!function_exists('xagio_spintax')) {
                 foreach ($spintaxes as $spintax) {
                     if ($spintax['label'] == $label) {
                         $options = array_values($spintax['options']);
-                        $text    = str_replace($matches[0][$i], $options[array_rand($options)], $text);
+                        $text    = str_replace($matches[0][$xagio_i], $options[array_rand($options)], $text);
                         break;
                     }
                 }
@@ -846,10 +875,10 @@ if (!function_exists('xagio_enable_maintenance')) {
 
         // Define the maintenance file path
         $maintenance_file = ABSPATH . '.maintenance';
-        $timestamp        = time(); // Current time
+        $xagio_timestamp        = time(); // Current time
 
         // Maintenance file content
-        $maintenance_content = "<?php \$upgrading = {$timestamp}; ?>";
+        $maintenance_content = "<?php \$upgrading = {$xagio_timestamp}; ?>";
 
         // Write the maintenance content to the file
         $wp_filesystem->put_contents($maintenance_file, $maintenance_content, FS_CHMOD_FILE);
@@ -869,16 +898,16 @@ if (!function_exists('xagio_disable_maintenance')) {
 if (!function_exists('xagio_get_term_meta')) {
     function xagio_get_term_meta($term_id)
     {
-        $meta = get_term_meta($term_id);
-        if (empty($meta)) {
+        $xagio_meta = get_term_meta($term_id);
+        if (empty($xagio_meta)) {
             return [];
         }
 
-        foreach ($meta as $key => $value) {
-            $meta[$key] = $value[0];
+        foreach ($xagio_meta as $xagio_key => $xagio_value) {
+            $xagio_meta[$xagio_key] = $xagio_value[0];
         }
 
-        return $meta;
+        return $xagio_meta;
     }
 }
 
@@ -917,8 +946,8 @@ if (!function_exists('xagio_removeRecursiveDir')) {
                     '.'
                 ]
             );
-            foreach ($objects as $object => $info) {
-                $objectPath = $dir . "/" . $object;
+            foreach ($objects as $xagio_object => $info) {
+                $objectPath = $dir . "/" . $xagio_object;
                 if ($wp_filesystem->is_dir($objectPath)) {
                     xagio_removeRecursiveDir($objectPath);
                 } else {
@@ -931,3 +960,86 @@ if (!function_exists('xagio_removeRecursiveDir')) {
 
 }
 
+if (!function_exists('xagio_create_post')) {
+
+    function xagio_create_post($h1 = '', $title = '', $xagio_description = '')
+    {
+        $xagio_post_data = [
+            'post_title'   => $h1,
+            'post_content' => '',
+            // Empty content, can be modified later
+            'post_status'  => 'publish',
+            // Change to 'draft' if needed
+            'post_author'  => get_current_user_id(),
+            'post_type'    => 'page'
+        ];
+
+        $post_id = wp_insert_post($xagio_post_data);
+
+        update_post_meta($post_id, 'XAGIO_SEO_TITLE', $title);
+        update_post_meta($post_id, 'XAGIO_SEO_DESCRIPTION', $xagio_description);
+
+        return $post_id;
+    }
+
+}
+
+if (!function_exists('xagio_get_countries')) {
+    function xagio_get_countries()
+    {
+        $json_file = plugin_dir_path(__FILE__) . 'assets/countries.json';
+        if (!file_exists($json_file)) {
+            return false;
+        }
+
+        $json_data = file_get_contents($json_file);
+        $countries = json_decode($json_data, true);
+
+        return $countries;
+    }
+}
+
+if (!function_exists('xagio_get_country_by_code')) {
+    function xagio_get_country_by_code($country_code)
+    {
+        $countries = xagio_get_countries();
+        $xagio_result    = '';
+        foreach ($countries as $xagio_country) {
+            if ($xagio_country['location_code'] == $country_code) {
+                $xagio_result = $xagio_country['country_iso_code'];
+            }
+        }
+
+        return $xagio_result;
+    }
+}
+
+if (!function_exists('xagio_get_city_by_code')) {
+    function xagio_get_city_by_code($loc_id)
+    {
+        $xagio_result = array();
+
+        $xagio_result = XAGIO_API::apiRequest($endpoint = 'get_city_by_code', $method = 'POST', [
+            'url'             => site_url(),
+            'location_id'         => $loc_id,
+        ], $xagio_http_code);
+
+        if ($xagio_http_code == 200) {
+            return $xagio_result;
+        } else {
+            return array();
+        }
+    }
+}
+
+if (!function_exists('mb_convert_encoding')) {
+    function mb_convert_encoding($string, $to_encoding, $from_encoding = null) {
+        if (strtoupper($to_encoding) === 'UTF-8') {
+            return utf8_encode($string);
+        } elseif (strtoupper($from_encoding) === 'UTF-8') {
+            return utf8_decode($string);
+        }
+        // You can extend this logic with more encoding cases if needed
+        return $string; // fallback
+    }
+}

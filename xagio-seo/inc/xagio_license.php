@@ -61,7 +61,7 @@ if (!class_exists('XAGIO_LICENSE')) {
             // Build HTTP Query
             $http_query = http_build_query($http_query, '', '&');
 
-            $response = wp_remote_get(XAGIO_PANEL_URL . "/api/license?$http_query", [
+            $xagio_response = wp_remote_get(XAGIO_PANEL_URL . "/api/license?$http_query", [
                     'user-agent'  => "Xagio - " . XAGIO_CURRENT_VERSION . " ($domain)",
                     'timeout'     => 120,
                     'redirection' => 5,
@@ -71,24 +71,24 @@ if (!class_exists('XAGIO_LICENSE')) {
 
 
             // Verify the response
-            if (is_wp_error($response)) {
+            if (is_wp_error($xagio_response)) {
                 xagio_json('error', 'There was a problem while communicating with our server. Make sure your server meets all the requirements.');
             } else {
-                if (!isset($response['body'])) {
+                if (!isset($xagio_response['body'])) {
                     xagio_json('error', 'The license information that you submitted is not valid. Please try again.');
                 } else {
 
-                    $code     = $response['response']['code'];
-                    $response = $response['body'];
+                    $code     = $xagio_response['response']['code'];
+                    $xagio_response = $xagio_response['body'];
 
-                    if (empty($response)) {
+                    if (empty($xagio_response)) {
                         xagio_json('error', 'The license information that you submitted is not valid. Please try again.');
                     } else {
 
-                        $response = json_decode($response, TRUE);
-                        if ($response != FALSE) {
+                        $xagio_response = json_decode($xagio_response, TRUE);
+                        if ($xagio_response != FALSE) {
 
-                            $message = $response['message'];
+                            $message = $xagio_response['message'];
                             if ($code <= 201) {
                                 xagio_json('success', 'Operation completed successfully.');
                             } else {

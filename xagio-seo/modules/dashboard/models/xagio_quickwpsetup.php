@@ -60,10 +60,12 @@ if (!class_exists('XAGIO_MODEL_QUICKWPSETUP')) {
                 require_once ABSPATH . 'wp-admin/includes/file.php';
 
                 @deactivate_plugins([
+                    'hello.php',
                     'hello-dolly/hello.php',
                     'akismet/akismet.php'
                 ]);
                 @delete_plugins([
+                    'hello.php',
                     'hello-dolly/hello.php',
                     'akismet/akismet.php'
                 ]);
@@ -135,8 +137,8 @@ if (!class_exists('XAGIO_MODEL_QUICKWPSETUP')) {
                 'fs_create_medicaldisclaimer'         => 'Medical Disclaimer',
             ];
 
-            foreach ($pages_to_create as $key => $title) {
-                if ($options[$key]) {
+            foreach ($pages_to_create as $xagio_key => $title) {
+                if ($options[$xagio_key]) {
                     wp_insert_post([
                         'post_type'   => 'page',
                         'post_title'  => $title,
@@ -193,14 +195,14 @@ if (!class_exists('XAGIO_MODEL_QUICKWPSETUP')) {
                             'name' => $plugin
                         ];
                     } else {
-                        $result = self::installWordPressPlugin($plugin, $plugin_path);
-                        if (!$result) {
+                        $xagio_result = self::installWordPressPlugin($plugin, $plugin_path);
+                        if (!$xagio_result) {
                             $errors[] = [
                                 'type' => 'plugin',
                                 'name' => $plugin
                             ];
                         } else {
-                            @activate_plugin($result);
+                            @activate_plugin($xagio_result);
                         }
                     }
                 }
@@ -218,8 +220,8 @@ if (!class_exists('XAGIO_MODEL_QUICKWPSETUP')) {
                             'name' => $theme
                         ];
                     } else {
-                        $result = self::installWordPressTheme($theme, $theme_path);
-                        if (!$result) {
+                        $xagio_result = self::installWordPressTheme($theme, $theme_path);
+                        if (!$xagio_result) {
                             $errors[] = [
                                 'type' => 'theme',
                                 'name' => $theme
@@ -238,7 +240,7 @@ if (!class_exists('XAGIO_MODEL_QUICKWPSETUP')) {
             } else {
                 wp_send_json([
                     'status' => 'success',
-                    'backup' => $backup['data'] ?? null
+                    'backup' => $xagio_backup['data'] ?? null
                 ]);
             }
         }
@@ -268,8 +270,8 @@ if (!class_exists('XAGIO_MODEL_QUICKWPSETUP')) {
                         if (is_dir($folder)) {
                             chdir($plugins_directory . '/' . $folderName);
                             foreach (glob("*.php") as $filename) {
-                                $content = xagio_file_get_contents($filename);
-                                if (strpos($content, 'Plugin Name:') !== FALSE) {
+                                $xagio_content = xagio_file_get_contents($filename);
+                                if (strpos($xagio_content, 'Plugin Name:') !== FALSE) {
                                     return $folderName . $filename;
                                 }
                             }
@@ -370,11 +372,11 @@ if (!class_exists('XAGIO_MODEL_QUICKWPSETUP')) {
                 'blocking'    => true,
                 'sslverify'   => false,
             ];
-            $response  = wp_remote_get($link, $asOptions);
-            if (is_wp_error($response)) {
+            $xagio_response  = wp_remote_get($link, $asOptions);
+            if (is_wp_error($xagio_response)) {
                 return false;
             }
-            $data = wp_remote_retrieve_body($response);
+            $data = wp_remote_retrieve_body($xagio_response);
 
             // Initialize the WP Filesystem
             global $wp_filesystem;
@@ -407,29 +409,29 @@ if (!class_exists('XAGIO_MODEL_QUICKWPSETUP')) {
                 return;
             }
 
-            $result = self::wp_api_search($type, 'query_' . $type, $search);
+            $xagio_result = self::wp_api_search($type, 'query_' . $type, $search);
 
             if ($return) {
-                return $result;
+                return $xagio_result;
             } else {
-                wp_send_json($result);
+                wp_send_json($xagio_result);
             }
         }
 
 
         private static function wp_api_search($type, $action, $search)
         {
-            $url = 'http://api.wordpress.org/' . $type . '/info/1.2/?action=' . $action . '&request[per_page]=36&request[search]=' . urlencode($search);
+            $xagio_url = 'http://api.wordpress.org/' . $type . '/info/1.2/?action=' . $action . '&request[per_page]=36&request[search]=' . urlencode($search);
             if ($ssl = wp_http_supports(['ssl']))
-                $url = set_url_scheme($url, 'https');
+                $xagio_url = set_url_scheme($xagio_url, 'https');
 
-            $result = wp_remote_get($url);
+            $xagio_result = wp_remote_get($xagio_url);
 
-            if (is_wp_error($result)) {
+            if (is_wp_error($xagio_result)) {
                 return 'error';
             }
 
-            return json_decode($result['body'], true);
+            return json_decode($xagio_result['body'], true);
         }
 
     }

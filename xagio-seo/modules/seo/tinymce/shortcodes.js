@@ -5,7 +5,7 @@
         var groups    = [];
         var shortcode = {};
 
-        if (xagio_tinymce_data.shortcodes.length < 1) {
+        if (typeof xagio_tinymce_data == 'undefined' || xagio_tinymce_data.shortcodes.length < 1) {
             groups.push({
                 text   : 'No Shortcodes',
                 value  : 'There are no available affiliate shortcodes! Please create some!',

@@ -5,7 +5,7 @@
         var groups = [];
         var group  = {};
 
-        if (xagio_tinymce_data.keywords.length < 1) {
+        if (typeof xagio_tinymce_data == 'undefined' || xagio_tinymce_data.keywords.length < 1) {
             group = {
                 text   : 'No Keywords',
                 value  : 'There are no available keywords for this post/page!',

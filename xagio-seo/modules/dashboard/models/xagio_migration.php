@@ -15,18 +15,18 @@ if (!class_exists('XAGIO_MODEL_MIGRATION')) {
             add_action('admin_post_xagio_migrate_aio', ['XAGIO_MODEL_MIGRATION', 'migration_AIO']);
 
             if (get_transient('XAGIO_MIGRATE_SEO_NOTICE')) {
-                add_action('admin_notices', ['XAGIO_MODEL_MIGRATION', 'migration_notice']);
+                add_action('in_admin_header', function () {
+                    add_action('admin_notices', ['XAGIO_MODEL_MIGRATION', 'migration_notice']);
+                });
             }
 
             add_action('XAGIO_AUTO_MIGRATION', ['XAGIO_MODEL_MIGRATION', 'autoMigration']);
         }
 
         public static function migration_notice() {
-            ?>
-            <div class="notice notice-success is-dismissible">
-                <p><?php echo 'Xagio has automatically migrated data from other SEO plugins and created a FREE Audit of your website, you can see it in Xagio > Projects, or simply click <a href="/wp-admin/admin.php?page=xagio-projectplanner">here</a>.'; ?></p>
-            </div>
-            <?php
+            echo '<div class="notice notice-success is-dismissible">
+                    <p>Xagio has automatically migrated data from other SEO plugins and created a FREE Audit of your website, you can see it in Xagio > Projects, or simply click <a href="/wp-admin/admin.php?page=xagio-projectplanner">here</a></p></div>';
+
             update_option('XAGIO_MIGRATE_SEO_NOTICE', true);
         }
 
@@ -56,35 +56,35 @@ if (!class_exists('XAGIO_MODEL_MIGRATION')) {
         {
             global $wpdb;
             $results = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}postmeta WHERE meta_key LIKE '%rank_math_%'", ARRAY_A);
-            foreach ($results as $r) {
+            foreach ($results as $xagio_r) {
 
-                $id = $r['post_id'];
+                $id = $xagio_r['post_id'];
 
                 // replace %shortcodes% with {shortcode}
-                $r['meta_value'] = preg_replace('/%([^%]+)%/', '{$1}', $r['meta_value']);
+                $xagio_r['meta_value'] = preg_replace('/%([^%]+)%/', '{$1}', $xagio_r['meta_value']);
 
                 update_post_meta($id, 'XAGIO_SEO', 1);
 
-                if ($r['meta_key'] == 'rank_math_title') {
-                    update_post_meta($id, 'XAGIO_SEO_TITLE', $r['meta_value']);
+                if ($xagio_r['meta_key'] == 'rank_math_title') {
+                    update_post_meta($id, 'XAGIO_SEO_TITLE', $xagio_r['meta_value']);
                 }
-                if ($r['meta_key'] == 'rank_math_description') {
-                    update_post_meta($id, 'XAGIO_SEO_DESCRIPTION', $r['meta_value']);
+                if ($xagio_r['meta_key'] == 'rank_math_description') {
+                    update_post_meta($id, 'XAGIO_SEO_DESCRIPTION', $xagio_r['meta_value']);
                 }
-                if ($r['meta_key'] == 'rank_math_focus_keyword') {
-                    update_post_meta($id, 'XAGIO_SEO_TARGET_KEYWORD', $r['meta_value']);
+                if ($xagio_r['meta_key'] == 'rank_math_focus_keyword') {
+                    update_post_meta($id, 'XAGIO_SEO_TARGET_KEYWORD', $xagio_r['meta_value']);
                 }
-                if ($r['meta_key'] == 'rank_math_facebook_title') {
-                    update_post_meta($id, 'XAGIO_SEO_FACEBOOK_TITLE', $r['meta_value']);
-                    update_post_meta($id, 'XAGIO_SEO_TWITTER_TITLE', $r['meta_value']);
+                if ($xagio_r['meta_key'] == 'rank_math_facebook_title') {
+                    update_post_meta($id, 'XAGIO_SEO_FACEBOOK_TITLE', $xagio_r['meta_value']);
+                    update_post_meta($id, 'XAGIO_SEO_TWITTER_TITLE', $xagio_r['meta_value']);
                 }
-                if ($r['meta_key'] == 'rank_math_facebook_description') {
-                    update_post_meta($id, 'XAGIO_SEO_FACEBOOK_DESCRIPTION', $r['meta_value']);
-                    update_post_meta($id, 'XAGIO_SEO_TWITTER_DESCRIPTION', $r['meta_value']);
+                if ($xagio_r['meta_key'] == 'rank_math_facebook_description') {
+                    update_post_meta($id, 'XAGIO_SEO_FACEBOOK_DESCRIPTION', $xagio_r['meta_value']);
+                    update_post_meta($id, 'XAGIO_SEO_TWITTER_DESCRIPTION', $xagio_r['meta_value']);
                 }
-                if ($r['meta_key'] == 'rank_math_facebook_image') {
-                    update_post_meta($id, 'XAGIO_SEO_FACEBOOK_IMAGE', $r['meta_value']);
-                    update_post_meta($id, 'XAGIO_SEO_TWITTER_IMAGE', $r['meta_value']);
+                if ($xagio_r['meta_key'] == 'rank_math_facebook_image') {
+                    update_post_meta($id, 'XAGIO_SEO_FACEBOOK_IMAGE', $xagio_r['meta_value']);
+                    update_post_meta($id, 'XAGIO_SEO_TWITTER_IMAGE', $xagio_r['meta_value']);
                 }
             }
 
@@ -96,7 +96,7 @@ if (!class_exists('XAGIO_MODEL_MIGRATION')) {
             global $wpdb;
             $results = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}postmeta WHERE meta_key LIKE '%_yoast_wpseo_%'", ARRAY_A);
 
-            foreach ($results as $r) {
+            foreach ($results as $xagio_r) {
 
                 // Array mapping fields from the first list to the replacements from the second list
                 $fieldMappings = [
@@ -132,50 +132,50 @@ if (!class_exists('XAGIO_MODEL_MIGRATION')) {
                 ];
 
                 foreach ($fieldMappings as $from => $to) {
-                    $r['meta_value'] = str_replace('%%' . $from . '%%', '{' . $to . '}', $r['meta_value']);
+                    $xagio_r['meta_value'] = str_replace('%%' . $from . '%%', '{' . $to . '}', $xagio_r['meta_value']);
                 }
 
-                if ($r['meta_key'] == '_yoast_wpseo_title') {
-                    $id = $r['post_id'];
-                    update_post_meta($id, 'XAGIO_SEO_TITLE', $r['meta_value']);
+                if ($xagio_r['meta_key'] == '_yoast_wpseo_title') {
+                    $id = $xagio_r['post_id'];
+                    update_post_meta($id, 'XAGIO_SEO_TITLE', $xagio_r['meta_value']);
                     // Enable Meta Robots
                     update_post_meta($id, 'ps_meta_robots_enabled', 1);
                 }
-                if ($r['meta_key'] == '_yoast_wpseo_metadesc') {
-                    $id = $r['post_id'];
-                    update_post_meta($id, 'XAGIO_SEO_DESCRIPTION', $r['meta_value']);
+                if ($xagio_r['meta_key'] == '_yoast_wpseo_metadesc') {
+                    $id = $xagio_r['post_id'];
+                    update_post_meta($id, 'XAGIO_SEO_DESCRIPTION', $xagio_r['meta_value']);
                 }
-                if ($r['meta_key'] == '_yoast_wpseo_focuskw') {
-                    $id = $r['post_id'];
-                    update_post_meta($id, 'XAGIO_SEO_TARGET_KEYWORD', $r['meta_value']);
+                if ($xagio_r['meta_key'] == '_yoast_wpseo_focuskw') {
+                    $id = $xagio_r['post_id'];
+                    update_post_meta($id, 'XAGIO_SEO_TARGET_KEYWORD', $xagio_r['meta_value']);
                 }
-                if ($r['meta_key'] == '_yoast_wpseo_canonical') {
-                    $id = $r['post_id'];
-                    update_post_meta($id, 'XAGIO_SEO_CANONICAL_URL', $r['meta_value']);
+                if ($xagio_r['meta_key'] == '_yoast_wpseo_canonical') {
+                    $id = $xagio_r['post_id'];
+                    update_post_meta($id, 'XAGIO_SEO_CANONICAL_URL', $xagio_r['meta_value']);
                 }
-                if ($r['meta_key'] == '_yoast_wpseo_opengraph-title') {
-                    $id = $r['post_id'];
-                    update_post_meta($id, 'XAGIO_SEO_FACEBOOK_TITLE', $r['meta_value']);
+                if ($xagio_r['meta_key'] == '_yoast_wpseo_opengraph-title') {
+                    $id = $xagio_r['post_id'];
+                    update_post_meta($id, 'XAGIO_SEO_FACEBOOK_TITLE', $xagio_r['meta_value']);
                 }
-                if ($r['meta_key'] == '_yoast_wpseo_opengraph-description') {
-                    $id = $r['post_id'];
-                    update_post_meta($id, 'XAGIO_SEO_FACEBOOK_DESCRIPTION', $r['meta_value']);
+                if ($xagio_r['meta_key'] == '_yoast_wpseo_opengraph-description') {
+                    $id = $xagio_r['post_id'];
+                    update_post_meta($id, 'XAGIO_SEO_FACEBOOK_DESCRIPTION', $xagio_r['meta_value']);
                 }
-                if ($r['meta_key'] == '_yoast_wpseo_opengraph-image') {
-                    $id = $r['post_id'];
-                    update_post_meta($id, 'XAGIO_SEO_FACEBOOK_IMAGE', $r['meta_value']);
+                if ($xagio_r['meta_key'] == '_yoast_wpseo_opengraph-image') {
+                    $id = $xagio_r['post_id'];
+                    update_post_meta($id, 'XAGIO_SEO_FACEBOOK_IMAGE', $xagio_r['meta_value']);
                 }
-                if ($r['meta_key'] == '_yoast_wpseo_twitter-title') {
-                    $id = $r['post_id'];
-                    update_post_meta($id, 'XAGIO_SEO_TWITTER_TITLE', $r['meta_value']);
+                if ($xagio_r['meta_key'] == '_yoast_wpseo_twitter-title') {
+                    $id = $xagio_r['post_id'];
+                    update_post_meta($id, 'XAGIO_SEO_TWITTER_TITLE', $xagio_r['meta_value']);
                 }
-                if ($r['meta_key'] == '_yoast_wpseo_twitter-description') {
-                    $id = $r['post_id'];
-                    update_post_meta($id, 'XAGIO_SEO_TWITTER_DESCRIPTION', $r['meta_value']);
+                if ($xagio_r['meta_key'] == '_yoast_wpseo_twitter-description') {
+                    $id = $xagio_r['post_id'];
+                    update_post_meta($id, 'XAGIO_SEO_TWITTER_DESCRIPTION', $xagio_r['meta_value']);
                 }
-                if ($r['meta_key'] == '_yoast_wpseo_twitter-image') {
-                    $id = $r['post_id'];
-                    update_post_meta($id, 'XAGIO_SEO_TWITTER_IMAGE', $r['meta_value']);
+                if ($xagio_r['meta_key'] == '_yoast_wpseo_twitter-image') {
+                    $id = $xagio_r['post_id'];
+                    update_post_meta($id, 'XAGIO_SEO_TWITTER_IMAGE', $xagio_r['meta_value']);
                 }
             }
 
@@ -226,7 +226,7 @@ if (!class_exists('XAGIO_MODEL_MIGRATION')) {
         {
             global $wpdb;
             $results = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}postmeta WHERE meta_key LIKE '%_aioseo%'", ARRAY_A);
-            foreach ($results as $r) {
+            foreach ($results as $xagio_r) {
 
                 $fieldMappings = [
                     '#author_first_name' => 'author_name',    // Assuming author_name is correct here
@@ -251,20 +251,20 @@ if (!class_exists('XAGIO_MODEL_MIGRATION')) {
                 ];
 
                 foreach ($fieldMappings as $from => $to) {
-                    $r['meta_value'] = str_replace($from, '{' . $to . '}', $r['meta_value']);
+                    $xagio_r['meta_value'] = str_replace($from, '{' . $to . '}', $xagio_r['meta_value']);
                 }
 
-                if ($r['meta_key'] == '_aioseo_title' || $r['meta_key'] == '_aioseop_title') {
-                    $id = $r['post_id'];
-                    update_post_meta($id, 'XAGIO_SEO_TITLE', $r['meta_value']);
+                if ($xagio_r['meta_key'] == '_aioseo_title' || $xagio_r['meta_key'] == '_aioseop_title') {
+                    $id = $xagio_r['post_id'];
+                    update_post_meta($id, 'XAGIO_SEO_TITLE', $xagio_r['meta_value']);
                 }
-                if ($r['meta_key'] == '_aioseo_description' || $r['meta_key'] == '_aioseop_description') {
-                    $id = $r['post_id'];
-                    update_post_meta($id, 'XAGIO_SEO_DESCRIPTION', $r['meta_value']);
+                if ($xagio_r['meta_key'] == '_aioseo_description' || $xagio_r['meta_key'] == '_aioseop_description') {
+                    $id = $xagio_r['post_id'];
+                    update_post_meta($id, 'XAGIO_SEO_DESCRIPTION', $xagio_r['meta_value']);
                 }
-                if ($r['meta_key'] == '_aioseo_custom_link' || $r['meta_key'] == '_aioseop_custom_link') {
-                    $id = $r['post_id'];
-                    update_post_meta($id, 'XAGIO_SEO_CANONICAL_URL', $r['meta_value']);
+                if ($xagio_r['meta_key'] == '_aioseo_custom_link' || $xagio_r['meta_key'] == '_aioseop_custom_link') {
+                    $id = $xagio_r['post_id'];
+                    update_post_meta($id, 'XAGIO_SEO_CANONICAL_URL', $xagio_r['meta_value']);
                 }
             }
             update_option('XAGIO_MIGRATE_AIO', true);

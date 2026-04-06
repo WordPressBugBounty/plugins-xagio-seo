@@ -57,12 +57,12 @@ if (!class_exists('XAGIO_MODEL_CLONE')) {
                 return;
             }
 
-            $URL = sanitize_url(wp_unslash($_POST['url']));
-            if (!filter_var($URL, FILTER_VALIDATE_URL)) {
+            $XAGIO_URL = sanitize_url(wp_unslash($_POST['url']));
+            if (!filter_var($XAGIO_URL, FILTER_VALIDATE_URL)) {
                 xagio_json('error', 'Provided "url" argument is not an actual URL.');
                 return;
             }
-            $OLD_URL = wp_parse_url($URL);
+            $OLD_URL = wp_parse_url($XAGIO_URL);
             $NEW_URL = wp_parse_url(site_url());
 
             $OLD_DOMAIN = $OLD_URL['host'];
@@ -84,10 +84,10 @@ if (!class_exists('XAGIO_MODEL_CLONE')) {
             // Move the files from temporary directory to root
             self::recurseCopy(rtrim($BACKUP_PATH, DIRECTORY_SEPARATOR), rtrim(ABSPATH, DIRECTORY_SEPARATOR));
 
-            $result = XAGIO_MODEL_BACKUPS::restoreMySQL(ABSPATH . 'mysql.zip');
+            $xagio_result = XAGIO_MODEL_BACKUPS::restoreMySQL(ABSPATH . 'mysql.zip');
 
-            if ($result !== true) {
-                $errors[] = $result;
+            if ($xagio_result !== true) {
+                $errors[] = $xagio_result;
             }
 
             XAGIO_MODEL_RESCUE::deleteFolder(rtrim($BACKUP_PATH, DIRECTORY_SEPARATOR));
@@ -138,9 +138,9 @@ if (!class_exists('XAGIO_MODEL_CLONE')) {
             $wp_options = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->prefix}options WHERE option_value LIKE %s;", '%' . $wpdb->esc_like($OLD_DOMAIN) . '%'), ARRAY_A);
             if ($wp_options) {
                 foreach ($wp_options as $option) {
-                    $value = self::recursive_unserialize_replace($OLD_DOMAIN, $NEW_DOMAIN, $option['option_value']);
-                    if ($value != $option['option_value']) {
-                        $wpdb->query($wpdb->prepare("UPDATE {$wpdb->prefix}options SET option_value = %s WHERE option_id = %d;", $value, $option['option_id']));
+                    $xagio_value = self::recursive_unserialize_replace($OLD_DOMAIN, $NEW_DOMAIN, $option['option_value']);
+                    if ($xagio_value != $option['option_value']) {
+                        $wpdb->query($wpdb->prepare("UPDATE {$wpdb->prefix}options SET option_value = %s WHERE option_id = %d;", $xagio_value, $option['option_id']));
                     }
                     if (!empty($wpdb->last_error)) {
                         $errors[]         = [
@@ -155,10 +155,10 @@ if (!class_exists('XAGIO_MODEL_CLONE')) {
             // Update wp_postmeta
             $wp_postmeta = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->prefix}postmeta WHERE meta_value LIKE %s;", '%' . $wpdb->esc_like($OLD_DOMAIN) . '%'), ARRAY_A);
             if ($wp_postmeta) {
-                foreach ($wp_postmeta as $meta) {
-                    $value = self::recursive_unserialize_replace($OLD_DOMAIN, $NEW_DOMAIN, $meta['meta_value']);
-                    if ($value != $meta['meta_value']) {
-                        $wpdb->query($wpdb->prepare("UPDATE {$wpdb->prefix}postmeta SET meta_value = %s WHERE meta_id = %d;", $value, $meta['meta_id']));
+                foreach ($wp_postmeta as $xagio_meta) {
+                    $xagio_value = self::recursive_unserialize_replace($OLD_DOMAIN, $NEW_DOMAIN, $xagio_meta['meta_value']);
+                    if ($xagio_value != $xagio_meta['meta_value']) {
+                        $wpdb->query($wpdb->prepare("UPDATE {$wpdb->prefix}postmeta SET meta_value = %s WHERE meta_id = %d;", $xagio_value, $xagio_meta['meta_id']));
                     }
                     if (!empty($wpdb->last_error)) {
                         $errors[]         = [
@@ -173,10 +173,10 @@ if (!class_exists('XAGIO_MODEL_CLONE')) {
             // Update wp_termmeta
             $wp_termmeta = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->prefix}termmeta WHERE meta_value LIKE %s;", '%' . $wpdb->esc_like($OLD_DOMAIN) . '%'), ARRAY_A);
             if ($wp_termmeta) {
-                foreach ($wp_termmeta as $meta) {
-                    $value = self::recursive_unserialize_replace($OLD_DOMAIN, $NEW_DOMAIN, $meta['meta_value']);
-                    if ($value != $meta['meta_value']) {
-                        $wpdb->query($wpdb->prepare("UPDATE {$wpdb->prefix}termmeta SET meta_value = %s WHERE meta_id = %d;", $value, $meta['meta_id']));
+                foreach ($wp_termmeta as $xagio_meta) {
+                    $xagio_value = self::recursive_unserialize_replace($OLD_DOMAIN, $NEW_DOMAIN, $xagio_meta['meta_value']);
+                    if ($xagio_value != $xagio_meta['meta_value']) {
+                        $wpdb->query($wpdb->prepare("UPDATE {$wpdb->prefix}termmeta SET meta_value = %s WHERE meta_id = %d;", $xagio_value, $xagio_meta['meta_id']));
                     }
                     if (!empty($wpdb->last_error)) {
                         $errors[]         = [
@@ -191,10 +191,10 @@ if (!class_exists('XAGIO_MODEL_CLONE')) {
             // Update wp_usermeta
             $wp_usermeta = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->prefix}usermeta WHERE meta_value LIKE %s;", '%' . $wpdb->esc_like($OLD_DOMAIN) . '%'), ARRAY_A);
             if ($wp_usermeta) {
-                foreach ($wp_usermeta as $meta) {
-                    $value = self::recursive_unserialize_replace($OLD_DOMAIN, $NEW_DOMAIN, $meta['meta_value']);
-                    if ($value != $meta['meta_value']) {
-                        $wpdb->query($wpdb->prepare("UPDATE {$wpdb->prefix}usermeta SET meta_value = %s WHERE umeta_id = %d;", $value, $meta['umeta_id']));
+                foreach ($wp_usermeta as $xagio_meta) {
+                    $xagio_value = self::recursive_unserialize_replace($OLD_DOMAIN, $NEW_DOMAIN, $xagio_meta['meta_value']);
+                    if ($xagio_value != $xagio_meta['meta_value']) {
+                        $wpdb->query($wpdb->prepare("UPDATE {$wpdb->prefix}usermeta SET meta_value = %s WHERE umeta_id = %d;", $xagio_value, $xagio_meta['umeta_id']));
                     }
                     if (!empty($wpdb->last_error)) {
                         $errors[]         = [
@@ -206,7 +206,7 @@ if (!class_exists('XAGIO_MODEL_CLONE')) {
                 }
             }
 
-            if ($result == TRUE && sizeof($errors) == 0) {
+            if ($xagio_result == TRUE && sizeof($errors) == 0) {
 
                 xagio_json('success', 'Successfully performed cloning!');
 
@@ -285,8 +285,8 @@ if (!class_exists('XAGIO_MODEL_CLONE')) {
                     $data = self::recursive_unserialize_replace($from, $to, $unserialized, TRUE, $case_insensitive);
                 } else if (is_array($data)) {
                     $_tmp = [];
-                    foreach ($data as $key => $value) {
-                        $_tmp[$key] = self::recursive_unserialize_replace($from, $to, $value, FALSE, $case_insensitive);
+                    foreach ($data as $xagio_key => $xagio_value) {
+                        $_tmp[$xagio_key] = self::recursive_unserialize_replace($from, $to, $xagio_value, FALSE, $case_insensitive);
                     }
 
                     $data = $_tmp;
@@ -296,8 +296,8 @@ if (!class_exists('XAGIO_MODEL_CLONE')) {
                     if ('__PHP_Incomplete_Class' !== get_class($data)) {
                         $_tmp  = $data;
                         $props = get_object_vars($data);
-                        foreach ($props as $key => $value) {
-                            $_tmp->$key = self::recursive_unserialize_replace($from, $to, $value, FALSE, $case_insensitive);
+                        foreach ($props as $xagio_key => $xagio_value) {
+                            $_tmp->$xagio_key = self::recursive_unserialize_replace($from, $to, $xagio_value, FALSE, $case_insensitive);
                         }
 
                         $data = $_tmp;
@@ -338,26 +338,26 @@ if (!class_exists('XAGIO_MODEL_CLONE')) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $URL = sanitize_url(wp_unslash($_POST['url']));
-            if (!filter_var($URL, FILTER_VALIDATE_URL)) {
+            $XAGIO_URL = sanitize_url(wp_unslash($_POST['url']));
+            if (!filter_var($XAGIO_URL, FILTER_VALIDATE_URL)) {
                 xagio_json('error', 'Provided "url" argument is not an actual URL.');
                 return;
             }
-            $URL = wp_parse_url($URL);
+            $XAGIO_URL = wp_parse_url($XAGIO_URL);
 
-            $http_code = 0;
-            $output    = XAGIO_API::apiRequest('key', 'GET', ['domain' => $URL['host']], $http_code);
+            $xagio_http_code = 0;
+            $xagio_output    = XAGIO_API::apiRequest('key', 'GET', ['domain' => $XAGIO_URL['host']], $xagio_http_code);
 
-            if ($http_code == 200) {
+            if ($xagio_http_code == 200) {
 
                 xagio_json('success', 'Successfully obtained API key!', [
-                    'key'        => $output['message'],
-                    'admin_post' => $output['admin_post'] . 'api'
+                    'key'        => $xagio_output['message'],
+                    'admin_post' => $xagio_output['admin_post'] . 'api'
                 ]);
 
             } else {
 
-                xagio_json('error', $output['message']);
+                xagio_json('error', $xagio_output['message']);
 
             }
 
@@ -367,12 +367,12 @@ if (!class_exists('XAGIO_MODEL_CLONE')) {
         {
             $dir = opendir($src);
             @xagio_mkdir($dst);
-            while (FALSE !== ($file = readdir($dir))) {
-                if (($file != '.') && ($file != '..')) {
-                    if (is_dir($src . '/' . $file)) {
-                        self::recurseCopy($src . '/' . $file, $dst . '/' . $file);
+            while (FALSE !== ($xagio_file = readdir($dir))) {
+                if (($xagio_file != '.') && ($xagio_file != '..')) {
+                    if (is_dir($src . '/' . $xagio_file)) {
+                        self::recurseCopy($src . '/' . $xagio_file, $dst . '/' . $xagio_file);
                     } else {
-                        copy($src . '/' . $file, $dst . '/' . $file);
+                        copy($src . '/' . $xagio_file, $dst . '/' . $xagio_file);
                     }
                 }
             }
@@ -430,15 +430,15 @@ if (!class_exists('XAGIO_MODEL_CLONE')) {
             WP_Filesystem();
 
             // Download the zip file
-            $response = wp_remote_get($BACKUP, [
+            $xagio_response = wp_remote_get($BACKUP, [
                 'timeout'   => 600,
                 'stream'    => true,
                 'filename'  => $tempFile,
                 'sslverify' => false,
             ]);
 
-            if (is_wp_error($response)) {
-                xagio_json('error', $response->get_error_message());
+            if (is_wp_error($xagio_response)) {
+                xagio_json('error', $xagio_response->get_error_message());
                 return;
             }
 
@@ -460,7 +460,7 @@ if (!class_exists('XAGIO_MODEL_CLONE')) {
             }
 
             // Check if unzipped
-            if (file_exists($extDir . DIRECTORY_SEPARATOR . 'index.php')) {
+            if (file_exists($extDir . DIRECTORY_SEPARATOR . 'wp-config.php')) {
                 $isSuccessful = TRUE;
             }
 
@@ -499,15 +499,15 @@ if (!class_exists('XAGIO_MODEL_CLONE')) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $URL = sanitize_url(wp_unslash($_POST['url']));
-            if (!filter_var($URL, FILTER_VALIDATE_URL)) {
+            $XAGIO_URL = sanitize_url(wp_unslash($_POST['url']));
+            if (!filter_var($XAGIO_URL, FILTER_VALIDATE_URL)) {
                 xagio_json('error', 'Provided "url" argument is not an actual URL.');
                 return;
             }
             $KEY    = sanitize_text_field(wp_unslash($_POST['key']));
             $BACKUP = sanitize_text_field(wp_unslash($_POST['backup']));
 
-            $RESULT = self::createRequest($URL, [
+            $RESULT = self::createRequest($XAGIO_URL, [
                 'key'         => $KEY,
                 'function'    => 'removeCloneBackup',
                 'backup_name' => basename($BACKUP),
@@ -524,14 +524,14 @@ if (!class_exists('XAGIO_MODEL_CLONE')) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $URL = sanitize_url(wp_unslash($_POST['url']));
-            if (!filter_var($URL, FILTER_VALIDATE_URL)) {
+            $XAGIO_URL = sanitize_url(wp_unslash($_POST['url']));
+            if (!filter_var($XAGIO_URL, FILTER_VALIDATE_URL)) {
                 xagio_json('error', 'Provided "url" argument is not an actual URL.');
                 return;
             }
             $KEY = sanitize_text_field(wp_unslash($_POST['key']));
 
-            $RESULT = self::createRequest($URL, [
+            $RESULT = self::createRequest($XAGIO_URL, [
                 'key'      => $KEY,
                 'function' => 'createCloneBackup',
             ]);
@@ -550,13 +550,13 @@ if (!class_exists('XAGIO_MODEL_CLONE')) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $URL = sanitize_url(wp_unslash($_POST['url']));
-            if (!filter_var($URL, FILTER_VALIDATE_URL)) {
+            $XAGIO_URL = sanitize_url(wp_unslash($_POST['url']));
+            if (!filter_var($XAGIO_URL, FILTER_VALIDATE_URL)) {
                 xagio_json('error', 'Provided "url" argument is not an actual URL.');
                 return;
             }
-            $URL = wp_parse_url($URL);
-            $URL = $URL['scheme'] . '://' . $URL['host'];
+            $XAGIO_URL = wp_parse_url($XAGIO_URL);
+            $XAGIO_URL = $XAGIO_URL['scheme'] . '://' . $XAGIO_URL['host'];
 
             // Possible endpoints
             $ENDPOINTS = [
@@ -566,13 +566,13 @@ if (!class_exists('XAGIO_MODEL_CLONE')) {
 
             foreach ($ENDPOINTS as $ENDPOINT) {
 
-                $RESULT = self::createRequest($URL . $ENDPOINT . 'ping');
+                $RESULT = self::createRequest($XAGIO_URL . $ENDPOINT . 'ping');
 
                 if (isset($RESULT['status'])) {
 
                     if ($RESULT['status'] == 'success' && $RESULT['message'] == 'pong') {
 
-                        xagio_json('success', 'Communication with ' . $URL . ' is successful. You can proceed with cloning.', $URL . $ENDPOINT . 'api');
+                        xagio_json('success', 'Communication with ' . $XAGIO_URL . ' is successful. You can proceed with cloning.', $XAGIO_URL . $ENDPOINT . 'api');
 
                     }
 
@@ -580,11 +580,11 @@ if (!class_exists('XAGIO_MODEL_CLONE')) {
 
             }
 
-            xagio_json('error', 'There was a problem communicating with ' . $URL . '. Make sure that xagio is updated to the latest version.');
+            xagio_json('error', 'There was a problem communicating with ' . $XAGIO_URL . '. Make sure that xagio is updated to the latest version.');
 
         }
 
-        private static function createRequest($url = '', $data = [], $method = 'POST')
+        private static function createRequest($xagio_url = '', $data = [], $method = 'POST')
         {
             $auth = false;
             if (isset($data['key'])) {
@@ -609,15 +609,15 @@ if (!class_exists('XAGIO_MODEL_CLONE')) {
                 ];
             }
 
-            $response = wp_remote_post($url, $postFields);
+            $xagio_response = wp_remote_post($xagio_url, $postFields);
 
-            if (is_wp_error($response)) {
+            if (is_wp_error($xagio_response)) {
                 return FALSE;
             } else {
-                if (!isset($response['body'])) {
+                if (!isset($xagio_response['body'])) {
                     return FALSE;
                 } else {
-                    $data = json_decode($response['body'], TRUE);
+                    $data = json_decode($xagio_response['body'], TRUE);
                     if (!$data) {
                         return FALSE;
                     } else {

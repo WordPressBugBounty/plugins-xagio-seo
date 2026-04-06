@@ -446,14 +446,18 @@ let cf_template         = cf_templates[cf_default_template].data;
 
 
                             let title_ratio = "";
-                            if (keyword.volume != "" && keyword.intitle != "") {
+                            if (keyword.intitle == 0 && keyword.intitle !== "") {
+                                title_ratio = "0";
+                            } else if (keyword.volume != "" && keyword.intitle != "") {
                                 if (keyword.volume != 0) {
                                     title_ratio = keyword.intitle / keyword.volume;
                                 }
                             }
 
                             let url_ratio = "";
-                            if (keyword.volume !== "" && keyword.inurl !== "") {
+                            if (keyword.inurl == 0 && keyword.inurl !== "") {
+                                url_ratio = "0";
+                            } else if (keyword.volume !== "" && keyword.inurl !== "") {
                                 if (keyword.volume != 0) {
                                     url_ratio = keyword.inurl / keyword.volume;
                                 }

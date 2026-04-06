@@ -1,7 +1,7 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
-$meta       = XAGIO_MODEL_SEO::formatMetaVariables(get_post_meta($post->ID));
+$xagio_meta       = XAGIO_MODEL_SEO::formatMetaVariables(get_post_meta($post->ID));
 ?>
 
 <h3 class="xagio-side-info">Enter a Focus Keyword Manually or select from the Keyword Group</h3>
@@ -9,7 +9,7 @@ $meta       = XAGIO_MODEL_SEO::formatMetaVariables(get_post_meta($post->ID));
 <div class="xagio-preview">
     <div class="xagio-preview-input">
         <div class="xagio-preview-text">
-            <input type="text" name="XAGIO_SEO_TARGET_KEYWORD" id="XAGIO_SEO_TARGET_KEYWORD" value="<?php echo esc_attr(@$meta['XAGIO_SEO_TARGET_KEYWORD']); ?>"/>
+            <input type="text" name="XAGIO_SEO_TARGET_KEYWORD" id="XAGIO_SEO_TARGET_KEYWORD" value="<?php echo esc_attr($xagio_meta['XAGIO_SEO_TARGET_KEYWORD'] ?? ''); ?>"/>
         </div>
         <div class="xagio-icons">
             <i class="xagio-icon xagio-icon-close g-x-icon clear-target-keyword"></i>

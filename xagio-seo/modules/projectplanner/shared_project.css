@@ -608,27 +608,6 @@ button.xagio-button.xagio-button-primary.xagio-action-button.uk-form-select {
 .xagio-header-actions-in-project {
     display: flex;
     gap: var(--xagio-gap-small);
-    align-items: center;
-}
-.xagio-credits > ul {
-    padding: 0;
-    display: flex;
-    gap: var(--xagio-gap-small);
-    margin: 0;
-}
-.xagio-credits > ul > li {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    margin: 0;
-    background: #383ee2;
-    color: white;
-    padding: 10px 23px;
-    border-radius: 100vh;
-    font-weight: bold;
-}
-.xagio-credits {
-    margin-right: 10px;
 }
 h1.project-name {
     font-size: clamp(1.1875rem, 1.0259rem + 0.6897vw, 1.5rem) !important;

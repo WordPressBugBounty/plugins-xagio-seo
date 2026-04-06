@@ -2,70 +2,72 @@
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 // Get the Page ID
-$object  = $GLOBALS['wp_query']->get_queried_object();
-$page_id = 0;
+$xagio_object  = $GLOBALS['wp_query']->get_queried_object();
+$xagio_page_id = 0;
 
-if (is_object($object) && !XAGIO_MODEL_SEO::is_home_static_page() && !XAGIO_MODEL_SEO::is_home_posts_page()) {
-    $page_id = $object->ID;
+
+if (is_object($xagio_object) && !XAGIO_MODEL_SEO::is_home_static_page() && !XAGIO_MODEL_SEO::is_home_posts_page()) {
+    $xagio_page_id = $xagio_object->ID;
 } else if (isset($isShortcode)) {
-    $page_id = $post->ID;
+    $xagio_page_id = $post->ID;
 }
 
 // Review Settings
-$ps_review = get_option('XAGIO_REVIEW');
-
+$xagio_review = get_option('XAGIO_REVIEW');
 // Reviews Array
-$reviews = [];
+$xagio_reviews = [];
 
 // Should display Random Reviews
-$shouldRandom = FALSE;
-if(is_array($instance)){
-    if (@$instance['random_reviews'] == 1) {
-        $shouldRandom = TRUE;
+$xagioShouldRandom = FALSE;
+if(is_array($xagio_instance)){
+    if (@$xagio_instance['random_reviews'] == 1) {
+        $xagioShouldRandom = TRUE;
     }
 } else {
-    $instance = [];
+    $xagio_instance = [];
 }
 
 // Get all Reviews
-if (@$ps_review['settings']['per_page_reviews'] == 1) {
-    $reviews = XAGIO_MODEL_REVIEWS::getReviewsForPage($page_id, NULL, $shouldRandom);
+if (@$xagio_review['settings']['per_page_reviews'] == 1) {
+    $xagio_reviews = XAGIO_MODEL_REVIEWS::getReviewsForPage($xagio_page_id, NULL, $xagioShouldRandom);
 } else {
-    $reviews = XAGIO_MODEL_REVIEWS::getReviewsGlobal(FALSE, $shouldRandom);
+    $xagio_reviews = XAGIO_MODEL_REVIEWS::getReviewsGlobal(FALSE, $xagioShouldRandom);
 }
 
+
+
 // Count reviews
-$reviewCount = sizeof($reviews);
+$xagioReviewCount = sizeof($xagio_reviews);
 
 // Should Limit Reviews
-$limit_reviews = FALSE;
-if (@$instance['limit_reviews'] == 1 && @$instance['limit_reviews_number'] > 0) {
-    $limit_reviews = $instance['limit_reviews_number'];
+$xagio_limit_reviews = FALSE;
+if (@$xagio_instance['limit_reviews'] == 1 && @$xagio_instance['limit_reviews_number'] > 0) {
+    $xagio_limit_reviews = $xagio_instance['limit_reviews_number'];
 }
 
 // Should display AggregateRating
-$displayReviewsHeading = NULL;
-if (@$instance['aggregate_rating'] == 1) {
+$xagioDisplayReviewsHeading = NULL;
+if (@$xagio_instance['aggregate_rating'] == 1) {
 
-    $ratingValue = 0;
+    $xagioRatingValue = 0;
 
-    foreach ($reviews as $r) {
-        $ratingValue = $ratingValue + $r['rating'];
+    foreach ($xagio_reviews as $xagio_r) {
+        $xagioRatingValue = $xagioRatingValue + $xagio_r['rating'];
     }
 
-    if (!empty($reviewCount)) {
+    if (!empty($xagioReviewCount)) {
 
-        $ratingValue = $ratingValue / $reviewCount;
-        $ratingValue = number_format($ratingValue, 1);
+        $xagioRatingValue = $xagioRatingValue / $xagioReviewCount;
+        $xagioRatingValue = number_format($xagioRatingValue, 1);
 
-        $displayReviewsHeading = (@$ps_review['details']['display_reviews_text'] == NULL) ? '{calc} Rating From {sum} Reviews.' : @$ps_review['details']['display_reviews_text'];
-        $displayReviewsHeading = str_replace('{calc}', '<b>' . $ratingValue . "</b>", $displayReviewsHeading);
-        $displayReviewsHeading = str_replace('{sum}', '<b>' . $reviewCount . '</b>', $displayReviewsHeading);
+        $xagioDisplayReviewsHeading = (@$xagio_review['details']['display_reviews_text'] == NULL) ? '{calc} Rating From {sum} Reviews.' : @$xagio_review['details']['display_reviews_text'];
+        $xagioDisplayReviewsHeading = str_replace('{calc}', '<b>' . $xagioRatingValue . "</b>", $xagioDisplayReviewsHeading);
+        $xagioDisplayReviewsHeading = str_replace('{sum}', '<b>' . $xagioReviewCount . '</b>', $xagioDisplayReviewsHeading);
 
     }
 }
 
-$displayReviewsTitle = (@$ps_review['details']['display_reviews_heading'] == NULL) ? NULL : @$ps_review['details']['display_reviews_heading'];
+$xagioDisplayReviewsTitle = (@$xagio_review['details']['display_reviews_heading'] == NULL) ? NULL : @$xagio_review['details']['display_reviews_heading'];
 
 
 ?>
@@ -76,51 +78,51 @@ $displayReviewsTitle = (@$ps_review['details']['display_reviews_heading'] == NUL
 
     <div class="prs-review-display-container">
 
-        <?php if ($displayReviewsTitle !== NULL) { ?>
+        <?php if ($xagioDisplayReviewsTitle !== NULL) { ?>
             <div class="prs-review-display-heading">
-                <h2><?php echo esc_html($displayReviewsTitle); ?></h2>
+                <h2><?php echo esc_html($xagioDisplayReviewsTitle); ?></h2>
             </div>
         <?php } ?>
 
-        <?php if ($displayReviewsHeading !== NULL) { ?>
-            <div class="prs-review-container-aggregate"><?php echo esc_html($displayReviewsHeading); ?></div>
+        <?php if ($xagioDisplayReviewsHeading !== NULL) { ?>
+            <div class="prs-review-container-aggregate"><?php echo wp_kses_post($xagioDisplayReviewsHeading); ?></div>
         <?php } ?>
 
         <!-- Display Reviews -->
-        <?php foreach ($reviews as $r) {
+        <?php foreach ($xagio_reviews as $xagio_r) {
 
             // Date
-            $date = gmdate('d, M Y', strtotime($r['date']));
+            $xagio_date = gmdate('d, M Y', strtotime($xagio_r['date']));
 
             // Stars
-            $full_stars  = $r['rating'];
-            $empty_stars = 5 - $r['rating'];
+            $xagio_full_stars  = $xagio_r['rating'];
+            $xagio_empty_stars = 5 - $xagio_r['rating'];
 
             // Review Author
-            $name = '';
-            if (!empty($r['name'])) $name = '<b>' . stripslashes($r['name']) . '</b> <br>';
-            if (!empty($r['website'])) $name = '<a href="' . $r['website'] . '" target="_blank">' . $name . '</a>';
-            if (!empty($r['age'])) $name .= $r['age'];
-            if (!empty($r['location'])) $name .= ' from ' . $r['location'];
-            if (!empty($r['email'])) $name .= ' (<a style="color: blue;" href="mailto:' . $r['email'] . '" target="_blank"><i class="xagio-icon xagio-icon-at"></i></a>)';
-            if (!empty($r['telephone'])) $name .= ' (<a style="color: blue;" href="tel:' . $r['telephone'] . '" target="_blank"><i class="xagio-icon xagio-icon-phone"></i></a>)';
+            $xagio_name = '';
+            if (!empty($xagio_r['name'])) $xagio_name = '<b>' . stripslashes($xagio_r['name']) . '</b> <br>';
+            if (!empty($xagio_r['website'])) $xagio_name = '<a href="' . $xagio_r['website'] . '" target="_blank">' . $xagio_name . '</a>';
+            if (!empty($xagio_r['age'])) $xagio_name .= $xagio_r['age'];
+            if (!empty($xagio_r['location'])) $xagio_name .= ' from ' . $xagio_r['location'];
+            if (!empty($xagio_r['email'])) $xagio_name .= ' (<a style="color: blue;" href="mailto:' . $xagio_r['email'] . '" target="_blank"><i class="xagio-icon xagio-icon-at"></i></a>)';
+            if (!empty($xagio_r['telephone'])) $xagio_name .= ' (<a style="color: blue;" href="tel:' . $xagio_r['telephone'] . '" target="_blank"><i class="xagio-icon xagio-icon-phone"></i></a>)';
 
             // Limit Reviews
-            $limit_class = '';
-            if ($limit_reviews !== FALSE) {
-                if ($limit_reviews === 0) {
-                    $limit_class = 'review-hidden';
+            $xagio_limit_class = '';
+            if ($xagio_limit_reviews !== FALSE) {
+                if ($xagio_limit_reviews === 0) {
+                    $xagio_limit_class = 'review-hidden';
                 } else {
-                    $limit_reviews--;
+                    $xagio_limit_reviews--;
                 }
             }
 
             ?>
 
-            <div class="prs-review-container <?php echo esc_html($limit_class); ?>">
+            <div class="prs-review-container <?php echo esc_html($xagio_limit_class); ?>">
 
-                <?php if (!empty($r['title'])) { ?>
-                    <div class="prs-review-title"><?php echo esc_html($r['title']); ?></div>
+                <?php if (!empty($xagio_r['title'])) { ?>
+                    <div class="prs-review-title"><?php echo esc_html($xagio_r['title']); ?></div>
                 <?php } ?>
 
                 <div class="prs-review-spacer"><i class="xagio-icon xagio-icon-quote"></i></div>
@@ -128,29 +130,29 @@ $displayReviewsTitle = (@$ps_review['details']['display_reviews_heading'] == NUL
                 <!-- Print Stars -->
                 <div class="prs-review-stars">
 
-                    <?php for ($i = 0; $i < $full_stars; $i++) { ?>
+                    <?php for ($xagio_i = 0; $xagio_i < $xagio_full_stars; $xagio_i++) { ?>
                         <i class="xagio-icon xagio-icon-star"></i>
                     <?php } ?>
 
-                    <?php for ($i = 0; $i < $empty_stars; $i++) { ?>
+                    <?php for ($xagio_i = 0; $xagio_i < $xagio_empty_stars; $xagio_i++) { ?>
                         <i class="xagio-icon xagio-icon-star-o"></i>
                     <?php } ?>
 
-                    <span class="prs-review-date"> on <?php echo esc_html($date); ?></span>
+                    <span class="prs-review-date"> on <?php echo esc_html($xagio_date); ?></span>
 
                 </div>
 
-                <?php if (!empty($r['review'])) { ?>
-                    <div class="prs-review-body"><?php echo esc_html(stripslashes($r['review'])); ?></div>
+                <?php if (!empty($xagio_r['review'])) { ?>
+                    <div class="prs-review-body"><?php echo esc_html(stripslashes($xagio_r['review'])); ?></div>
                 <?php } ?>
 
-                <div class="prs-review-author"><?php echo esc_html(stripslashes($name)); ?></div>
+                <div class="prs-review-author"><?php echo wp_kses_post(stripslashes($xagio_name)); ?></div>
 
             </div>
 
         <?php } ?>
 
-        <?php if ($limit_reviews !== FALSE && !empty($reviewCount)) { ?>
+        <?php if ($xagio_limit_reviews !== FALSE && !empty($xagioReviewCount)) { ?>
             <div class="prs-review-more"><a href="#" class="prs-show-reviews"><i class="xagio-icon xagio-icon-arrow-down"></i> <span>Show more</span></a>
             </div>
         <?php } ?>
@@ -158,11 +160,11 @@ $displayReviewsTitle = (@$ps_review['details']['display_reviews_heading'] == NUL
 
         <!-- No Reviews Message -->
         <?php
-        if (empty($reviews)) {
-            if (isset($ps_review['details'])) {
-                if (isset($ps_review['details']['no_reviews_message'])) {
-                    if (!empty($ps_review['details']['no_reviews_message'])) {
-                        echo '<p>' . esc_html($ps_review['details']['no_reviews_message']) . '</p>';
+        if (empty($xagio_reviews)) {
+            if (isset($xagio_review['details'])) {
+                if (isset($xagio_review['details']['no_reviews_message'])) {
+                    if (!empty($xagio_review['details']['no_reviews_message'])) {
+                        echo '<p>' . esc_html($xagio_review['details']['no_reviews_message']) . '</p>';
                     } else {
                         echo '<p><i class="xagio-icon xagio-icon-frown"></i> Nobody yet left a review. Be first?</p>';
                     }

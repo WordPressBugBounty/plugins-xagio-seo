@@ -27,6 +27,16 @@ if (!class_exists('XAGIO_MODEL_NICHEHUNTER')) {
                 'getResults'
             ]);
 
+            add_action('admin_post_xagio_get_niche_competition', [
+                'XAGIO_MODEL_NICHEHUNTER',
+                'getCompetition'
+            ]);
+
+            add_action('admin_post_xagio_check_if_niche_batch_is_done', [
+                'XAGIO_MODEL_NICHEHUNTER',
+                'checkIfNicheBatchIsDone'
+            ]);
+
             add_action('admin_post_xagio_niche_hunter_history', [
                 'XAGIO_MODEL_NICHEHUNTER',
                 'getHistory'
@@ -56,6 +66,21 @@ if (!class_exists('XAGIO_MODEL_NICHEHUNTER')) {
                 'XAGIO_MODEL_NICHEHUNTER',
                 'saveNicheKeywords'
             ]);
+
+            add_action('admin_post_xagio_delete_keywords', [
+                'XAGIO_MODEL_NICHEHUNTER',
+                'deleteKeywords'
+            ]);
+
+            add_action('admin_post_xagio_delete_history_group', [
+                'XAGIO_MODEL_NICHEHUNTER',
+                'deleteHistoryGroup'
+            ]);
+
+			add_action('admin_post_xagio_copy_to_clipboard', [
+                'XAGIO_MODEL_NICHEHUNTER',
+                'copyToClipboard'
+            ]);
         }
 
         public static function saveNicheKeywords()
@@ -78,6 +103,8 @@ if (!class_exists('XAGIO_MODEL_NICHEHUNTER')) {
                         'keyword' => isset($keyword_data['keyword']) ? sanitize_text_field($keyword_data['keyword']) : '',
                         'volume' => isset($keyword_data['volume']) ? intval($keyword_data['volume']) : 0,
                         'cpc' => isset($keyword_data['cpc']) ? floatval($keyword_data['cpc']) : 0.0,
+                        'intitle' => isset($keyword_data['intitle']) ? intval($keyword_data['intitle']) : 0,
+                        'inurl' => isset($keyword_data['inurl']) ? intval($keyword_data['inurl']) : 0,
                     ];
                 }, $_POST['keywords']);
             }
@@ -113,6 +140,8 @@ if (!class_exists('XAGIO_MODEL_NICHEHUNTER')) {
                     'keyword'  => $keyword['keyword'],
                     'volume'   => $keyword['volume'],
                     'cpc'      => $keyword['cpc'],
+                    'intitle'  => $keyword['intitle'],
+                    'inurl'    => $keyword['inurl']
                 ];
                 $wpdb->insert('xag_keywords', $keyword_data);
             }
@@ -143,26 +172,26 @@ if (!class_exists('XAGIO_MODEL_NICHEHUNTER')) {
                     '.org'
                 ];
 
-            $output = XAGIO_API::apiRequest(
-                $apiEndpoint = 'live_database', $method = 'GET', $args = [
+            $xagio_output = XAGIO_API::apiRequest(
+                $apiEndpoint = 'live_database', $method = 'GET', $xagio_args = [
                 'type'   => 'check_domain',
                 'tlds'   => $tlds,
                 'domain' => sanitize_text_field(wp_unslash($_POST['domain']))
-            ], $http_code, $without_license = FALSE
+            ], $xagio_http_code, $without_license = FALSE
             );
 
-            xagio_jsonc($output);
+            xagio_jsonc($xagio_output);
         }
 
         public static function getHistory()
         {
-            $output = XAGIO_API::apiRequest(
-                $apiEndpoint = 'live_database', $method = 'GET', $args = ['type' => 'get_history'], $http_code, $without_license = FALSE
+            $xagio_output = XAGIO_API::apiRequest(
+                $apiEndpoint = 'live_database', $method = 'GET', $xagio_args = ['type' => 'get_history'], $xagio_http_code, $without_license = FALSE
             );
 
             $OUT = [];
-            if($output) {
-                foreach ($output as $o) {
+            if($xagio_output) {
+                foreach ($xagio_output as $o) {
                     $o['filters'] = unserialize($o['filters']);
                     $OUT[]        = $o;
                 }
@@ -179,20 +208,20 @@ if (!class_exists('XAGIO_MODEL_NICHEHUNTER')) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $output = XAGIO_API::apiRequest(
-                $apiEndpoint = 'live_database', $method = 'GET', $args = [
+            $xagio_output = XAGIO_API::apiRequest(
+                $apiEndpoint = 'live_database', $method = 'GET', $xagio_args = [
                 'type' => 'get_keywords',
                 'id'   => sanitize_text_field(wp_unslash($_POST['id']))
-            ], $http_code, $without_license = FALSE
+            ], $xagio_http_code, $without_license = FALSE
             );
 
-            if (is_array($output) && sizeof($output) > 0) {
-                for ($i = 0; $i < sizeof($output); $i++) {
-                    $output[$i]['history'] = maybe_unserialize($output[$i]['history']);
+            if (is_array($xagio_output) && sizeof($xagio_output) > 0) {
+                for ($xagio_i = 0; $xagio_i < sizeof($xagio_output); $xagio_i++) {
+                    $xagio_output[$xagio_i]['history'] = maybe_unserialize($xagio_output[$xagio_i]['history']);
                 }
             }
 
-            xagio_jsonc($output);
+            xagio_jsonc($xagio_output);
         }
 
         public static function saveTLDS()
@@ -225,7 +254,7 @@ if (!class_exists('XAGIO_MODEL_NICHEHUNTER')) {
             check_ajax_referer('xagio_nonce', '_xagio_nonce');
 
             // Sanitize and prepare the data from POST fields
-            $args = array(
+            $xagio_args = array(
                 'keyword_like'         => sanitize_text_field( wp_unslash( $_POST['keyword_like'] ?? '' ) ),
                 'filters'              => array(
                     'keyword'          => sanitize_text_field( wp_unslash( $_POST['filters']['keyword'] ?? '' ) ),
@@ -241,14 +270,126 @@ if (!class_exists('XAGIO_MODEL_NICHEHUNTER')) {
             );
 
             // Make the API request
-            $output = XAGIO_API::apiRequest('live_database', 'POST', $args, $http_code, false);
+            $xagio_output = XAGIO_API::apiRequest('live_database', 'POST', $xagio_args, $xagio_http_code, false);
 
             // Send the JSON response
-            xagio_jsonc($output);
+            xagio_jsonc($xagio_output);
         }
 
+        public static function getCompetition()
+        {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
 
+            if (isset($_POST['ids'], $_POST['language'], $_POST['location'])) {
 
+                $ids      = explode(',', sanitize_text_field(wp_unslash($_POST['ids'])));
+                $xagio_language = sanitize_text_field(wp_unslash($_POST['language']));
+                $xagio_location = sanitize_text_field(wp_unslash($_POST['location']));
+
+                if (sizeof($ids) < 1) {
+                    xagio_json('error', 'You must send at least one keyword to analysis.');
+                    return;
+                }
+
+                if (sizeof($ids) >= 1000) {
+                    xagio_json('error', 'Maximum number of keywords allowed is 1000 per request. Please split your keywords into multiple requests.');
+                    return;
+                }
+
+                $xagio_http_code = 0;
+                $xagio_result    = XAGIO_API::apiRequest($endpoint = 'niche_competition', $method = 'POST', [
+                    'ids'      => $ids,
+                    'language' => $xagio_language,
+                    'location' => $xagio_location,
+                ], $xagio_http_code);
+
+                if ($xagio_http_code == 200) {
+                    xagio_json('success', $xagio_result['message']);
+                } else {
+                    xagio_json('error', $xagio_result['message']);
+                }
+            }
+        }
+
+        public static function checkIfNicheBatchIsDone()
+        {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
+            $xagio_output = XAGIO_API::apiRequest(
+                $apiEndpoint = 'niche_competition', $method = 'GET', $xagio_args = [], $xagio_http_code, $without_license = FALSE
+            );
+
+            if ($xagio_http_code == 200) {
+                xagio_json('success', $xagio_output['message']);
+            } else {
+                xagio_json('running', $xagio_output['message']);
+            }
+        }
+
+        public static function deleteKeywords()
+        {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
+            $ids = $_POST['ids'];
+
+            if (isset($ids) && !empty($ids)) {
+                $ids = explode(',', $ids);
+
+                $xagio_http_code = 0;
+                $xagio_result    = XAGIO_API::apiRequest($endpoint = 'niche_delete_keywords', $method = 'POST', [
+                    'ids'      => $ids
+                ], $xagio_http_code);
+
+                if ($xagio_http_code == 200) {
+                    xagio_json('success', $xagio_result['message']);
+                } else {
+                    xagio_json('error', $xagio_result['message']);
+                }
+            }
+        }
+
+        public static function deleteHistoryGroup()
+        {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
+            $group_id = $_POST['group_id'];
+
+            if (isset($group_id) && !empty($group_id)) {
+                $xagio_http_code = 0;
+                $xagio_result    = XAGIO_API::apiRequest($endpoint = 'niche_delete_history_group', $method = 'POST', [
+                    'group_id'      => $group_id
+                ], $xagio_http_code);
+
+                if ($xagio_http_code == 200) {
+                    xagio_json('success', $xagio_result['message']);
+                } else {
+                    xagio_json('error', $xagio_result['message']);
+                }
+            }
+        }
+
+		public static function copyToClipboard()
+		{
+			check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
+			$ids = $_POST['ids'];
+
+			if (isset($ids) && !empty($ids)) {
+				$ids = explode(',', $ids);
+				$xagio_http_code = 0;
+				$xagio_result    = XAGIO_API::apiRequest($endpoint = 'niche_keywords_clipboard', $method = 'POST', [
+					'ids'      => $ids
+				], $xagio_http_code);
+
+				if ($xagio_http_code == 200) {
+					xagio_json('success', 'Keywords retrieved successfully!',  $xagio_result['message']);
+				} else {
+					xagio_json('error', $xagio_result['message']);
+				}
+			} else {
+				xagio_json('error', 'Keywords array is empty!');
+			}
+		}
     }
 
 }

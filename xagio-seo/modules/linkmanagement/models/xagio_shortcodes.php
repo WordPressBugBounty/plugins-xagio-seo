@@ -9,12 +9,12 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
 
         public static function scriptData()
         {
-            $redirect_mask = get_option('XAGIO_REDIRECT_MASK');
-            if (!$redirect_mask)
-                $redirect_mask = 'xredirect';
+            $xagio_redirect_mask = get_option('XAGIO_REDIRECT_MASK');
+            if (!$xagio_redirect_mask)
+                $xagio_redirect_mask = 'xredirect';
 
             wp_localize_script('xagio_linkmanagement', 'xagio_linkmanagement', [
-                'redirect_mask' => esc_attr($redirect_mask)
+                'redirect_mask' => esc_attr($xagio_redirect_mask)
             ]);
 
         }
@@ -107,8 +107,8 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
 
             if (isset($_POST['redirect_mask'])) {
                 if (!empty($_POST['redirect_mask'])) {
-                    $redirect_mask = sanitize_text_field(wp_unslash($_POST['redirect_mask']));
-                    update_option('XAGIO_REDIRECT_MASK', $redirect_mask);
+                    $xagio_redirect_mask = sanitize_text_field(wp_unslash($_POST['redirect_mask']));
+                    update_option('XAGIO_REDIRECT_MASK', $xagio_redirect_mask);
 
                     xagio_json('success', 'Successfully updated masked URL!');
                 } else {
@@ -191,11 +191,11 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
 
                     $counter++;
 
-                    $name   = $newName . $counter;
-                    $exists = $wpdb->get_row($wpdb->prepare('SELECT id FROM xag_shortcodes WHERE shortcode = %s', $name), ARRAY_A);
+                    $xagio_name   = $newName . $counter;
+                    $exists = $wpdb->get_row($wpdb->prepare('SELECT id FROM xag_shortcodes WHERE shortcode = %s', $xagio_name), ARRAY_A);
 
                     if ($exists == FALSE) {
-                        $shortcode['shortcode'] = $name;
+                        $shortcode['shortcode'] = $xagio_name;
                         $shortcode['name']      = $shortcode['name'] . 'Copy';
                         $shortcode['title']     = $shortcode['title'] . 'Copy';
                         unset($shortcode['id']);
@@ -241,24 +241,24 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
 
                     $file_lines = explode("\n", $file_contents);
 
-                    for ($i = 1; $i < count($file_lines); $i++) {
-                        $current = trim($file_lines[$i]);
+                    for ($xagio_i = 1; $xagio_i < count($file_lines); $xagio_i++) {
+                        $current = trim($file_lines[$xagio_i]);
 
                         if (empty($current)) {
                             continue;
                         }
 
                         if ($current === 'XagioMask') {
-                            update_option('XAGIO_REDIRECT_MASK', trim(@$file_lines[$i + 1]));
+                            update_option('XAGIO_REDIRECT_MASK', trim(@$file_lines[$xagio_i + 1]));
                             break;
                         }
 
                         $x = preg_split('/(?<!\s),(?!\s)/', $current);
-                        $y = array_map(function ($value) {
-                            return str_replace(',', '', $value);
+                        $y = array_map(function ($xagio_value) {
+                            return str_replace(',', '', $xagio_value);
                         }, $x);
 
-                        list($name, $shortcode, $url, $title, $group, $target_blank, $nofollow, $mask, $image) = array_map('esc_sql', array_map('str_replace', array_fill(0, 9, '"'), array_fill(0, 9, ''), $y));
+                        list($xagio_name, $shortcode, $xagio_url, $title, $xagio_group, $target_blank, $nofollow, $mask, $image) = array_map('esc_sql', array_map('str_replace', array_fill(0, 9, '"'), array_fill(0, 9, ''), $y));
 
                         $shortcode_exists = $wpdb->query($wpdb->prepare("SELECT shortcode FROM xag_shortcodes WHERE shortcode = %s", $shortcode));
                         if (isset($shortcode_exists['shortcode'])) {
@@ -268,11 +268,11 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                         }
 
                         $data = [
-                            'name'         => $name,
+                            'name'         => $xagio_name,
                             'shortcode'    => $shortcode,
-                            'url'          => $url,
+                            'url'          => $xagio_url,
                             'title'        => $title,
-                            'group'        => $group,
+                            'group'        => $xagio_group,
                             'target_blank' => $target_blank,
                             'nofollow'     => $nofollow,
                             'mask'         => $mask,
@@ -312,7 +312,7 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
 
         public static function exportLinksToCsv($link_ids)
         {
-            $redirect_mask = get_option('XAGIO_REDIRECT_MASK');
+            $xagio_redirect_mask = get_option('XAGIO_REDIRECT_MASK');
 
             global $wpdb;
 
@@ -321,27 +321,27 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
             } else {
                 // Ensure that each ID is an integer to prevent SQL injection
                 $link_ids     = array_map('absint', $link_ids);
-                $placeholders = implode(',', array_fill(0, count($link_ids), '%d'));
-                $links        = $wpdb->get_results($wpdb->prepare("SELECT * FROM xag_shortcodes WHERE id IN ($placeholders)", ...$link_ids));
+                $xagio_placeholders = implode(',', array_fill(0, count($link_ids), '%d'));
+                $links        = $wpdb->get_results($wpdb->prepare("SELECT * FROM xag_shortcodes WHERE id IN ($xagio_placeholders)", ...$link_ids));
             }
 
             $projectName = 'Link Manager Export - ' . gmdate('H:i:s');
 
-            $output = '';
-            $output .= 'Name,Shortcode,URL,Title,Group,Target Blank, NoFollow,Mask, Image';
-            $output .= "\n";
+            $xagio_output = '';
+            $xagio_output .= 'Name,Shortcode,URL,Title,Group,Target Blank, NoFollow,Mask, Image';
+            $xagio_output .= "\n";
             foreach ($links as $link) {
-                $output .= '"' . $link['name'] . '","' . $link['shortcode'] . '","' . $link['url'] . '","' . $link['title'] . '","' . $link['group'] . '",' . $link['target_blank'] . '",' . $link['nofollow'] . '",' . $link['mask'] . '",' . $link['image'] . '",';
-                $output .= "\n";
+                $xagio_output .= '"' . $link['name'] . '","' . $link['shortcode'] . '","' . $link['url'] . '","' . $link['title'] . '","' . $link['group'] . '",' . $link['target_blank'] . '",' . $link['nofollow'] . '",' . $link['mask'] . '",' . $link['image'] . '",';
+                $xagio_output .= "\n";
             }
-            $output   .= "XagioMask";
-            $output   .= "\n";
-            $output   .= $redirect_mask;
+            $xagio_output   .= "XagioMask";
+            $xagio_output   .= "\n";
+            $xagio_output   .= $xagio_redirect_mask;
             $filename = $projectName . ".csv";
             header('Content-type: application/csv');
             header('Content-Disposition: attachment; filename=' . $filename);
 
-            echo wp_kses_post($output);
+            echo wp_kses_post($xagio_output);
             exit;
         }
 
@@ -409,9 +409,9 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                         'Unique Clicks'
                     ]
                 ];
-                foreach ($chart_data as $date => $data) {
+                foreach ($chart_data as $xagio_date => $data) {
                     $final_chart_data[] = [
-                        $date,
+                        $xagio_date,
                         $data['IMPRESSIONS'],
                         $data['UNIQUE_CLICKS'],
                     ];
@@ -462,9 +462,9 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                         'Unique Clicks'
                     ]
                 ];
-                foreach ($chart_data as $date => $data) {
+                foreach ($chart_data as $xagio_date => $data) {
                     $final_chart_data[] = [
-                        $date,
+                        $xagio_date,
                         $data['IMPRESSIONS'],
                         $data['UNIQUE_CLICKS'],
                     ];
@@ -486,15 +486,15 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
             }
 
             $u             = get_site_url();
-            $redirect_mask = get_option('XAGIO_REDIRECT_MASK');
-            $date          = gmdate('Y-m-d');
-            if (!$redirect_mask)
-                $redirect_mask = 'xredirect';
+            $xagio_redirect_mask = get_option('XAGIO_REDIRECT_MASK');
+            $xagio_date          = gmdate('Y-m-d');
+            if (!$xagio_redirect_mask)
+                $xagio_redirect_mask = 'xredirect';
 
-            if (isset($_GET[$redirect_mask])) {
-                if (!empty($_GET[$redirect_mask])) {
+            if (isset($_GET[$xagio_redirect_mask])) {
+                if (!empty($_GET[$xagio_redirect_mask])) {
 
-                    $ID = sanitize_text_field(wp_unslash($_GET[$redirect_mask]));
+                    $ID = sanitize_text_field(wp_unslash($_GET[$xagio_redirect_mask]));
                     if (is_numeric($ID)) {
                         $shortcode = $wpdb->get_row($wpdb->prepare("SELECT * FROM xag_shortcodes WHERE id = %d", $ID), ARRAY_A);
                     } else {
@@ -509,29 +509,31 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                             ), ARRAY_A
                         );
 
-                        if ($shortcode_tracking !== FALSE) {
+                        if ($shortcode_tracking !== FALSE && $shortcode_tracking !== NULL) {
                             $wpdb->update('xag_shortcodes_url_tracking', ['clicked' => 1], [
                                 'shortcode_id' => $shortcode['id'],
                                 'ip_address'   => sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']))
                             ]);
+
+
                         } else {
                             $wpdb->insert('xag_shortcodes_url_tracking', [
                                 'ip_address'   => sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'])),
                                 'shortcode_id' => $shortcode['id'],
-                                'date'         => $date,
+                                'date'         => $xagio_date,
                                 'clicked'      => 1,
                             ]);
                             sleep(0.2);
                         }
 
-                        wp_redirect($shortcode['url']);
+                        xagio_redirect($shortcode['url']);
                         exit;
                     } else {
-                        wp_redirect($u);
+                        xagio_redirect($u);
                         exit;
                     }
                 } else {
-                    wp_redirect($u);
+                    xagio_redirect($u);
                     exit;
                 }
             } else if (isset($_GET['xredirect'])) {
@@ -548,13 +550,13 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
 
                         $shortcode_tracking = $wpdb->get_row(
                             $wpdb->prepare(
-                                "SELECT * FROM xag_shortcodes_url_tracking WHERE date = %s AND shortcode_id = %d AND ip_address = %s", $date, $shortcode['id'], sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']))
+                                "SELECT * FROM xag_shortcodes_url_tracking WHERE date = %s AND shortcode_id = %d AND ip_address = %s", $xagio_date, $shortcode['id'], sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']))
                             ), ARRAY_A
                         );
 
-                        if ($shortcode_tracking !== FALSE) {
+                        if ($shortcode_tracking !== FALSE && $shortcode_tracking !== NULL) {
                             $wpdb->update('xag_shortcodes_url_tracking', ['clicked' => 1], [
-                                'date'         => $date,
+                                'date'         => $xagio_date,
                                 'shortcode_id' => $shortcode['id'],
                                 'ip_address'   => sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']))
                             ]);
@@ -562,20 +564,20 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                             $wpdb->insert('xag_shortcodes_url_tracking', [
                                 'ip_address'   => sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'])),
                                 'shortcode_id' => $shortcode['id'],
-                                'date'         => $date,
+                                'date'         => $xagio_date,
                                 'clicked'      => 1,
                             ]);
                             sleep(0.2);
                         }
 
-                        wp_redirect($shortcode['url']);
+                        xagio_redirect($shortcode['url']);
                         exit;
                     } else {
-                        wp_redirect($u);
+                        xagio_redirect($u);
                         exit;
                     }
                 } else {
-                    wp_redirect($u);
+                    xagio_redirect($u);
                     exit;
                 }
             }
@@ -593,13 +595,13 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
 
             // Initialize ID and retrieve redirect mask option
             $ID            = 0;
-            $redirect_mask = sanitize_text_field(get_option('XAGIO_REDIRECT_MASK', 'xredirect'));
+            $xagio_redirect_mask = sanitize_text_field(get_option('XAGIO_REDIRECT_MASK', 'xredirect'));
 
             // Determine the ID from the request
             if (isset($_POST['id'])) {
                 $ID = sanitize_text_field(wp_unslash($_POST['id']));
-            } elseif (isset($_REQUEST[$redirect_mask])) {
-                $ID = sanitize_text_field(wp_unslash($_REQUEST[$redirect_mask]));
+            } elseif (isset($_REQUEST[$xagio_redirect_mask])) {
+                $ID = sanitize_text_field(wp_unslash($_REQUEST[$xagio_redirect_mask]));
             } elseif (isset($_REQUEST['xredirect'])) {
                 $ID = sanitize_text_field(wp_unslash($_REQUEST['xredirect']));
             }
@@ -608,7 +610,7 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
             $table = isset($_REQUEST['masked']) ? 'xag_shortcodes_url_tracking' : 'xag_shortcodes_tracking';
 
             // Get the current date
-            $date = gmdate('Y-m-d');
+            $xagio_date = gmdate('Y-m-d');
 
             // Fetch the shortcode data
             $shortcode = false;
@@ -624,14 +626,14 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                 // Check if the shortcode tracking already exists for today
                 $shortcode_tracking = $wpdb->get_row(
                     $wpdb->prepare(
-                        "SELECT * FROM $table WHERE `date` = %s AND shortcode_id = %d AND ip_address = %s", $date, $shortcode['id'], sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']))
+                        "SELECT * FROM $table WHERE `date` = %s AND shortcode_id = %d AND ip_address = %s", $xagio_date, $shortcode['id'], sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']))
                     ), ARRAY_A
                 );
 
                 // Update or insert the tracking record
                 if ($shortcode_tracking != NULL) {
                     $wpdb->update($table, ['clicked' => 1], [
-                        'date'         => $date,
+                        'date'         => $xagio_date,
                         'shortcode_id' => $shortcode['id'],
                         'ip_address'   => sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']))
                     ]);
@@ -639,7 +641,7 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                     $wpdb->insert($table, [
                         'ip_address'   => sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'])),
                         'shortcode_id' => $shortcode['id'],
-                        'date'         => $date,
+                        'date'         => $xagio_date,
                         'clicked'      => 1,
                     ]);
                 }
@@ -666,7 +668,7 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
 
         }
 
-        public static function renderShortcode($atts = [], $content = '', $tag = '')
+        public static function renderShortcode($atts = [], $xagio_content = '', $tag = '')
         {
             if (!isset($_SERVER['REMOTE_ADDR'])) {
                 return '';
@@ -680,7 +682,7 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
 
             } else if ($tag === 'xagio_project_keyword') {
                 // Render!
-                $a = '<a class="prs-group-keyword" href="' . $atts['url'] . '"';
+                $a = '<a class="prs-group-keyword" href="' . esc_url($atts['url']) . '"';
 
                 if ($atts['target'] === 'true')
                     $a .= ' target="_blank"';
@@ -690,7 +692,7 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                 if ($atts['capitalize'] === 'true')
                     $atts['keyword'] = ucfirst(strtolower($atts['keyword']));
 
-                $a .= $atts['keyword'];
+                $a .= sanitize_text_field(wp_unslash($atts['keyword']));
                 $a .= '</a>';
                 return $a;
             } else {
@@ -709,23 +711,23 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                 // Track!
                 $ip_address   = sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']));
                 $shortcode_id = $shortcode['id'];
-                $date         = gmdate('Y-m-d');
+                $xagio_date         = gmdate('Y-m-d');
                 $isMasked     = '';
                 // Get tracking ID if visited today, if not, create
                 $tracking_id = NULL;
 
-                $redirect_mask = get_option('XAGIO_REDIRECT_MASK');
-                if (!$redirect_mask)
-                    $redirect_mask = 'xredirect';
+                $xagio_redirect_mask = get_option('XAGIO_REDIRECT_MASK');
+                if (!$xagio_redirect_mask)
+                    $xagio_redirect_mask = 'xredirect';
 
                 // Check if URL needs to be masked
                 if ($shortcode['mask'] == 1 || $atts['mask'] == 1) {
                     $isMasked         = 'masked';
-                    $shortcode['url'] = '/?' . $redirect_mask . '=' . $shortcode_id;
+                    $shortcode['url'] = '/?' . $xagio_redirect_mask . '=' . $shortcode_id;
 
                     $tracking = $wpdb->get_row(
                         $wpdb->prepare(
-                            "SELECT * FROM xag_shortcodes_url_tracking WHERE ip_address = %s AND date = %s AND shortcode_id = %d", $ip_address, $date, $shortcode_id
+                            "SELECT * FROM xag_shortcodes_url_tracking WHERE ip_address = %s AND date = %s AND shortcode_id = %d", $ip_address, $xagio_date, $shortcode_id
                         ), ARRAY_A
                     );
 
@@ -735,7 +737,7 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                         $wpdb->insert('xag_shortcodes_url_tracking', [
                             'ip_address'   => $ip_address,
                             'shortcode_id' => $shortcode_id,
-                            'date'         => $date,
+                            'date'         => $xagio_date,
                         ]);
                         $tracking_id = $wpdb->insert_id;
                     }
@@ -744,7 +746,7 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
 
                     $tracking = $wpdb->get_row(
                         $wpdb->prepare(
-                            "SELECT * FROM xag_shortcodes_tracking WHERE ip_address = %s AND date = %s AND shortcode_id = %d", $ip_address, $date, $shortcode_id
+                            "SELECT * FROM xag_shortcodes_tracking WHERE ip_address = %s AND date = %s AND shortcode_id = %d", $ip_address, $xagio_date, $shortcode_id
                         ), ARRAY_A
                     );
 
@@ -755,7 +757,7 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                         $wpdb->insert('xag_shortcodes_tracking', [
                             'ip_address'   => $ip_address,
                             'shortcode_id' => $shortcode_id,
-                            'date'         => $date,
+                            'date'         => $xagio_date,
                         ]);
                         $tracking_id = $wpdb->insert_id;
                     }
@@ -787,170 +789,166 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
             return '';
         }
 
-        public static function loadShortcodes()
-        {
+        public static function loadShortcodes() {
             check_ajax_referer('xagio_nonce', '_xagio_nonce');
 
             global $wpdb;
 
-            // Sanitize and validate input
-            $page   = isset($_POST['page']) ? max(0, intval($_POST['page'])) : 0; // Ensure page is at least 1
+            $page   = isset($_POST['page']) ? max(0, intval($_POST['page'])) : 0;
             $length = isset($_POST['total_entries']) ? intval($_POST['total_entries']) : 100;
 
-            // Validate and set proper length
             if ($length <= 0) {
-                $length = 100; // Default to 100 if invalid length
+                $length = 100;
             }
 
-            $group        = isset($_POST['group']) ? sanitize_text_field(wp_unslash($_POST['group'])) : 'all';
+            $xagio_group  = isset($_POST['group']) ? sanitize_text_field(wp_unslash($_POST['group'])) : 'all';
             $shortcode    = isset($_POST['shortcode']) ? sanitize_text_field(wp_unslash($_POST['shortcode'])) : '';
             $title        = isset($_POST['title']) ? sanitize_text_field(wp_unslash($_POST['title'])) : '';
-            $url          = isset($_POST['url']) ? sanitize_url(wp_unslash($_POST['url'])) : '';
-            $target_blank = isset($_POST['target_blank']) ? intval($_POST['target_blank']) : false;
-            $mask         = isset($_POST['mask']) ? intval($_POST['mask']) : false;
-            $nofollow     = isset($_POST['nofollow']) ? intval($_POST['nofollow']) : false;
+            $xagio_url    = isset($_POST['url']) ? esc_url_raw(wp_unslash($_POST['url'])) : '';
 
-            // Calculate offset with bounds checking
-            $offset = ($page - 1) * $length;
-            if ($offset < 0) {
-                $offset = 0;
+            // Calculate offset
+            $offset = $page * $length;
+
+            // "all" means no filter
+            if ($xagio_group === 'all') {
+                $xagio_group = '';
             }
 
-            // Set group to an empty string if 'all' is selected
-            if ($group === 'all') {
-                $group = '';
-            }
+            // Build LIKE values (values only, NOT SQL)
+            $shortcode_like = ($shortcode !== '') ? ('%' . $wpdb->esc_like($shortcode) . '%') : '';
+            $title_like     = ($title !== '') ? ('%' . $wpdb->esc_like($title) . '%') : '';
+            $url_like       = ($xagio_url !== '') ? ('%' . $wpdb->esc_like($xagio_url) . '%') : '';
 
-            // Prepare the query using proper escaping and placeholders
-            $where_conditions = [];
-            $query_values     = [];
+            // Filter flags + values (THIS is what your variables are for)
+            $filter_group     = ($xagio_group !== '') ? 1 : 0;
+            $filter_shortcode = ($shortcode_like !== '') ? 1 : 0;
+            $filter_title     = ($title_like !== '') ? 1 : 0;
+            $filter_url       = ($url_like !== '') ? 1 : 0;
 
-            if (!empty($group)) {
-                $where_conditions[] = 'group = %s';
-                $query_values[]     = $group;
-            }
+            $target_blank_raw = isset($_POST['target_blank']) ? (int) wp_unslash($_POST['target_blank']) : 0;
+            $mask_raw         = isset($_POST['mask']) ? (int) wp_unslash($_POST['mask']) : 0;
+            $nofollow_raw     = isset($_POST['nofollow']) ? (int) wp_unslash($_POST['nofollow']) : 0;
 
-            if (!empty($shortcode)) {
-                $where_conditions[] = 'shortcode = %s';
-                $query_values[]     = $shortcode;
-            }
+            $filter_target_blank = ($target_blank_raw === 1) ? 1 : 0;
+            $filter_mask         = ($mask_raw === 1) ? 1 : 0;
+            $filter_nofollow     = ($nofollow_raw === 1) ? 1 : 0;
 
-            if (!empty($title)) {
-                $where_conditions[] = 'title = %s';
-                $query_values[]     = $title;
-            }
+            $target_blank = 1;
+            $mask         = 1;
+            $nofollow     = 1;
 
-            if (!empty($url)) {
-                $where_conditions[] = 'url = %s';
-                $query_values[]     = $url;
-            }
+            // ---- COUNT (no dynamic WHERE clause, only placeholders) ----
+            $total_items = (int) $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT COUNT(*)
+             FROM xag_shortcodes
+             WHERE (%d = 0 OR `group` = %s)
+               AND (%d = 0 OR shortcode LIKE %s)
+               AND (%d = 0 OR title LIKE %s)
+               AND (%d = 0 OR url LIKE %s)
+               AND (%d = 0 OR target_blank = %d)
+               AND (%d = 0 OR mask = %d)
+               AND (%d = 0 OR nofollow = %d)",
+                    $filter_group, $xagio_group,
+                    $filter_shortcode, $shortcode_like,
+                    $filter_title, $title_like,
+                    $filter_url, $url_like,
+                    $filter_target_blank, $target_blank,
+                    $filter_mask, $mask,
+                    $filter_nofollow, $nofollow
+                )
+            );
 
-            if (!empty($_POST['target_blank'])) {
-                $where_conditions[] = 'target_blank = %d';
-                $query_values[]     = $target_blank;
-            }
-
-            if (!empty($_POST['mask'])) {
-                $where_conditions[] = 'mask = %d';
-                $query_values[]     = $mask;
-            }
-
-            if (!empty($_POST['nofollow'])) {
-                $where_conditions[] = 'nofollow = %d';
-                $query_values[]     = $nofollow;
-            }
-
-            $where_clause = "";
-            if (!empty($where_conditions)) {
-                $where_clause = ' WHERE ' . implode(' AND ', $where_conditions);
-            }
-
-            // First, get the total count without LIMIT
-            $count_query = "SELECT COUNT(*) as total FROM xag_shortcodes" . $where_clause;
-            $total_items = $wpdb->get_var($wpdb->prepare("$count_query", $query_values));
-
-            // Then, get the paginated results
-            $query_values[] = $offset;
-            $query_values[] = $length;
+            // ---- RESULTS (same filters + LIMIT) ----
             $results = $wpdb->get_results(
                 $wpdb->prepare(
-                    "SELECT * FROM xag_shortcodes {$where_clause} LIMIT %d, %d",
-                    ...$query_values
+                    "SELECT *
+             FROM xag_shortcodes
+             WHERE (%d = 0 OR `group` = %s)
+               AND (%d = 0 OR shortcode LIKE %s)
+               AND (%d = 0 OR title LIKE %s)
+               AND (%d = 0 OR url LIKE %s)
+               AND (%d = 0 OR target_blank = %d)
+               AND (%d = 0 OR mask = %d)
+               AND (%d = 0 OR nofollow = %d)
+             ORDER BY id DESC
+             LIMIT %d, %d",
+                    $filter_group, $xagio_group,
+                    $filter_shortcode, $shortcode_like,
+                    $filter_title, $title_like,
+                    $filter_url, $url_like,
+                    $filter_target_blank, $target_blank,
+                    $filter_mask, $mask,
+                    $filter_nofollow, $nofollow,
+                    absint($offset),
+                    absint($length)
                 ),
                 ARRAY_A
             );
 
-            // Calculate total pages
-            $pages = ($length > 0) ? ceil($total_items / $length) : 1;
+            $pages = ($length > 0) ? (int) ceil($total_items / $length) : 1;
 
-            // Ensure results is an array
             if (isset($results['id'])) {
                 $results = [$results];
             } elseif (empty($results)) {
                 $results = [];
             }
 
-            foreach ($results as &$result) {
-                if (!isset($result['id'])) {
+            foreach ($results as &$xagio_result) {
+                if (!isset($xagio_result['id'])) {
                     continue;
                 }
 
-                $ID = absint($result['id']);
+                $ID = absint($xagio_result['id']);
 
-                // Impressions
                 $impressions_data = $wpdb->get_results(
-                    $wpdb->prepare("SELECT id FROM xag_shortcodes_tracking WHERE shortcode_id = %d", $ID), ARRAY_A
+                    $wpdb->prepare("SELECT id FROM xag_shortcodes_tracking WHERE shortcode_id = %d", $ID),
+                    ARRAY_A
                 );
-
                 $impressions = is_array($impressions_data) ? count($impressions_data) : 0;
 
-                // Unique Clicks
                 $unique_clicks_data = $wpdb->get_results(
-                    $wpdb->prepare("SELECT id, ip_address FROM xag_shortcodes_tracking WHERE shortcode_id = %d AND clicked = %d", $ID, 1), ARRAY_A
+                    $wpdb->prepare("SELECT id, ip_address FROM xag_shortcodes_tracking WHERE shortcode_id = %d AND clicked = %d", $ID, 1),
+                    ARRAY_A
                 );
-
                 $unique_clicks = is_array($unique_clicks_data) ? count($unique_clicks_data) : 0;
 
-                // CTR calculation
-                $ctr = ($impressions > 0 && $unique_clicks > 0) ? (float)($unique_clicks / $impressions) * 100 : 0;
+                $ctr = ($impressions > 0 && $unique_clicks > 0) ? (float) ($unique_clicks / $impressions) * 100 : 0;
 
-                // URL Impressions
                 $url_impressions_data = $wpdb->get_results(
-                    $wpdb->prepare("SELECT id FROM xag_shortcodes_url_tracking WHERE shortcode_id = %d", $ID), ARRAY_A
+                    $wpdb->prepare("SELECT id FROM xag_shortcodes_url_tracking WHERE shortcode_id = %d", $ID),
+                    ARRAY_A
                 );
-
                 $url_impressions = is_array($url_impressions_data) ? count($url_impressions_data) : 0;
 
-                // URL Unique Clicks
                 $url_unique_clicks_data = $wpdb->get_results(
-                    $wpdb->prepare("SELECT id, ip_address FROM xag_shortcodes_url_tracking WHERE shortcode_id = %d AND clicked = %d", $ID, 1), ARRAY_A
+                    $wpdb->prepare("SELECT id, ip_address FROM xag_shortcodes_url_tracking WHERE shortcode_id = %d AND clicked = %d", $ID, 1),
+                    ARRAY_A
                 );
-
                 $url_unique_clicks = is_array($url_unique_clicks_data) ? count($url_unique_clicks_data) : 0;
 
-                // URL CTR calculation
-                $url_ctr = ($url_impressions > 0 && $url_unique_clicks > 0) ? (float)($url_unique_clicks / $url_impressions) * 100 : 0;
+                $url_ctr = ($url_impressions > 0 && $url_unique_clicks > 0) ? (float) ($url_unique_clicks / $url_impressions) * 100 : 0;
 
-                // Assign data back to the result
-                $result['impressions']       = $impressions;
-                $result['unique_clicks']     = $unique_clicks;
-                $result['ctr']               = $ctr;
-                $result['url_impressions']   = $url_impressions;
-                $result['url_unique_clicks'] = $url_unique_clicks;
-                $result['url_ctr']           = $url_ctr;
+                $xagio_result['impressions']       = $impressions;
+                $xagio_result['unique_clicks']     = $unique_clicks;
+                $xagio_result['ctr']               = $ctr;
+                $xagio_result['url_impressions']   = $url_impressions;
+                $xagio_result['url_unique_clicks'] = $url_unique_clicks;
+                $xagio_result['url_ctr']           = $url_ctr;
             }
+            unset($xagio_result);
 
-            // Retrieve mask option
-            $mask = sanitize_text_field(get_option('XAGIO_REDIRECT_MASK', ''));
+            $mask_option = sanitize_text_field(get_option('XAGIO_REDIRECT_MASK', ''));
 
-            // Return the results as a JSON response
             wp_send_json_success([
                 'rows'  => $results,
-                'mask'  => $mask,
+                'mask'  => $mask_option,
                 'pages' => $pages,
-                'total' => $count_query,
+                'total' => $total_items,
             ]);
         }
+
+
 
         public static function saveShortcode()
         {
@@ -960,42 +958,42 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
 
             // Sanitize and validate the ID and other inputs
             $id           = isset($_POST['id']) ? intval($_POST['id']) : 0;
-            $group        = isset($_POST['group']) ? sanitize_text_field(wp_unslash($_POST['group'])) : '';
+            $xagio_group        = isset($_POST['group']) ? sanitize_text_field(wp_unslash($_POST['group'])) : '';
             $title        = isset($_POST['title']) ? sanitize_text_field(wp_unslash($_POST['title'])) : '';
             $shortcode    = isset($_POST['shortcode']) ? sanitize_text_field(wp_unslash($_POST['shortcode'])) : '';
-            $url          = isset($_POST['url']) ? sanitize_url(wp_unslash($_POST['url'])) : '';
+            $xagio_url          = isset($_POST['url']) ? sanitize_url(wp_unslash($_POST['url'])) : '';
             $target_blank = isset($_POST['target_blank']) ? intval($_POST['target_blank']) : 0;
             $nofollow     = isset($_POST['nofollow']) ? intval($_POST['nofollow']) : 0;
             $mask         = isset($_POST['mask']) ? intval($_POST['mask']) : 0;
-            $name         = isset($_POST['name']) ? sanitize_text_field(wp_unslash($_POST['name'])) : '';
+            $xagio_name         = isset($_POST['name']) ? sanitize_text_field(wp_unslash($_POST['name'])) : '';
             $image        = isset($_POST['image']) ? sanitize_url(wp_unslash($_POST['image'])) : '';
 
             // Prepare data for insertion or update
             $data = [
-                'group'         => $group,
+                'group'         => $xagio_group,
                 'title'         => $title,
                 'shortcode'     => $shortcode,
-                'url'           => $url,
+                'url'           => $xagio_url,
                 'target_blank'  => $target_blank,
                 'nofollow'      => $nofollow,
                 'mask'          => $mask,
-                'name'          => $name,
+                'name'          => $xagio_name,
                 'image'         => $image
             ];
 
             // Determine whether to insert or update
             if ($id === 0) {
                 $wpdb->insert('xag_shortcodes', $data);
-                $result = $wpdb->insert_id;
+                $xagio_result = $wpdb->insert_id;
             } else {
-                $result = $wpdb->update('xag_shortcodes', $data, ['id' => $id]);
+                $xagio_result = $wpdb->update('xag_shortcodes', $data, ['id' => $id]);
             }
 
             // Handle the result and send a JSON response
-            if (is_wp_error($result)) {
-                xagio_json('error', $result->get_error_message());
+            if (is_wp_error($xagio_result)) {
+                xagio_json('error', $xagio_result->get_error_message());
             } else {
-                xagio_json('success', 'Shortcode successfully saved!', $result);
+                xagio_json('success', 'Shortcode successfully saved!', $xagio_result);
             }
         }
 

@@ -35,55 +35,55 @@ if (!class_exists('XAGIO_MODEL_REVIEWWIDGETDISPLAY')) {
             parent::__construct(FALSE, '[Xagio] - Review Widget', $widget_ops);
         }
 
-        function widget($args, $instance)
+        function widget($xagio_args, $xagio_instance)
         {
 
-            $render = function ($args, $instance) {
+            $render = function ($xagio_args, $xagio_instance) {
                 include(XAGIO_PATH . '/modules/reviews/metabox/review_form.php');
             };
 
-            $render($args, $instance);
+            $render($xagio_args, $xagio_instance);
         }
 
         function update($new_instance, $old_instance)
         {
-            $instance = [];
+            $xagio_instance = [];
 
-            if(isset($instance['popup_mode'])) {
-                $instance['popup_mode'] = $new_instance['popup_mode'];
+            if(isset($xagio_instance['popup_mode'])) {
+                $xagio_instance['popup_mode'] = $new_instance['popup_mode'];
             }
 
-            if(isset($instance['stars_only'])) {
-                $instance['stars_only'] = $new_instance['stars_only'];
+            if(isset($xagio_instance['stars_only'])) {
+                $xagio_instance['stars_only'] = $new_instance['stars_only'];
             }
 
-            if(isset($instance['alpha_mode'])) {
-                $instance['alpha_mode'] = $new_instance['alpha_mode'];
+            if(isset($xagio_instance['alpha_mode'])) {
+                $xagio_instance['alpha_mode'] = $new_instance['alpha_mode'];
             }
 
-            return $instance;
+            return $xagio_instance;
         }
 
-        function form($instance)
+        function form($xagio_instance)
         {
 
             $popup_mode = '';
-            if (isset($instance['popup_mode'])) {
-                if ($instance['popup_mode'] == 1) {
+            if (isset($xagio_instance['popup_mode'])) {
+                if ($xagio_instance['popup_mode'] == 1) {
                     $popup_mode = 'checked';
                 }
             }
 
             $alpha_mode = '';
-            if (isset($instance['alpha_mode'])) {
-                if ($instance['alpha_mode'] == 1) {
+            if (isset($xagio_instance['alpha_mode'])) {
+                if ($xagio_instance['alpha_mode'] == 1) {
                     $alpha_mode = 'checked';
                 }
             }
 
             $stars_only = '';
-            if (isset($instance['stars_only'])) {
-                if ($instance['stars_only'] == 1) {
+            if (isset($xagio_instance['stars_only'])) {
+                if ($xagio_instance['stars_only'] == 1) {
                     $stars_only = 'checked';
                 }
             }

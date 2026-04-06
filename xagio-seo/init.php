@@ -21,21 +21,29 @@ define('XAGIO_HIDDEN', filter_var(get_option('XAGIO_HIDDEN'), FILTER_VALIDATE_BO
 /**
  * Extract version info from plugin file
  */
-$version = get_file_data(XAGIO_PATH . '/' . XAGIO_SLUG_NAME . '.php', ['Version' => 'Version']);
-define('XAGIO_CURRENT_VERSION', $version['Version']);
+$xagio_version = get_file_data(XAGIO_PATH . '/' . XAGIO_SLUG_NAME . '.php', ['Version' => 'Version']);
+define('XAGIO_CURRENT_VERSION', $xagio_version['Version']);
 
 /**
  * Define the domain name, removing 'www.'
  */
-define('XAGIO_DOMAIN', str_replace('www.', '', wp_parse_url(get_site_url(), PHP_URL_HOST)));
+define('XAGIO_DOMAIN', preg_replace('/^www\./', '', wp_parse_url(get_site_url(), PHP_URL_HOST)));
 
 /**
  * Include helpers
  */
-require_once 'helpers.php';
 
-// Check for Permissions
-define('XAGIO_HAS_ADMIN_PERMISSIONS', xagio_current_user_can('manage_options'));
+if (file_exists(XAGIO_PATH . '/helpers.php')) {
+    require_once XAGIO_PATH . '/helpers.php';
+} else {
+    add_action('admin_notices', function () {
+        echo '<div class="notice notice-error is-dismissible">';
+        echo '<p><strong>Xagio Notice:</strong> Some core system files appear to be missing or corrupted. Please reinstall Xagio to restore full functionality.</p>';
+        echo '</div>';
+    });
+
+    return;
+}
 
 $xagio_global_js = [
     'xagio_main'
@@ -64,13 +72,13 @@ if (!defined('XAGIO_AUTH_SALT')) {
 /**
  * Load all class dependencies from the 'inc' directory
  */
-$files = glob(XAGIO_PATH . '/inc/xagio_*.php');
-foreach ($files as $file) {
-    require_once $file;
-    $class = strtoupper(str_replace('.php', '', basename($file)));
-    if (class_exists($class) && method_exists($class, 'initialize')) {
+$xagio_files = glob(XAGIO_PATH . '/inc/xagio_*.php');
+foreach ($xagio_files as $xagio_file) {
+    require_once $xagio_file;
+    $xagio_class = strtoupper(str_replace('.php', '', basename($xagio_file)));
+    if (class_exists($xagio_class) && method_exists($xagio_class, 'initialize')) {
         call_user_func([
-            $class,
+            $xagio_class,
             'initialize'
         ]);
     }

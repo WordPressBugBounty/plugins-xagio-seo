@@ -71,7 +71,7 @@ if (!class_exists('XAGIO_MODEL_SHARED_PROJECT')) {
                 exit;
             }
 
-            $response = wp_remote_get(sprintf(XAGIO_PANEL_URL . "/api/info?license_email=%s&license_key=%s&type=%s", XAGIO_LICENSE_EMAIL, XAGIO_LICENSE_KEY, "shared_project"), [
+            $xagio_response = wp_remote_get(sprintf(XAGIO_PANEL_URL . "/api/info?license_email=%s&license_key=%s&type=%s", XAGIO_LICENSE_EMAIL, XAGIO_LICENSE_KEY, "shared_project"), [
                 'user-agent'  => "Xagio - " . XAGIO_CURRENT_VERSION . " ($domain)",
                 'timeout'     => 30,
                 'redirection' => 5,
@@ -80,10 +80,10 @@ if (!class_exists('XAGIO_MODEL_SHARED_PROJECT')) {
             ]);
 
             $user_details = [];
-            if (!is_wp_error($response)) {
-                if (isset($response['body'])) {
-                    if(isset($response['response']['code']) && $response['response']['code'] === 200) {
-                        $user_details = json_decode($response['body'], TRUE);
+            if (!is_wp_error($xagio_response)) {
+                if (isset($xagio_response['body'])) {
+                    if(isset($xagio_response['response']['code']) && $xagio_response['response']['code'] === 200) {
+                        $user_details = json_decode($xagio_response['body'], TRUE);
                         $user_details = $user_details['user_details'];
                     }
                 }
@@ -110,8 +110,8 @@ if (!class_exists('XAGIO_MODEL_SHARED_PROJECT')) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $url = sanitize_text_field(wp_unslash($_SERVER['REQUEST_URI']));
-            return preg_match("/\/shared-seo-report(.*)/", $url);
+            $xagio_url = sanitize_text_field(wp_unslash($_SERVER['REQUEST_URI']));
+            return preg_match("/\/shared-seo-report(.*)/", $xagio_url);
         }
 
         public static function loadSharedProject()
@@ -121,10 +121,10 @@ if (!class_exists('XAGIO_MODEL_SHARED_PROJECT')) {
             }
 
             // Get the current URL
-            $url    = sanitize_url(wp_unslash($_SERVER['REQUEST_URI']));
+            $xagio_url    = sanitize_url(wp_unslash($_SERVER['REQUEST_URI']));
             $domain = XAGIO_MODEL_BACKUPS::getName(site_url());
 
-            if (preg_match("/\/shared-seo-report(.*)/", $url, $matches)) {
+            if (preg_match("/\/shared-seo-report(.*)/", $xagio_url, $matches)) {
                 // If hash parameter is not set exit;
                 if (!isset($_GET['hash'])) {
                     header("HTTP/1.1 404 Not found");
@@ -166,23 +166,23 @@ if (!class_exists('XAGIO_MODEL_SHARED_PROJECT')) {
                 $group_ids = [];
 
                 // Process the results
-                foreach ($results as &$result) {
-                    $result['h1']          = stripslashes($result['h1'] ?? "");
-                    $result['title']       = stripslashes($result['title'] ?? "");
-                    $result['description'] = stripslashes($result['description'] ?? "");
+                foreach ($results as &$xagio_result) {
+                    $xagio_result['h1']          = stripslashes($xagio_result['h1'] ?? "");
+                    $xagio_result['title']       = stripslashes($xagio_result['title'] ?? "");
+                    $xagio_result['description'] = stripslashes($xagio_result['description'] ?? "");
 
-                    $group_ids[] = $result['id'];
+                    $group_ids[] = $xagio_result['id'];
                 }
 
                 // If there are group IDs, prepare and execute the second query
                 if (!empty($group_ids)) {
                     // Create placeholders for the group IDs
-                    $placeholders = implode(',', array_fill(0, count($group_ids), '%d'));
+                    $xagio_placeholders = implode(',', array_fill(0, count($group_ids), '%d'));
 
                     // Prepare the second query using the placeholders
                     $keywords = $wpdb->get_results(
                         $wpdb->prepare(
-                            "SELECT * FROM `xag_keywords` WHERE group_id IN ($placeholders) ORDER BY position ASC", ...$group_ids
+                            "SELECT * FROM `xag_keywords` WHERE group_id IN ($xagio_placeholders) ORDER BY position ASC", ...$group_ids
                         ), ARRAY_A
                     );
 

@@ -170,40 +170,74 @@
                      btn.disable();
                      if (d.status == 'success') {
 
-                         $('#tracking_charts').empty();
+                         var ctx = document.getElementById('tracking_charts').getContext('2d');
+                         if (window.chartInstance) {
+                             window.chartInstance.destroy(); // Clear existing chart
+                         }
 
                          if (d.data.length > 1) {
-                             var formatted_data = [];
+                             var formatted_labels = [];
+                             var formatted_values = [];
                              var raw_data = d.data;
-                             for (var i = 0; i < raw_data.length; i++) {
+
+                             for (var i = 1; i < raw_data.length; i++) { // Skip the header row
                                  var obj = raw_data[i];
-                                 if (i !== 0) {
-                                     obj[0] = new Date(obj[0]);
-                                 }
-                                 formatted_data.push(obj);
+                                 formatted_labels.push(obj[0]); // Dates
+                                 formatted_values.push(obj[1]); // Values
                              }
 
-                             var data = google.visualization.arrayToDataTable(formatted_data);
-
-                             var options = {
-                                 title: 'Shortcode Tracking Details',
-                                 hAxis: {
-                                     title         : 'Date',
-                                     titleTextStyle: {color: '#333'}
-                                 },
-                                 vAxis: {minValue: 0}
+                             // Prepare the data for Chart.js
+                             var chartData = {
+                                 labels: formatted_labels,
+                                 datasets: [{
+                                     label: 'Shortcode Tracking Details',
+                                     data: formatted_values,
+                                     fill: true,
+                                     backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                     borderColor: 'rgba(75, 192, 192, 1)',
+                                     borderWidth: 1
+                                 }]
                              };
 
-                             var chart = new google.visualization.AreaChart(document.getElementById('tracking_charts'));
-                             chart.draw(data, options);
+                             var chartOptions = {
+                                 responsive: true,
+                                 maintainAspectRatio: false,
+                                 scales: {
+                                     x: {
+                                         title: {
+                                             display: true,
+                                             text: 'Date',
+                                             color: '#333'
+                                         }
+                                     },
+                                     y: {
+                                         min: 0,
+                                         title: {
+                                             display: true,
+                                             text: 'Value'
+                                         }
+                                     }
+                                 }
+                             };
+
+                             // Render the chart using Chart.js
+                             window.chartInstance = new Chart(ctx, {
+                                 type: 'line',
+                                 data: chartData,
+                                 options: chartOptions
+                             });
+
                          } else {
-                             $('#tracking_charts').append('<p><i class="xagio-icon xagio-icon-warning"></i> There is not enough tracking data. Please use your shortcode in some of your posts/pages in order to start tracking impressions/unique clicks.</p>');
+                             ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                             ctx.font = '11px Arial';
+                             ctx.fillText('There is not enough tracking data.', 10, 50);
                          }
 
                      } else {
                          xagioNotify(d.status, d.message);
                      }
                  });
+
             });
         },
         shortcodeUrlTracking        : function () {
@@ -222,34 +256,67 @@
                      btn.disable();
                      if (d.status == 'success') {
 
-                         $('#url_tracking_charts').empty();
+                         var ctx = document.getElementById('tracking_charts_url').getContext('2d');
+                         if (window.chartInstanceUrl) {
+                             window.chartInstanceUrl.destroy(); // Clear existing chart
+                         }
 
                          if (d.data.length > 1) {
-                             var formatted_data = [];
+                             var formatted_labels = [];
+                             var formatted_values = [];
                              var raw_data = d.data;
-                             for (var i = 0; i < raw_data.length; i++) {
+
+                             for (var i = 1; i < raw_data.length; i++) { // Skip the header row
                                  var obj = raw_data[i];
-                                 if (i !== 0) {
-                                     obj[0] = new Date(obj[0]);
-                                 }
-                                 formatted_data.push(obj);
+                                 formatted_labels.push(obj[0]); // Dates
+                                 formatted_values.push(obj[1]); // Values
                              }
 
-                             var data = google.visualization.arrayToDataTable(formatted_data);
-
-                             var options = {
-                                 title: 'Shortcode Masked URL Tracking Details',
-                                 hAxis: {
-                                     title         : 'Date',
-                                     titleTextStyle: {color: '#333'}
-                                 },
-                                 vAxis: {minValue: 0}
+                             // Prepare the data for Chart.js
+                             var chartData = {
+                                 labels: formatted_labels,
+                                 datasets: [{
+                                     label: 'Shortcode Masked URL Tracking Details',
+                                     data: formatted_values,
+                                     fill: true,
+                                     backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                                     borderColor: 'rgba(153, 102, 255, 1)',
+                                     borderWidth: 1
+                                 }]
                              };
 
-                             var chart = new google.visualization.AreaChart(document.getElementById('url_tracking_charts'));
-                             chart.draw(data, options);
+                             var chartOptions = {
+                                 responsive: true,
+                                 maintainAspectRatio: false,
+                                 scales: {
+                                     x: {
+                                         title: {
+                                             display: true,
+                                             text: 'Date',
+                                             color: '#333'
+                                         }
+                                     },
+                                     y: {
+                                         min: 0,
+                                         title: {
+                                             display: true,
+                                             text: 'Value'
+                                         }
+                                     }
+                                 }
+                             };
+
+                             // Render the chart using Chart.js
+                             window.chartInstanceUrl = new Chart(ctx, {
+                                 type: 'line',
+                                 data: chartData,
+                                 options: chartOptions
+                             });
+
                          } else {
-                             $('#url_tracking_charts').append('<p><i class="xagio-icon xagio-icon-warning"></i> There is not enough tracking data. Please use your shortcode in some of your posts/pages in order to start tracking impressions/unique clicks.</p>');
+                             ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                             ctx.font = '11px Arial';
+                             ctx.fillText('There is not enough tracking data.', 10, 50);
                          }
 
                      } else {
@@ -477,6 +544,23 @@
                 var target = $(this).data('target');
                 $(this).parents('.xagio-modal').append("<div id='TB_window'></div>");
                 tb_show('', 'media-upload.php?type=image&amp;TB_iframe=true');
+
+                $('#TB_iframeContent').on('load', function () {
+                    const iframe = this.contentWindow || this.contentDocument;
+                    const doc = iframe.document || iframe;
+
+                    const style = doc.createElement('style');
+                    style.textContent = `
+                        .media-item {
+                          display: inline-block;
+                        }
+                        form#filter {
+                          width: unset !important;
+                        }
+                      `;
+                    doc.head.appendChild(style);
+                });
+
                 window.send_to_editor = function (html) {
                     var img = $(html).attr('src');
                     $('#' + target).val(img).trigger('change');

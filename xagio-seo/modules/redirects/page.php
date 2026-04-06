@@ -7,14 +7,27 @@
  * Slug: xagio-redirects
  * Parent_Slug: xagio-dashboard
  * Icon: /assets/img/logo-menu-xagio.webp
- * JavaScript: media-upload,thickbox,xagio_ajaxq,xagio_datatables,xagio_redirects
- * Css: thickbox,xagio_redirects,xagio_datatables
+ * JavaScript: xagio_select2,media-upload,thickbox,xagio_ajaxq,xagio_datatables,xagio_redirects
+ * Css: xagio_select2,thickbox,xagio_redirects,xagio_datatables
  * Position: 7
  * Version: 1.0.0
  */
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
-$MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
+$XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
+
+// Get all post types dynamically
+$xagio_post_types = get_post_types(['public' => true], 'names');
+// Get all posts, pages, and CPTs
+$xagio_all_posts = get_posts(['post_type' => $xagio_post_types, 'posts_per_page' => -1]);
+
+$xagio_grouped_posts = [];
+foreach ($xagio_all_posts as $post) {
+    if ($post->post_title) {
+        $xagio_grouped_posts[$post->post_type][] = $post;
+    }
+}
+
 ?>
 <div class="xagio-main-header xagio-main-header-big-gaps">
     <img class="logo-image repo-xagio" src="<?php echo   esc_url(XAGIO_URL); ?>assets/img/logo-xagio.webp"/>
@@ -24,7 +37,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
     <div class="xagio-header-actions">
         <button class="xagio-button xagio-button-primary add-new-redirect"><i class="xagio-icon xagio-icon-plus"></i> Add New Redirect</button>
         <button class="xagio-button xagio-button-primary" id="csv_file_modal"><i class="xagio-icon xagio-icon-upload"></i> Upload CSV File</button>
-        <?php if(isset($MEMBERSHIP_INFO["membership"]) && $MEMBERSHIP_INFO["membership"] === "Xagio AI Free") { ?>
+        <?php if(isset($XAGIO_MEMBERSHIP_INFO["membership"]) && $XAGIO_MEMBERSHIP_INFO["membership"] === "Xagio AI Free") { ?>
             <a href="https://xagio.com/?goto=wppremfeatures" target="_blank" class="xagio-button xagio-button-secondary xagio-button-premium-button">
                 See Xagio Premium Features
             </a>
@@ -81,7 +94,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                         </thead>
                         <tbody>
                         <tr>
-                            <td colspan="5">Can't find any active redirects.</td>
+                            <td colspan="5" class="xagio-text-center">Can't find any active redirects.</td>
                         </tr>
                         </tbody>
                     </table>
@@ -97,6 +110,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                     </div>
 
                     <div class="xagio-flex-right xagio-flex-gap-small">
+                        <button type="button" class="xagio-button xagio-button-primary retrieve-metrics" style="display:none;"><i class="xagio-icon xagio-icon-magnifying-glass-chart"></i> <span>Track Referers (<span class="selected-refs-count"></span>)</span></button>
                         <button type="button" class="xagio-button xagio-button-primary remove-selected-log404" style="display:none;"><i class="xagio-icon xagio-icon-delete"></i> <span>Remove Selected (<span class="selected-logs-count"></span>)</span></button>
                         <button type="button" title="Export 404s Log" class="xagio-button xagio-button-primary export_404s_log"><i class="xagio-icon xagio-icon-download"></i> Export Logs</button>
                         <button type="button" class="xagio-button xagio-button-primary clear-log404"><i class="xagio-icon xagio-icon-delete"></i> Clear Logs</button>
@@ -189,25 +203,25 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                     <div class="xagio-2-column-grid xagio-margin-top-medium">
                         <div class="xagio-column-1 xagio-padding-right-medium">
                             <!-- Set global 404 to 301 redirections -->
-                            <?php $prsGlobal404RedirectUrl = get_option('XAGIO_GLOBAL_404_REDIRECTION_URL'); ?>
+                            <?php $xagio_prsGlobal404RedirectUrl = get_option('XAGIO_GLOBAL_404_REDIRECTION_URL'); ?>
                             <h3 class="pop">Global 301 Redirect URL <i class="xagio-icon xagio-icon-info" data-xagio-tooltip data-xagio-title="This will allow to redirect all 404 URLs to this 301 URL (If not added redirect in 301 redirect section) but track of 404s log will not disabled. (DANGER: Creating invalid redirects may result in breaking of your website)"></i></h3>
-                            <input type="url" class="xagio-input-text-mini" name="XAGIO_GLOBAL_404_REDIRECTION_URL" placeholder="http://testsite.com" value="<?php echo  $prsGlobal404RedirectUrl ? esc_attr($prsGlobal404RedirectUrl) : '' ?>"/>
+                            <input type="url" class="xagio-input-text-mini" name="XAGIO_GLOBAL_404_REDIRECTION_URL" placeholder="http://testsite.com" value="<?php echo  $xagio_prsGlobal404RedirectUrl ? esc_attr($xagio_prsGlobal404RedirectUrl) : '' ?>"/>
                         </div>
                         <div class="xagio-column-2">
                             <!-- Select maximum log limit -->
-                            <?php $prsMaxLogLimit = get_option('XAGIO_MAX_LOG_LIMIT'); ?>
+                            <?php $xagio_prsMaxLogLimit = get_option('XAGIO_MAX_LOG_LIMIT'); ?>
                             <h3 class="pop">Maximum Log Entries <i class="xagio-icon xagio-icon-info" data-xagio-tooltip data-xagio-title="This will allow to choose amount of fresh logs to keep before deleting oldest."></i></h3>
-                            <input type="text" class="xagio-input-text-mini" id="XAGIO_MAX_LOG_LIMIT" name="XAGIO_MAX_LOG_LIMIT" placeholder="Set maximum log limit" value="<?php echo  $prsMaxLogLimit ? esc_attr($prsMaxLogLimit) : '' ?>"/>
+                            <input type="text" class="xagio-input-text-mini" id="XAGIO_MAX_LOG_LIMIT" name="XAGIO_MAX_LOG_LIMIT" placeholder="Set maximum log limit" value="<?php echo  $xagio_prsMaxLogLimit ? esc_attr($xagio_prsMaxLogLimit) : '' ?>"/>
                         </div>
                     </div>
 
 
                     <!-- Ignored URLs -->
-                    <?php $ignoredUrls = get_option('XAGIO_IGNORE_404_URLS');
-                    $ignoredUrls = implode("\n", $ignoredUrls); ?>
+                    <?php $xagio_ignoredUrls = get_option('XAGIO_IGNORE_404_URLS');
+                    $xagio_ignoredUrls = implode("\n", $xagio_ignoredUrls); ?>
                     <div class="m-t-20">
                         <h3 class="pop">URLs to Ignore <i class="xagio-icon xagio-icon-info" data-xagio-tooltip data-xagio-title="This will allow users to filter out vists to specific filetypes or paths. Insert URLs separated by a new line. (e.g. */xmlrpc.php , *.png)"></i></h3>
-                        <textarea id="ignored-urls-list" name="ignored-urls-list" rows="6" placeholder="e.g. */xmlrpc.php OR */xmlrpc.php/" class="xagio-input-textarea"><?php echo  $ignoredUrls ? esc_textarea($ignoredUrls) : ''; ?></textarea>
+                        <textarea id="ignored-urls-list" name="ignored-urls-list" rows="6" placeholder="e.g. */xmlrpc.php OR */xmlrpc.php/" class="xagio-input-textarea"><?php echo  $xagio_ignoredUrls ? esc_textarea($xagio_ignoredUrls) : ''; ?></textarea>
                     </div>
 
                     <div class="xagio-flex-right xagio-margin-top-large">
@@ -220,6 +234,135 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
     </div>
 
 </div>
+
+
+<!-- Add Redirect Modal -->
+<dialog id="addRedirectModal" class="xagio-modal">
+    <div class="xagio-modal-header">
+        <h3 class="xagio-modal-title"><i class="xagio-icon xagio-icon-plus"></i> Add Redirect</h3>
+        <button class="xagio-modal-close"><i class="xagio-icon xagio-icon-close"></i></button>
+    </div>
+    <div class="xagio-modal-body">
+        <label for="redirect_select" class="modal-label">Select a page/post from the dropdown: </label>
+
+        <select id="redirect_select">
+            <option></option>
+                <?php foreach ($xagio_grouped_posts as $post_type => $posts) { ?>
+                    <optgroup label="<?php echo esc_html(ucfirst($post_type)) ?>">
+                        <?php foreach ($posts as $post) { ?>
+                            <option value="<?php echo esc_attr($post->post_name); ?>"><?php echo esc_html($post->post_title); ?></option>
+                        <?php } ?>
+                    </optgroup>
+                <?php } ?>
+        </select>
+
+        <div class="xagio-margin-top-small">
+            <label for="old_url" class="modal-label">or add url manually (use the /oldurl/ format)</label>
+            <input type="text" class="xagio-input-text-mini" id="old_url" placeholder="e.g. /oldurl/ ">
+        </div>
+
+        <div class="xagio-flex-right xagio-flex-gap-medium xagio-margin-top-medium">
+            <button type="button" class="xagio-button xagio-button-outline" data-xagio-close-modal><i class="xagio-icon xagio-icon-close"></i> Cancel</button>
+            <button type="button" class="xagio-button xagio-button-primary redirect-next-step"><i class="xagio-icon xagio-icon-check"></i> Continue</button>
+        </div>
+    </div>
+</dialog>
+
+<!-- Add Redirect To Modal -->
+<dialog id="addRedirectToModal" class="xagio-modal">
+    <div class="xagio-modal-header">
+        <h3 class="xagio-modal-title"><i class="xagio-icon xagio-icon-info"></i> Confirm New URL:</h3>
+        <button class="xagio-modal-close"><i class="xagio-icon xagio-icon-close"></i></button>
+    </div>
+
+    <div class="xagio-modal-body">
+        <label for="redirect-to-select" class="modal-label">Select a page/post from the dropdown: </label>
+        <select id="redirect-to-select">
+            <option></option>
+            <?php foreach ($xagio_grouped_posts as $post_type => $posts) { ?>
+                <optgroup label="<?php echo esc_html(ucfirst($post_type)) ?>">
+                    <?php foreach ($posts as $post) { ?>
+                        <option value="<?php echo esc_attr($post->post_name); ?>"><?php echo esc_html($post->post_title); ?></option>
+                    <?php } ?>
+                </optgroup>
+            <?php } ?>
+        </select>
+
+        <div class="xagio-margin-top-small">
+            <label for="redirect-to-input" class="modal-label">or edit url manually (use the /oldurl/ format)</label>
+            <input type="text" class="xagio-input-text-mini" id="redirect-to-input" placeholder="e.g. oldurl ">
+        </div>
+
+        <div class="xagio-flex-right xagio-flex-gap-medium xagio-margin-top-medium">
+            <button type="button" class="xagio-button xagio-button-outline" data-xagio-close-modal><i class="xagio-icon xagio-icon-close"></i> Cancel</button>
+            <button type="button" class="xagio-button xagio-button-primary submit-redirect"><i class="xagio-icon xagio-icon-check"></i> Continue</button>
+        </div>
+    </div>
+</dialog>
+
+<!-- Edit Redirect Modal -->
+<dialog id="editRedirectModal" class="xagio-modal">
+    <div class="xagio-modal-header">
+        <h3 class="xagio-modal-title"><i class="xagio-icon xagio-icon-edit"></i> Edit Redirect: <span></span></h3>
+        <button class="xagio-modal-close"><i class="xagio-icon xagio-icon-close"></i></button>
+    </div>
+    <div class="xagio-modal-body">
+        <label for="edit_redirect_select" class="modal-label">Select a page/post from the dropdown: </label>
+
+        <select id="edit_redirect_select">
+            <option></option>
+            <?php foreach ($xagio_grouped_posts as $post_type => $posts) { ?>
+                <optgroup label="<?php echo esc_html(ucfirst($post_type)) ?>">
+                    <?php foreach ($posts as $post) { ?>
+                        <option value="<?php echo esc_attr($post->post_name); ?>"><?php echo esc_html($post->post_title); ?></option>
+                    <?php } ?>
+                </optgroup>
+            <?php } ?>
+        </select>
+
+        <div class="xagio-margin-top-small">
+            <label for="edit_old_url" class="modal-label">or edit url manually</label>
+            <input type="text" class="xagio-input-text-mini" id="edit_old_url" placeholder="e.g. oldurl ">
+        </div>
+
+        <div class="xagio-flex-right xagio-flex-gap-medium xagio-margin-top-medium">
+            <button type="button" class="xagio-button xagio-button-outline" data-xagio-close-modal><i class="xagio-icon xagio-icon-close"></i> Cancel</button>
+            <button type="button" class="xagio-button xagio-button-primary edit-redirect-next-step"><i class="xagio-icon xagio-icon-check"></i> Continue</button>
+        </div>
+    </div>
+</dialog>
+
+<!-- Redirect To Modal -->
+<dialog id="redirectToModal" class="xagio-modal">
+    <div class="xagio-modal-header">
+        <h3 class="xagio-modal-title"><i class="xagio-icon xagio-icon-info"></i> Confirm Editing URL: <span></span></h3>
+        <button class="xagio-modal-close"><i class="xagio-icon xagio-icon-close"></i></button>
+    </div>
+
+    <div class="xagio-modal-body">
+        <label for="editing-new-url" class="modal-label">Select a page/post from the dropdown: </label>
+        <select id="editing-new-url">
+            <option></option>
+            <?php foreach ($xagio_grouped_posts as $post_type => $posts) { ?>
+                <optgroup label="<?php echo esc_html(ucfirst($post_type)) ?>">
+                    <?php foreach ($posts as $post) { ?>
+                        <option value="<?php echo esc_attr($post->post_name); ?>"><?php echo esc_html($post->post_title); ?></option>
+                    <?php } ?>
+                </optgroup>
+            <?php } ?>
+        </select>
+
+        <div class="xagio-margin-top-small">
+            <label for="edit_new_url" class="modal-label">or edit url manually</label>
+            <input type="text" class="xagio-input-text-mini" id="edit_new_url" placeholder="e.g. oldurl ">
+        </div>
+
+        <div class="xagio-flex-right xagio-flex-gap-medium xagio-margin-top-medium">
+            <button type="button" class="xagio-button xagio-button-outline" data-xagio-close-modal><i class="xagio-icon xagio-icon-close"></i> Cancel</button>
+            <button type="button" class="xagio-button xagio-button-primary submit-edit-url"><i class="xagio-icon xagio-icon-check"></i> Continue</button>
+        </div>
+    </div>
+</dialog>
 
 <!-- Delete Keywords -->
 <dialog id="confirmAddRedirects" class="xagio-modal">
@@ -235,6 +378,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
         </div>
     </div>
 </dialog>
+
 <!-- Add Bulk Redirects By CSV -->
 <dialog id="csv_modal" class="xagio-modal">
     <div class="xagio-modal-header">

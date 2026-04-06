@@ -17,7 +17,7 @@ if (!defined('ABSPATH'))
 
 global $wpdb;
 
-$MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
+$XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 
 ?>
 
@@ -34,6 +34,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
             <?php
         } ?>
         <a href="#" class="xagio-circle-btn xagio-circle-btn-primary view-changelog" data-xagio-tooltip data-xagio-tooltip-position="bottom" data-xagio-title="View Readme"><i class="xagio-icon xagio-icon-file"></i></a>
+        <a target="_blank" data-img="<?php echo esc_url(plugins_url('xagio-seo/assets/img/logo-xagio-white-bg.png')); ?>" href="https://docs.xagio.com/" class="xagio-rounded-btn xagio-rounded-btn-primary whats-new"><i class="xagio-icon xagio-icon-question-circle"></i> Visit HelpDocs</a>
     </div>
 </div>
 
@@ -215,7 +216,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                 <img src="<?php echo esc_url(get_avatar_url(esc_attr(XAGIO_LICENSE_EMAIL)));?>">
                 <div>
                     <p>Welcome,</p>
-                    <p class="welcome-name"><?php echo esc_attr($MEMBERSHIP_INFO['first_name'] . ' ' . $MEMBERSHIP_INFO['last_name']); ?>
+                    <p class="welcome-name"><?php echo esc_attr($XAGIO_MEMBERSHIP_INFO['first_name'] . ' ' . $XAGIO_MEMBERSHIP_INFO['last_name']); ?>
 
 
                     </p>
@@ -225,7 +226,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 
             <div class="xagio-buttons-connected">
                 <a href="<?php echo esc_url(XAGIO_PANEL_URL); ?>" target="_blank" class="xagio-button xagio-button-purple xagio-button-connected" data-text="Access Dashboard">Access Dashboard</a>
-                <?php if($MEMBERSHIP_INFO["membership"] === "Xagio AI Free") { ?>
+                <?php if($XAGIO_MEMBERSHIP_INFO["membership"] === "Xagio AI Free") { ?>
                     <a href="https://xagio.com/?goto=wppremfeatures" target="_blank" class="xagio-button xagio-button-orange xagio-button-connected xagio-button-dashboard-link" data-text="Try our premium features">Try our premium features <i class="xagio-icon xagio-icon-sync xagio-icon-spin"></i></a>
                 <?php } ?>
             </div>
@@ -274,7 +275,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 
     <div class="xagio-welcome-footer xagio-margin-top-medium">
         <div class="xagio-border-panel xagio-panel-special">
-            <img class="xagio-care-logo-img" src="/wp-content/plugins/xagio-seo/assets/img/logos/xagio_care_logo.webp">
+            <img class="xagio-care-logo-img" src="/wp-content/plugins/xagio-seo/assets/img/logos/xagio-care-logo.webp" alt="Xagio Care Logo">
             <p>We Will Fix Your WordPress & Hosting Issues</p>
             <a href="https://xagiocare.com/#pricing" target="_blank" type="button" class="xagio-care-button-orange">View Plans & Pricing</a>
         </div>

@@ -12,12 +12,12 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
         public static function scriptData()
         {
-            $bs = get_option('XAGIO_BACKUP_SPEED', []);
+            $xagio_bs = get_option('XAGIO_BACKUP_SPEED', []);
             $bz = get_option('XAGIO_BACKUP_SIZE', '');
 
             $backup_speed = [
-                'grade'      => isset($bs['grade']) ? esc_html($bs['grade']) : '',
-                'time_taken' => isset($bs['time_taken']) ? esc_html($bs['time_taken']) : ''
+                'grade'      => isset($xagio_bs['grade']) ? esc_html($xagio_bs['grade']) : '',
+                'time_taken' => isset($xagio_bs['time_taken']) ? esc_html($xagio_bs['time_taken']) : ''
             ];
 
             wp_localize_script('xagio_backup', 'xagio_backup', [
@@ -26,8 +26,56 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             ]);
         }
 
+        public static function processUploadQueues()
+        {
+            // List of upload action hooks to check.
+            $upload_hooks = array(
+                'XAGIO_OnedriveClient_Process_Upload',
+                'XAGIO_GoogleDrive_Process_Upload',
+                'XAGIO_Dropbox_Process_Upload',
+                'XAGIO_S3_Process_Upload',
+            );
+
+            // Retrieve the current cron array.
+            $cron_array = _get_cron_array();
+            if (empty($cron_array)) {
+                return;
+            }
+
+            // Use the current time (in GMT) to compare with scheduled timestamps.
+            $current_time    = time();
+            $delay_threshold = 600; // 10 minutes in seconds
+
+            // Loop through each scheduled timestamp.
+            foreach ($cron_array as $xagio_timestamp => $cron_hooks) {
+                // Only process events that are at least 10 minutes overdue.
+                if ($xagio_timestamp > $current_time - $delay_threshold) {
+                    continue;
+                }
+
+                // Loop through each of our defined hooks.
+                foreach ($upload_hooks as $xagio_hook) {
+                    if (!empty($cron_hooks[$xagio_hook])) {
+                        foreach ($cron_hooks[$xagio_hook] as $xagio_unique_id => $xagio_event) {
+                            // Retrieve the event's arguments, if any.
+                            $xagio_args = isset($xagio_event['args']) ? $xagio_event['args'] : array();
+
+                            // Unschedule the event so it doesn't run again.
+                            wp_unschedule_event($xagio_timestamp, $xagio_hook, $xagio_args);
+
+                            // Run the action immediately with its arguments.
+                            do_action($xagio_hook, ...$xagio_args);
+                        }
+                    }
+                }
+            }
+        }
+
+
         public static function initialize()
         {
+            self::loadClasses();
+
             add_action('admin_enqueue_scripts', function () {
                 if (isset($_GET['page'])) {
                     $current_screen = sanitize_text_field(wp_unslash($_GET['page']));
@@ -63,6 +111,27 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 "doBackup"
             ]);
 
+            add_action('XAGIO_OnedriveClient_Process_Upload', [
+                'XAGIO_OnedriveClient',
+                'processUploadQueue'
+            ], 10, 5);
+
+            add_action('XAGIO_GoogleDrive_Process_Upload', array(
+                'XAGIO_GoogleDrive',
+                'processUploadQueue'
+            ), 10, 5);
+
+            add_action('XAGIO_Dropbox_Process_Upload', array(
+                'XAGIO_DropboxClient',
+                'processUploadQueue'
+            ), 10, 6);
+
+            add_action('XAGIO_S3_Process_Upload', array(
+                'XAGIO_S3',
+                'processUploadQueue'
+            ), 10, 7);
+
+
             // check if action is scheduled
             if (!wp_next_scheduled('xagio_calculate_backup_size')) {
                 wp_schedule_event(time(), 'daily', 'xagio_calculate_backup_size');
@@ -71,8 +140,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             // Load Backup Keys
             self::loadKeys();
 
-            // Measure backup speeds
-            self::measureBackupSpeed();
+            self::processUploadQueues();
 
             if (!XAGIO_HAS_ADMIN_PERMISSIONS)
                 return;
@@ -108,6 +176,11 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 "saveSettings"
             ]);
 
+            add_action("admin_post_xagio_save_backup_amazons3_settings", [
+                "XAGIO_MODEL_BACKUPS",
+                "saveAmazonS3Settings"
+            ]);
+
             add_action("admin_post_xagio_get_backups", [
                 "XAGIO_MODEL_BACKUPS",
                 "getBackups"
@@ -134,21 +207,6 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 'XAGIO_MODEL_BACKUPS',
                 'calculateBackupSize'
             ]);
-        }
-
-        public static function measureBackupSpeed()
-        {
-            if (!get_option('XAGIO_BACKUP_SPEED')) {
-
-                // Update option with blank data, just in case if the process below fails
-                update_option('XAGIO_BACKUP_SPEED', [
-                    'time_taken' => 0,
-                    'grade'      => 0
-                ]);
-
-                update_option('XAGIO_BACKUP_SPEED', xagio_backup_speed());
-                update_option("XAGIO_BACKUP_SIZE", xagio_calculate_backup_size());
-            }
         }
 
         public static function checkSpeed()
@@ -190,6 +248,10 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                         xagio_jsonc(self::getBackups_GoogleDrive($domain));
                         break;
 
+                    case 'amazons3':
+                        xagio_jsonc(self::getBackups_AmazonS3($domain));
+                        break;
+
                     default:
                         xagio_json('error', 'Unknown storage method.');
                         break;
@@ -212,10 +274,10 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             }
 
             $storage = sanitize_text_field(wp_unslash($_POST['storage']));
-            $backup  = sanitize_text_field(wp_unslash($_POST['backup']));
+            $xagio_backup  = sanitize_text_field(wp_unslash($_POST['backup']));
             $id      = sanitize_text_field(wp_unslash($_POST['id']));
 
-            if (empty($storage) || $backup == NULL || $id == NULL) {
+            if (empty($storage) || $xagio_backup == NULL || $id == NULL) {
                 xagio_json('error', 'Fields are empty. Bye.');
                 exit;
             }
@@ -228,15 +290,19 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 switch ($storage) {
 
                     case 'dropbox':
-                        xagio_jsonc(self::downloadBackup_Dropbox($domain, $backup));
+                        xagio_jsonc(self::downloadBackup_Dropbox($domain, $xagio_backup));
                         break;
 
                     case 'onedrive':
-                        xagio_jsonc(self::downloadBackup_Onedrive($domain, $backup));
+                        xagio_jsonc(self::downloadBackup_Onedrive($domain, $xagio_backup));
                         break;
 
                     case 'googledrive':
-                        xagio_jsonc(self::downloadBackup_GoogleDrive($backup));
+                        xagio_jsonc(self::downloadBackup_GoogleDrive($xagio_backup));
+                        break;
+
+                    case 'amazons3':
+                        xagio_jsonc(self::downloadBackup_AmazonS3($id));
                         break;
 
                     default:
@@ -261,10 +327,10 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             }
 
             $storage = sanitize_text_field(wp_unslash($_POST['storage']));
-            $backup  = sanitize_text_field(wp_unslash($_POST['backup']));
+            $xagio_backup  = sanitize_text_field(wp_unslash($_POST['backup']));
             $id      = sanitize_text_field(wp_unslash($_POST['id']));
 
-            if (empty($storage) || $backup == NULL) {
+            if (empty($storage) || $xagio_backup == NULL) {
                 xagio_json('error', 'Fields are empty. Bye.');
                 exit;
             }
@@ -277,15 +343,19 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 switch ($storage) {
 
                     case 'dropbox':
-                        xagio_jsonc(self::deleteBackup_Dropbox($domain, $backup));
+                        xagio_jsonc(self::deleteBackup_Dropbox($domain, $xagio_backup));
                         break;
 
                     case 'onedrive':
-                        xagio_jsonc(self::deleteBackup_Onedrive($domain, $backup));
+                        xagio_jsonc(self::deleteBackup_Onedrive($domain, $xagio_backup));
                         break;
 
                     case 'googledrive':
                         xagio_jsonc(self::deleteBackup_GoogleDrive($id));
+                        break;
+
+                    case 'amazons3':
+                        xagio_jsonc(self::deleteBackup_AmazonS3($id));
                         break;
 
                     default:
@@ -304,12 +374,12 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
         /*
          *  Downloading Backups
          */
-        private static function downloadBackup_Dropbox($domain, $backup)
+        private static function downloadBackup_Dropbox($domain, $xagio_backup)
         {
-            $tokens = self::loadClassAndTokens('XAGIO_DropboxClient');
+            $xagio_tokens = self::loadTokens('XAGIO_DropboxClient');
 
             // check the token
-            $backup_DropboxAccessToken = isset($tokens["dropbox"]) ? $tokens["dropbox"] : "";
+            $backup_DropboxAccessToken = isset($xagio_tokens["dropbox"]) ? $xagio_tokens["dropbox"] : "";
 
             // check if empty
             if (empty($backup_DropboxAccessToken)) {
@@ -326,13 +396,13 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
             $folder = self::getName(site_url());
 
-            $result = $XAGIO_DropboxClient->GetLink('/' . $folder . '/' . $backup);
+            $xagio_result = $XAGIO_DropboxClient->GetLink('/' . $folder . '/' . $xagio_backup);
 
-            if (isset($result['link'])) {
+            if (isset($xagio_result['link'])) {
                 return array(
                     'status'  => 'success',
                     'message' => 'Successfully retrieved backup temporary URL!',
-                    'data'    => $result['link']
+                    'data'    => $xagio_result['link']
                 );
             } else {
                 return array(
@@ -343,12 +413,12 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
         }
 
-        private static function downloadBackup_Onedrive($domain, $backup)
+        private static function downloadBackup_Onedrive($domain, $xagio_backup)
         {
-            $tokens = self::loadClassAndTokens('XAGIO_OnedriveClient');
+            $xagio_tokens = self::loadTokens('XAGIO_OnedriveClient');
 
             // check the token
-            $backup_OnedriveAccessToken = isset($tokens["onedrive"]) ? $tokens["onedrive"] : "";
+            $backup_OnedriveAccessToken = isset($xagio_tokens["onedrive"]) ? $xagio_tokens["onedrive"] : "";
 
             // check if empty
             if (empty($backup_OnedriveAccessToken)) {
@@ -367,13 +437,13 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
             $XAGIO_OnedriveClient->renewAccessToken();
 
-            $result = $XAGIO_OnedriveClient->GetFileFolder('/drive/root:/xagio/' . $backup);
+            $xagio_result = $XAGIO_OnedriveClient->GetFileFolder('/drive/root:/xagio/' . $xagio_backup);
 
-            if (isset($result["@microsoft.graph.downloadUrl"])) {
+            if (isset($xagio_result["@microsoft.graph.downloadUrl"])) {
                 return array(
                     'status'  => 'success',
                     'message' => 'Successfully retrieved backup temporary URL!',
-                    'data'    => $result["@microsoft.graph.downloadUrl"]
+                    'data'    => $xagio_result["@microsoft.graph.downloadUrl"]
                 );
             } else {
                 return array(
@@ -385,12 +455,12 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
         }
 
-        private static function downloadBackup_GoogleDrive($backup)
+        private static function downloadBackup_GoogleDrive($xagio_backup)
         {
-            $tokens = self::loadClassAndTokens('XAGIO_GoogleDrive');
+            $xagio_tokens = self::loadTokens('XAGIO_GoogleDrive');
 
             // check the token
-            $backup_XAGIO_GoogleDriveAccessToken = isset($tokens["googledrive"]) ? $tokens["googledrive"] : "";
+            $backup_XAGIO_GoogleDriveAccessToken = isset($xagio_tokens["googledrive"]) ? $xagio_tokens["googledrive"] : "";
 
             // check if empty
             if (empty($backup_XAGIO_GoogleDriveAccessToken)) {
@@ -405,13 +475,13 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 $backup_XAGIO_GoogleDriveAccessToken
             );
 
-            $result = $XAGIO_GoogleDriveClient->FindFiles($backup);
+            $xagio_result = $XAGIO_GoogleDriveClient->FindFiles($xagio_backup);
 
-            if (isset($result['items'][0])) {
+            if (isset($xagio_result['items'][0])) {
                 return array(
                     'status'  => 'redirect',
                     'message' => 'Successfully retrieved backup temporary URL!',
-                    'data'    => $result['items'][0]['webContentLink']
+                    'data'    => $xagio_result['items'][0]['webContentLink']
                 );
             } else {
                 return array(
@@ -422,15 +492,46 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
         }
 
+        private static function downloadBackup_AmazonS3($id)
+        {
+            $xagio_tokens = self::loadTokens('XAGIO_S3');
+
+            $backup_AmazonAccessKey = isset($xagio_tokens["amazon"]["access_key"]) ? $xagio_tokens["amazon"]["access_key"] : "";
+            $backup_AmazonSecretKey = isset($xagio_tokens["amazon"]["secret_key"]) ? $xagio_tokens["amazon"]["secret_key"] : "";
+            $backup_AmazonBucket    = isset($xagio_tokens["amazon"]["bucket"]) ? $xagio_tokens["amazon"]["bucket"] : "";
+            $backup_AmazonRegion    = isset($xagio_tokens["amazon"]["region"]) ? $xagio_tokens["amazon"]["region"] : "";
+
+            // if any of these is empty, return error
+            if (empty($backup_AmazonAccessKey) || empty($backup_AmazonSecretKey) || empty($backup_AmazonBucket) || empty($backup_AmazonRegion)) {
+                return array(
+                    'status'  => 'error',
+                    'message' => 'Missing Amazon S3 credentials. Please fill your Amazon S3 credentials on the Settings page.'
+                );
+            }
+
+            $S3 = new XAGIO_S3(
+                $backup_AmazonAccessKey, $backup_AmazonSecretKey, $backup_AmazonRegion, $backup_AmazonBucket
+            );
+
+            return array(
+                'status'  => 'redirect',
+                'message' => 'Successfully retrieved backup temporary URL!',
+                'data'    => $S3->get_download_link($id)
+            );
+
+
+        }
+
+
         /*
          *  Deleting Backups
          */
-        private static function deleteBackup_Dropbox($domain, $backup)
+        private static function deleteBackup_Dropbox($domain, $xagio_backup)
         {
-            $tokens = self::loadClassAndTokens('XAGIO_DropboxClient');
+            $xagio_tokens = self::loadTokens('XAGIO_DropboxClient');
 
             // check the token
-            $backup_DropboxAccessToken = isset($tokens["dropbox"]) ? $tokens["dropbox"] : "";
+            $backup_DropboxAccessToken = isset($xagio_tokens["dropbox"]) ? $xagio_tokens["dropbox"] : "";
 
             // check if empty
             if (empty($backup_DropboxAccessToken)) {
@@ -446,9 +547,9 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             );
 
             $folder = self::getName(site_url());
-            $result = $XAGIO_DropboxClient->Delete('/' . $folder . '/' . $backup);
+            $xagio_result = $XAGIO_DropboxClient->Delete('/' . $folder . '/' . $xagio_backup);
 
-            if (isset($result['name'])) {
+            if (isset($xagio_result['name'])) {
                 return array(
                     'status'  => 'success',
                     'message' => 'Successfully deleted backup!'
@@ -462,12 +563,12 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
         }
 
-        private static function deleteBackup_Onedrive($domain, $backup)
+        private static function deleteBackup_Onedrive($domain, $xagio_backup)
         {
-            $tokens = self::loadClassAndTokens('XAGIO_OnedriveClient');
+            $xagio_tokens = self::loadTokens('XAGIO_OnedriveClient');
 
             // check the token
-            $backup_OnedriveAccessToken = isset($tokens["onedrive"]) ? $tokens["onedrive"] : "";
+            $backup_OnedriveAccessToken = isset($xagio_tokens["onedrive"]) ? $xagio_tokens["onedrive"] : "";
 
             // check if empty
             if (empty($backup_OnedriveAccessToken)) {
@@ -485,9 +586,9 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             );
             $XAGIO_OnedriveClient->renewAccessToken();
 
-            $result = $XAGIO_OnedriveClient->deleteCall('/drive/root:/xagio/' . $backup);
+            $xagio_result = $XAGIO_OnedriveClient->deleteCall('/drive/root:/xagio/' . $xagio_backup);
 
-            if ($result === 204) {
+            if ($xagio_result === 204) {
                 return array(
                     'status'  => 'success',
                     'message' => 'Successfully deleted backup!'
@@ -504,10 +605,10 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
         private static function deleteBackup_GoogleDrive($id)
         {
-            $tokens = self::loadClassAndTokens('XAGIO_GoogleDrive');
+            $xagio_tokens = self::loadTokens('XAGIO_GoogleDrive');
 
             // check the token
-            $backup_XAGIO_GoogleDriveAccessToken = isset($tokens["googledrive"]) ? $tokens["googledrive"] : "";
+            $backup_XAGIO_GoogleDriveAccessToken = isset($xagio_tokens["googledrive"]) ? $xagio_tokens["googledrive"] : "";
 
             // check if empty
             if (empty($backup_XAGIO_GoogleDriveAccessToken)) {
@@ -537,15 +638,51 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
         }
 
+        private static function deleteBackup_AmazonS3($id)
+        {
+            $xagio_tokens = self::loadTokens('XAGIO_S3');
+
+            $backup_AmazonAccessKey = isset($xagio_tokens["amazon"]["access_key"]) ? $xagio_tokens["amazon"]["access_key"] : "";
+            $backup_AmazonSecretKey = isset($xagio_tokens["amazon"]["secret_key"]) ? $xagio_tokens["amazon"]["secret_key"] : "";
+            $backup_AmazonBucket    = isset($xagio_tokens["amazon"]["bucket"]) ? $xagio_tokens["amazon"]["bucket"] : "";
+            $backup_AmazonRegion    = isset($xagio_tokens["amazon"]["region"]) ? $xagio_tokens["amazon"]["region"] : "";
+
+            // if any of these is empty, return error
+            if (empty($backup_AmazonAccessKey) || empty($backup_AmazonSecretKey) || empty($backup_AmazonBucket) || empty($backup_AmazonRegion)) {
+                return array(
+                    'status'  => 'error',
+                    'message' => 'Missing Amazon S3 credentials. Please fill your Amazon S3 credentials on the Settings page.'
+                );
+            }
+
+            $S3 = new XAGIO_S3(
+                $backup_AmazonAccessKey, $backup_AmazonSecretKey, $backup_AmazonRegion, $backup_AmazonBucket
+            );
+
+            if ($S3->remove_file($id)) {
+                return array(
+                    'status'  => 'success',
+                    'message' => 'Successfully deleted selected backup!'
+                );
+            } else {
+                return array(
+                    'status'  => 'error',
+                    'message' => 'Failed to delete selected backup! Please remove it manually!'
+                );
+            }
+
+
+        }
+
         /*
          *  Listing Backups
          */
         private static function getBackups_Dropbox($domain)
         {
-            $tokens = self::loadClassAndTokens('XAGIO_DropboxClient');
+            $xagio_tokens = self::loadTokens('XAGIO_DropboxClient');
 
             // check the token
-            $backup_DropboxAccessToken = isset($tokens["dropbox"]) ? $tokens["dropbox"] : "";
+            $backup_DropboxAccessToken = isset($xagio_tokens["dropbox"]) ? $xagio_tokens["dropbox"] : "";
 
             // check if empty
             if (empty($backup_DropboxAccessToken)) {
@@ -562,26 +699,26 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
             $folder = self::getName(site_url());
 
-            $files = $XAGIO_DropboxClient->ListFolder($folder);
+            $xagio_files = $XAGIO_DropboxClient->ListFolder($folder);
 
-            if ($files == false) {
+            if ($xagio_files == false) {
                 return array(
                     'status'  => 'info',
                     'message' => 'There are still no backups for this website. Please try again later.'
                 );
             } else {
-                $output = array();
-                foreach ($files['entries'] as $file) {
-                    if ($file['.tag'] == 'file' && strpos($file['name'], $folder) !== false) {
-                        $output[] = array(
-                            'file' => $file['name'],
-                            'size' => $file['size'],
-                            'date' => $file['client_modified'],
-                            'id'   => $file['id']
+                $xagio_output = array();
+                foreach ($xagio_files['entries'] as $xagio_file) {
+                    if ($xagio_file['.tag'] == 'file' && strpos($xagio_file['name'], $folder) !== false) {
+                        $xagio_output[] = array(
+                            'file' => $xagio_file['name'],
+                            'size' => $xagio_file['size'],
+                            'date' => $xagio_file['client_modified'],
+                            'id'   => $xagio_file['id']
                         );
                     }
                 }
-                usort($output, function ($a, $b) {
+                usort($xagio_output, function ($a, $b) {
                     if ($a['date'] == $b['date']) {
                         return 0;
                     }
@@ -590,17 +727,17 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 return array(
                     'status'  => 'success',
                     'message' => 'Retrieved backups from Dropbox.',
-                    'files'   => $output
+                    'files'   => $xagio_output
                 );
             }
         }
 
         private static function getBackups_Onedrive($domain)
         {
-            $tokens = self::loadClassAndTokens('XAGIO_OnedriveClient');
+            $xagio_tokens = self::loadTokens('XAGIO_OnedriveClient');
 
             // check the token
-            $backup_OnedriveAccessToken = isset($tokens["onedrive"]) ? $tokens["onedrive"] : "";
+            $backup_OnedriveAccessToken = isset($xagio_tokens["onedrive"]) ? $xagio_tokens["onedrive"] : "";
 
             // check if empty
             if (empty($backup_OnedriveAccessToken)) {
@@ -619,41 +756,41 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             $XAGIO_OnedriveClient->renewAccessToken();
 
             $folder = self::getName(site_url());
-            $files  = $XAGIO_OnedriveClient->GetFileFolder('/drive/root:/xagio:/children');
+            $xagio_files  = $XAGIO_OnedriveClient->GetFileFolder("/drive/root:/xagio:/children?\$filter=startswith(name, '$folder')");
 
-            if (isset($files['error']) || sizeof(@$files["value"]) == 0) {
+            if (isset($xagio_files['error']) || sizeof(@$xagio_files["value"]) == 0) {
                 return array(
                     'status'  => 'info',
                     'message' => 'There are still no backups for this website. Please try again later.'
                 );
             } else {
-                $backups = $files["value"];
-                $output  = array();
-                foreach ($backups as $backup) {
-                    $mystring = $backup["name"];
+                $xagio_backups = $xagio_files["value"];
+                $xagio_output  = array();
+                foreach ($xagio_backups as $xagio_backup) {
+                    $mystring = $xagio_backup["name"];
                     $pos      = strpos($mystring, $folder);
                     if ($pos === false) {
                         continue;
                     } else {
                         if ($pos == 0) {
-                            $output[] = array(
-                                'file' => $backup["name"],
-                                'size' => $backup['size'],
-                                'date' => gmdate('Y-m-d H:i:s', strtotime($backup["lastModifiedDateTime"])),
-                                'id'   => $backup['id']
+                            $xagio_output[] = array(
+                                'file' => $xagio_backup["name"],
+                                'size' => $xagio_backup['size'],
+                                'date' => gmdate('Y-m-d H:i:s', strtotime($xagio_backup["lastModifiedDateTime"])),
+                                'id'   => $xagio_backup['id']
                             );
                         } else {
                             continue;
                         }
                     }
                 }
-                if (sizeof($output) == 0) {
+                if (sizeof($xagio_output) == 0) {
                     return array(
                         'status'  => 'info',
                         'message' => 'There are still no backups for this website. Please try again later.'
                     );
                 } else {
-                    usort($output, function ($a, $b) {
+                    usort($xagio_output, function ($a, $b) {
                         if ($a['date'] == $b['date']) {
                             return 0;
                         }
@@ -662,7 +799,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                     return array(
                         'status'  => 'success',
                         'message' => 'Retrieved backups from OneDrive.',
-                        'files'   => $output
+                        'files'   => $xagio_output
                     );
                 }
             }
@@ -671,10 +808,10 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
         private static function getBackups_GoogleDrive($domain)
         {
-            $tokens = self::loadClassAndTokens('XAGIO_GoogleDrive');
+            $xagio_tokens = self::loadTokens('XAGIO_GoogleDrive');
 
             // check the token
-            $backup_GoogleDriveAccessToken = isset($tokens["googledrive"]) ? $tokens["googledrive"] : "";
+            $backup_GoogleDriveAccessToken = isset($xagio_tokens["googledrive"]) ? $xagio_tokens["googledrive"] : "";
 
             // check if empty
             if (empty($backup_GoogleDriveAccessToken)) {
@@ -690,25 +827,25 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             );
 
             $folder = self::getName(site_url());
-            $files  = $XAGIO_GoogleDriveClient->ListFiles($folder);
+            $xagio_files  = $XAGIO_GoogleDriveClient->ListFiles($folder);
 
-            if (isset($files['error']) || $files == false) {
+            if (isset($xagio_files['error']) || $xagio_files == false) {
                 return array(
                     'status'  => 'info',
                     'message' => 'There are still no backups for this website. Please try again later.'
                 );
             } else {
-                $output = array();
+                $xagio_output = array();
 
-                foreach ($files['items'] as $file) {
-                    $output[] = array(
-                        'file' => $file['title'],
-                        'size' => $file['fileSize'],
-                        'date' => $file['createdDate'],
-                        'id'   => $file['id']
+                foreach ($xagio_files['items'] as $xagio_file) {
+                    $xagio_output[] = array(
+                        'file' => $xagio_file['title'],
+                        'size' => $xagio_file['fileSize'],
+                        'date' => $xagio_file['createdDate'],
+                        'id'   => $xagio_file['id']
                     );
                 }
-                usort($output, function ($a, $b) {
+                usort($xagio_output, function ($a, $b) {
                     if ($a['date'] == $b['date']) {
                         return 0;
                     }
@@ -717,12 +854,78 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 return array(
                     'status'  => 'success',
                     'message' => 'Retrieved backups from Google Drive.',
-                    'files'   => $output
+                    'files'   => $xagio_output
                 );
             }
 
 
         }
+
+        private static function getBackups_AmazonS3($domain)
+        {
+            $xagio_tokens = self::loadTokens('XAGIO_S3');
+
+            $backup_AmazonAccessKey = isset($xagio_tokens["amazon"]["access_key"]) ? $xagio_tokens["amazon"]["access_key"] : "";
+            $backup_AmazonSecretKey = isset($xagio_tokens["amazon"]["secret_key"]) ? $xagio_tokens["amazon"]["secret_key"] : "";
+            $backup_AmazonBucket    = isset($xagio_tokens["amazon"]["bucket"]) ? $xagio_tokens["amazon"]["bucket"] : "";
+            $backup_AmazonRegion    = isset($xagio_tokens["amazon"]["region"]) ? $xagio_tokens["amazon"]["region"] : "";
+
+            // if any of these is empty, return error
+            if (empty($backup_AmazonAccessKey) || empty($backup_AmazonSecretKey) || empty($backup_AmazonBucket) || empty($backup_AmazonRegion)) {
+                return array(
+                    'status'  => 'error',
+                    'message' => 'Missing Amazon S3 credentials. Please fill your Amazon S3 credentials on the Settings page.'
+                );
+            }
+
+            $S3 = new XAGIO_S3(
+                $backup_AmazonAccessKey, $backup_AmazonSecretKey, $backup_AmazonRegion, $backup_AmazonBucket
+            );
+
+            $folder   = self::getFolderName($domain);
+            $contents = $S3->list_files($folder);
+
+            if (!is_wp_error($contents)) {
+
+                $xagio_output = array();
+
+                foreach ($contents as $xagio_file) {
+
+                    $xagio_name = str_replace($domain . '/', '', $xagio_file['Key']);
+                    if (empty($xagio_name))
+                        continue;
+
+                    $xagio_output[] = array(
+                        'file' => str_replace($domain . '/', '', $xagio_file['Key']),
+                        'size' => $xagio_file['Size'],
+                        'date' => gmdate('Y-m-d H:i:s', strtotime($xagio_file['LastModified'])),
+                        'id'   => $xagio_file['Key']
+                    );
+                }
+
+                usort($xagio_output, function ($a, $b) {
+                    if ($a['date'] == $b['date']) {
+                        return 0;
+                    }
+                    return ($a['date'] > $b['date']) ? -1 : 1;
+                });
+
+                return array(
+                    'status'  => 'success',
+                    'message' => 'Retrieved backups from Amazon S3.',
+                    'files'   => $xagio_output
+                );
+
+            } else {
+                return array(
+                    'status'  => 'error',
+                    'message' => 'Failed to list files from ' . $bucket[0] . ' Amazon S3 bucket. Please verify that your bucket exists!'
+                );
+            }
+
+
+        }
+
 
         /*
          *  Utilities
@@ -732,42 +935,91 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             return str_replace(".", "_", $domain);
         }
 
-        private static function loadClassAndTokens($class, $classFile = false)
+        public static function loadTokens($class)
         {
-            $class_dir = dirname(__FILE__) . "/../ext/";
-
-            if (!$classFile) {
-                $classFile = $class;
-            }
-
-            $location = $class_dir . $classFile . ".php";
-            if (!class_exists($class)) {
-                require_once $location;
-            }
-
             return get_option("XAGIO_BACKUP_SETTINGS");
         }
 
-        private static function checkIfBackupLocationIsSet($location)
+        public static function loadClasses()
+        {
+            $class_dir = dirname(__FILE__) . "/../ext/";
+
+            require_once $class_dir . 'XAGIO_DropboxClient.php';
+            require_once $class_dir . 'XAGIO_GoogleDrive.php';
+            require_once $class_dir . 'XAGIO_OnedriveClient.php';
+            require_once $class_dir . 'XAGIO_S3.php';
+        }
+
+        private static function checkIfBackupLocationIsSet($xagio_location)
         {
 
-            $tokens = get_option("XAGIO_BACKUP_SETTINGS");
+            $xagio_tokens = get_option("XAGIO_BACKUP_SETTINGS");
 
-            if ($location === "dropbox") {
-                if (empty($tokens["dropbox"]["access_token"])) {
+            if ($xagio_location === "dropbox") {
+                if (empty($xagio_tokens["dropbox"]["access_token"])) {
                     return false;
                 }
-            } else if ($location === "onedrive") {
-                if (empty($tokens["onedrive"]["access_token"])) {
+            } else if ($xagio_location === "onedrive") {
+                if (empty($xagio_tokens["onedrive"]["access_token"])) {
                     return false;
                 }
-            } else if ($location === "googledrive") {
-                if (empty($tokens["googledrive"]['access_token'])) {
+            } else if ($xagio_location === "googledrive") {
+                if (empty($xagio_tokens["googledrive"]['access_token'])) {
                     return false;
                 }
             }
 
             return true;
+        }
+
+        public static function saveAmazonS3Settings()
+        {
+            // amazon_s3_key
+            // amazon_s3_secret
+            // amazon_s3_bucket
+            // amazon_s3_region
+
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
+            // check if AmazonS3 configuration is valid by trying to connect to the bucket
+            $backup_AmazonAccessKey = sanitize_text_field(wp_unslash($_POST["amazon_s3_key"]));
+            $backup_AmazonSecretKey = sanitize_text_field(wp_unslash($_POST["amazon_s3_secret"]));
+            $backup_AmazonBucket    = sanitize_text_field(wp_unslash($_POST["amazon_s3_bucket"]));
+            $backup_AmazonRegion    = sanitize_text_field(wp_unslash($_POST["amazon_s3_region"]));
+
+            if (empty($backup_AmazonAccessKey) || empty($backup_AmazonSecretKey) || empty($backup_AmazonBucket) || empty($backup_AmazonRegion)) {
+                xagio_json('error', 'Please fill in all the fields.');
+            }
+
+            $S3 = new XAGIO_S3(
+                $backup_AmazonAccessKey, $backup_AmazonSecretKey, $backup_AmazonRegion, $backup_AmazonBucket
+            );
+
+            $domain = wp_parse_url(get_site_url(), PHP_URL_HOST);
+
+            $folder   = self::getFolderName($domain);
+            $contents = $S3->list_files($folder);
+
+            if (is_wp_error($contents)) {
+                xagio_json('error', 'Failed to connect to Amazon S3. Please check your credentials and try again.');
+            }
+
+            $xagio_tokens = get_option("XAGIO_BACKUP_SETTINGS");
+
+            // Update the settings
+            $xagio_tokens["amazon"] = [
+                "access_key" => $backup_AmazonAccessKey,
+                "secret_key" => $backup_AmazonSecretKey,
+                "bucket"     => $backup_AmazonBucket,
+                "region"     => $backup_AmazonRegion
+            ];
+
+            update_option("XAGIO_BACKUP_SETTINGS", $xagio_tokens);
+
+            XAGIO_SYNC::updateBackupSettings();
+
+            xagio_json('success', 'Amazon S3 settings have been saved.');
+
         }
 
         public static function saveSettings()
@@ -778,21 +1030,33 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $location  = sanitize_text_field(wp_unslash($_POST["location"]));
-            $copies    = sanitize_text_field(wp_unslash($_POST["copies"]));
-            $frequency = sanitize_text_field(wp_unslash($_POST["frequency"]));
+            $xagio_location  = sanitize_text_field(wp_unslash($_POST["location"]));
+            $xagio_copies    = sanitize_text_field(wp_unslash($_POST["copies"]));
+            $xagio_frequency = sanitize_text_field(wp_unslash($_POST["frequency"]));
 
-            if (empty($location) || empty($copies) || empty($frequency)) {
+            if (empty($xagio_location) || empty($xagio_copies) || empty($xagio_frequency)) {
                 return;
             }
 
-            if (!self::checkIfBackupLocationIsSet($location)) {
+            if (!self::checkIfBackupLocationIsSet($xagio_location)) {
                 xagio_json('error', 'This location is not set up yet. Please set it up first.');
             }
 
-            update_option("XAGIO_BACKUP_LOCATION", $location);
-            update_option("XAGIO_BACKUP_LIMIT", $copies);
-            update_option("XAGIO_BACKUP_DATE", $frequency);
+            update_option("XAGIO_BACKUP_LOCATION", $xagio_location);
+            update_option("XAGIO_BACKUP_LIMIT", $xagio_copies);
+            update_option("XAGIO_BACKUP_DATE", $xagio_frequency);
+
+
+            if ($xagio_frequency == 'never') {
+                $next_timestamp = wp_next_scheduled('xagio_doBackup');
+                if ($next_timestamp !== false) {
+                    wp_unschedule_event($next_timestamp, 'xagio_doBackup');
+                }
+            } else {
+                if (!wp_next_scheduled('xagio_doBackup')) {
+                    wp_schedule_event(time(), $xagio_frequency, 'xagio_doBackup');
+                }
+            }
 
             XAGIO_SYNC::updateBackupSettings();
 
@@ -817,10 +1081,10 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
         }
 
         // Function that handles the restoration of backups remotely
-        public static function restoreBackupHandler($storage, $backup, $backup_id)
+        public static function restoreBackupHandler($storage, $xagio_backup, $backup_id)
         {
             // Get the needed AccessTokens
-            $tokens = get_option("XAGIO_BACKUP_SETTINGS");
+            $xagio_tokens = get_option("XAGIO_BACKUP_SETTINGS");
 
             if (!function_exists('WP_Filesystem')) {
                 require_once(ABSPATH . 'wp-admin/includes/file.php');
@@ -832,6 +1096,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             $backupFolder = XAGIO_PATH . "/backups";
             if (!$wp_filesystem->is_dir($backupFolder)) {
                 $wp_filesystem->mkdir($backupFolder);
+                xagio_file_put_contents($backupFolder . '/index.html', 'Access Denied');
             }
 
             // Create Backup Name (both folder and file name)
@@ -840,20 +1105,13 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             // get the real site name
             $realSiteName = self::getName(site_url(), true);
 
-            $class_dir = dirname(__FILE__) . "/../ext/";
-
             /* DROPBOX */
             if ($storage === "dropbox") {
-                // Include the DropBox Class
-                $dropBoxClass = $class_dir . "XAGIO_DropboxClient.php";
-                if (!class_exists("XAGIO_DropboxClient")) {
-                    require_once $dropBoxClass;
-                }
 
                 // check the token
                 $backup_DropboxAccessToken = isset(
-                    $tokens["dropbox"]["access_token"]
-                ) ? $tokens["dropbox"]["access_token"] : "";
+                    $xagio_tokens["dropbox"]["access_token"]
+                ) ? $xagio_tokens["dropbox"]["access_token"] : "";
 
                 if (!empty($backup_DropboxAccessToken)) {
                     if (!XAGIO_DROPBOX_KEY || !XAGIO_DROPBOX_SECRET) {
@@ -865,12 +1123,12 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
                     // Initialize the class
                     $XAGIO_DropboxClient = new XAGIO_DropboxClient(
-                        $tokens["dropbox"]
+                        $xagio_tokens["dropbox"]
                     );
 
                     // Try to create a folder
                     $XAGIO_DropboxClient->Download(
-                        "/" . $siteName . "/" . $backup, $backupFolder . "/" . $backup
+                        "/" . $siteName . "/" . $xagio_backup, $backupFolder . "/" . $xagio_backup
                     );
                 } else {
                     return [
@@ -883,16 +1141,11 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
             /* ONEDRIVE */
             if ($storage === "onedrive") {
-                // Include the OneDrive Class
-                $oneDriveClass = $class_dir . "XAGIO_OnedriveClient.php";
-                if (!class_exists("XAGIO_OnedriveClient")) {
-                    require_once $oneDriveClass;
-                }
 
                 // check the token
                 $backup_OnedriveAccessToken = isset(
-                    $tokens["onedrive"]["access_token"]
-                ) ? $tokens["onedrive"]["access_token"] : "";
+                    $xagio_tokens["onedrive"]["access_token"]
+                ) ? $xagio_tokens["onedrive"]["access_token"] : "";
 
                 if (!empty($backup_OnedriveAccessToken)) {
                     if (!XAGIO_ONEDRIVE_KEY || !XAGIO_ONEDRIVE_SECRET) {
@@ -905,12 +1158,12 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                     // Initialize the class
                     $XAGIO_OnedriveClient = new XAGIO_OnedriveClient();
 
-                    $XAGIO_OnedriveClient->SetAccessToken($tokens["onedrive"]);
+                    $XAGIO_OnedriveClient->SetAccessToken($xagio_tokens["onedrive"]);
                     $XAGIO_OnedriveClient->renewAccessToken();
 
                     // Try to create a folder
                     $XAGIO_OnedriveClient->downloadCall(
-                        "/drive/root:/xagio/" . $backup . ":/content", $backupFolder . "/" . $backup
+                        "/drive/root:/xagio/" . $xagio_backup . ":/content", $backupFolder . "/" . $xagio_backup
                     );
                 } else {
                     return [
@@ -923,17 +1176,12 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
             /* XAGIO_GoogleDrive */
             if ($storage === "googledrive") {
-                // Include the DropBox Class
-                $XAGIO_GoogleDriveClass = $class_dir . "XAGIO_GoogleDrive.php";
-                if (!class_exists("XAGIO_GoogleDrive")) {
-                    require_once $XAGIO_GoogleDriveClass;
-                }
 
                 // check the token
-                $backup_XAGIO_GoogleDriveAccessToken = isset($tokens["googledrive"]) ? $tokens["googledrive"] : "";
+                $backup_XAGIO_GoogleDriveAccessToken = isset($xagio_tokens["googledrive"]) ? $xagio_tokens["googledrive"] : "";
 
                 if (!empty($backup_XAGIO_GoogleDriveAccessToken)) {
-                    if (!XAGIO_GoogleDrive_KEY || !XAGIO_GoogleDrive_SECRET) {
+                    if (!XAGIO_GOOGLEDRIVE_KEY || !XAGIO_GOOGLEDRIVE_SECRET) {
                         return [
                             "status"  => "error",
                             "message" => "Please synchronize your Backup Settings to obtain latest updated settings.",
@@ -947,7 +1195,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
                     // Try to create a folder
                     $XAGIO_GoogleDriveClient->Download(
-                        $backup_id, $backupFolder . "/" . $backup
+                        $backup_id, $backupFolder . "/" . $xagio_backup
                     );
                 } else {
                     return [
@@ -959,7 +1207,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             /* XAGIO_GoogleDrive */
 
             // Check if backup was successful
-            if (!file_exists($backupFolder . "/" . $backup)) {
+            if (!file_exists($backupFolder . "/" . $xagio_backup)) {
                 return [
                     "status"  => "error",
                     "message" => "Failed to restore the backup! Unable to download it to " . $realSiteName . " website!",
@@ -975,7 +1223,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 ];
             } else {
                 $zip = new xagio_ZipArchiveX();
-                $res = $zip->open($backupFolder . "/" . $backup);
+                $res = $zip->open($backupFolder . "/" . $xagio_backup);
                 if ($res === true) {
                     $res = $zip->extractTo(ABSPATH);
                     $zip->close();
@@ -996,7 +1244,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             }
 
             // remove the backup zip file
-            wp_delete_file($backupFolder . "/" . $backup);
+            wp_delete_file($backupFolder . "/" . $xagio_backup);
 
             // most tricky part, restore MySQL
             $mysql_result = XAGIO_MODEL_BACKUPS::restoreMySQL(
@@ -1012,7 +1260,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
             return [
                 "status"  => "success",
-                "message" => "Successfully restored " . $backup . " on " . $realSiteName . "!",
+                "message" => "Successfully restored " . $xagio_backup . " on " . $realSiteName . "!",
             ];
         }
 
@@ -1026,9 +1274,9 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
             $length = strlen($sql);
 
-            for ($i = 0; $i < $length; $i++) {
-                $char     = $sql[$i];
-                $nextChar = ($i + 1 < $length) ? $sql[$i + 1] : null;
+            for ($xagio_i = 0; $xagio_i < $length; $xagio_i++) {
+                $char     = $sql[$xagio_i];
+                $nextChar = ($xagio_i + 1 < $length) ? $sql[$xagio_i + 1] : null;
 
                 // Handle string literals
                 if ($inString) {
@@ -1054,18 +1302,18 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 // Handle comments (single-line and multi-line)
                 if ($char === '-' && $nextChar === '-') {
                     // Single-line comment
-                    while ($char !== "\n" && $i < $length) {
-                        $char = $sql[++$i];
+                    while ($char !== "\n" && $xagio_i < $length) {
+                        $char = $sql[++$xagio_i];
                     }
                     $buffer .= "\n";
                     continue;
                 } elseif ($char === '/' && $nextChar === '*') {
                     // Multi-line comment
-                    $i += 2; // Skip '/*'
-                    while (!($sql[$i] === '*' && $sql[$i + 1] === '/') && $i < $length) {
-                        $i++;
+                    $xagio_i += 2; // Skip '/*'
+                    while (!($sql[$xagio_i] === '*' && $sql[$xagio_i + 1] === '/') && $xagio_i < $length) {
+                        $xagio_i++;
                     }
-                    $i++; // Skip '*/'
+                    $xagio_i++; // Skip '*/'
                     continue;
                 }
 
@@ -1087,7 +1335,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
         }
 
         // Function that restores MySQL backup
-        public static function restoreMySQL($location, &$log = [])
+        public static function restoreMySQL($xagio_location, &$log = [])
         {
             check_ajax_referer('xagio_nonce', '_xagio_nonce');
 
@@ -1109,7 +1357,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             $wp_filesystem->mkdir($restoreFolder);
 
             // Determine if the backup is a zip file
-            $isZip = pathinfo($location, PATHINFO_EXTENSION) === "zip";
+            $isZip = pathinfo($xagio_location, PATHINFO_EXTENSION) === "zip";
 
             // If necessary, verify file type
             if (!$isZip && !empty($_FILES["file"]["type"][0])) {
@@ -1126,7 +1374,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                     ];
                 } else {
                     $zip = new xagio_ZipArchiveX();
-                    $res = $zip->open($location);
+                    $res = $zip->open($xagio_location);
                     if ($res === true) {
                         $zip->extractTo($restoreFolder);
                         $zip->close();
@@ -1188,10 +1436,17 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                     foreach ($queries as $query) {
 
                         $query = trim($query); // Remove extra whitespace
+                        // $wpdb->prepare() treats % as placeholders; this SQL comes from our own backup format.
                         $query = str_replace('%', '%%', $query);
                         if (!empty($query)) { // Ensure the query isn't empty
 
                             // Send Query
+                            /*
+                                * Executing SQL statements from a plugin-generated backup file.
+                                * These statements are not user input and are required to restore the database dump.
+                                * $wpdb->prepare() is intentionally used only to neutralize % placeholders, not to inject values.
+                                */
+                            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare,WordPress.DB.PreparedSQL.InterpolatedNotPrepared,PluginCheck.Security.DirectDB.UnescapedDBParameter,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
                             $wpdb->query($wpdb->prepare("$query"));
 
                             if ($wpdb->last_error) {
@@ -1246,18 +1501,18 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $url = sanitize_url(wp_unslash($_POST["url"]));
-            if (empty($url)) {
+            $xagio_url = sanitize_url(wp_unslash($_POST["url"]));
+            if (empty($xagio_url)) {
                 xagio_jsonc([
                     "status"  => "error",
                     "message" => "Please provide a valid backup.",
                 ]);
             }
 
-            $file_name = basename($url);
+            $file_name = basename($xagio_url);
             // check if file exists
-            $file = XAGIO_PATH . "/backups/" . $file_name;
-            if (!file_exists($file)) {
+            $xagio_file = XAGIO_PATH . "/backups/" . $file_name;
+            if (!file_exists($xagio_file)) {
                 xagio_jsonc([
                     "status"  => "error",
                     "message" => "Backup file does not exist.",
@@ -1265,16 +1520,16 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             }
 
             // Determine the type of backup
-            $backupType = pathinfo($file);
+            $backupType = pathinfo($xagio_file);
             $backupType = $backupType["filename"];
 
             // Check if the backup is a full backup
             if (strpos($backupType, "full") !== false) {
-                XAGIO_MODEL_BACKUPS::restoreFullBackup($file);
+                XAGIO_MODEL_BACKUPS::restoreFullBackup($xagio_file);
             } elseif (strpos($backupType, "files") !== false) {
-                XAGIO_MODEL_BACKUPS::restoreFileBackup($file);
+                XAGIO_MODEL_BACKUPS::restoreFileBackup($xagio_file);
             } elseif (strpos($backupType, "mysql") !== false) {
-                XAGIO_MODEL_BACKUPS::restoreMySQLBackup($file);
+                XAGIO_MODEL_BACKUPS::restoreMySQLBackup($xagio_file);
             }
         }
 
@@ -1282,11 +1537,11 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
         {
             check_ajax_referer('xagio_nonce', '_xagio_nonce');
 
-            $backup = null;
+            $xagio_backup = null;
 
             if ($preuploaded_file != null) {
 
-                $backup = $preuploaded_file;
+                $xagio_backup = $preuploaded_file;
 
             } else {
 
@@ -1316,7 +1571,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 $uploaded_file = wp_handle_upload($_FILES['file'], $upload_overrides);
 
                 if ($uploaded_file && !isset($uploaded_file['error'])) {
-                    $backup = $uploaded_file['file'];
+                    $xagio_backup = $uploaded_file['file'];
                 } else {
                     // Handle upload error
                     xagio_jsonc([
@@ -1334,7 +1589,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 ]);
             } else {
                 $zip = new xagio_ZipArchiveX();
-                $res = $zip->open($backup);
+                $res = $zip->open($xagio_backup);
                 if ($res === true) {
                     $zip->extractTo($restoreFolder);
                     $zip->close();
@@ -1376,11 +1631,11 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             check_ajax_referer('xagio_nonce', '_xagio_nonce');
 
             $start_time = new DateTime();
-            $backup     = null;
+            $xagio_backup     = null;
 
             if ($preuploaded_file != null) {
 
-                $backup = $preuploaded_file;
+                $xagio_backup = $preuploaded_file;
 
             } else {
 
@@ -1402,7 +1657,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 $uploaded_file = wp_handle_upload($_FILES['file'], $upload_overrides);
 
                 if ($uploaded_file && !isset($uploaded_file['error'])) {
-                    $backup = $uploaded_file['file'];
+                    $xagio_backup = $uploaded_file['file'];
                 } else {
                     // Handle upload error
                     xagio_jsonc([
@@ -1414,16 +1669,16 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             }
 
 
-            $file_size = xagio_filesize($backup);
+            $file_size = xagio_filesize($xagio_backup);
 
             // Restore MySQL
             $log          = [];
             $mysql_result = XAGIO_MODEL_BACKUPS::restoreMySQL(
-                $backup, $log
+                $xagio_backup, $log
             );
 
             // Delete the uploaded file after processing
-            wp_delete_file($backup);
+            wp_delete_file($xagio_backup);
 
             if ($mysql_result !== true) {
                 xagio_jsonc($mysql_result);
@@ -1448,11 +1703,11 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
         {
             check_ajax_referer('xagio_nonce', '_xagio_nonce');
 
-            $backup = null;
+            $xagio_backup = null;
 
             if ($preuploaded_file != null) {
 
-                $backup = $preuploaded_file;
+                $xagio_backup = $preuploaded_file;
 
             } else {
 
@@ -1474,7 +1729,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 $uploaded_file = wp_handle_upload($_FILES['file'], $upload_overrides);
 
                 if ($uploaded_file && !isset($uploaded_file['error'])) {
-                    $backup = $uploaded_file['file'];
+                    $xagio_backup = $uploaded_file['file'];
 
                 } else {
                     // Handle upload error
@@ -1501,7 +1756,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 ]);
             } else {
                 $zip = new xagio_ZipArchiveX();
-                $res = $zip->open($backup);
+                $res = $zip->open($xagio_backup);
                 if ($res === true) {
                     $res = $zip->extractTo($restoreFolder);
                     $zip->close();
@@ -1567,156 +1822,70 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
         // Function that truncates backups based on a set limit
         public static function trimBackups()
         {
-            $limit = get_option("XAGIO_BACKUP_LIMIT");
-            if (!$limit || empty($limit)) {
-                return false;
-            }
-
-            // Get the preferred backup location
-            $backupLocation = get_option("XAGIO_BACKUP_LOCATION");
-
-            // Get the needed AccessTokens
-            $tokens = get_option("XAGIO_BACKUP_SETTINGS");
-
-            // Domain folder name
-            $folder = self::getName(site_url());
-
-            $class_dir = dirname(__FILE__) . "/../ext/";
-
-            /* DROPBOX */
-            if ($backupLocation === "dropbox") {
-                // Include the DropBox Class
-                $dropBoxClass = $class_dir . "XAGIO_DropboxClient.php";
-                if (!class_exists("XAGIO_DropboxClient")) {
-                    require_once $dropBoxClass;
+            try {
+                $limit = get_option("XAGIO_BACKUP_LIMIT");
+                if (!$limit || empty($limit)) {
+                    $limit = 5;
+                    update_option("XAGIO_BACKUP_LIMIT", $limit);
                 }
 
-                // check the token
-                $backup_DropboxAccessToken = isset(
-                    $tokens["dropbox"]["access_token"]
-                ) ? $tokens["dropbox"]["access_token"] : "";
+                // Get the preferred backup location
+                $backupLocation = get_option("XAGIO_BACKUP_LOCATION");
 
-                if (!empty($backup_DropboxAccessToken)) {
-                    if (!XAGIO_DROPBOX_KEY || !XAGIO_DROPBOX_SECRET) {
-                        return false;
-                    }
+                // Get the needed AccessTokens
+                $xagio_tokens = get_option("XAGIO_BACKUP_SETTINGS");
 
-                    // Initialize the class
-                    $XAGIO_DropboxClient = new XAGIO_DropboxClient(
-                        $tokens["dropbox"]
-                    );
+                // Domain folder name
+                $folder = self::getName(site_url());
 
-                    $files = $XAGIO_DropboxClient->ListFolder($folder);
-                    if ($files !== false) {
-                        $output = [];
-                        foreach ($files["entries"] as $file) {
-                            if ($file[".tag"] == "file" && strpos($file["name"], $folder) !== false) {
-                                $output[] = [
-                                    "file" => $file["name"],
-                                    "size" => $file["size"],
-                                    "date" => $file["client_modified"],
-                                    "id"   => $file["id"],
-                                ];
-                            }
+                /* DROPBOX */
+                if ($backupLocation === "dropbox") {
+
+                    // check the token
+                    $backup_DropboxAccessToken = isset(
+                        $xagio_tokens["dropbox"]["access_token"]
+                    ) ? $xagio_tokens["dropbox"]["access_token"] : "";
+
+                    if (!empty($backup_DropboxAccessToken)) {
+                        if (!XAGIO_DROPBOX_KEY || !XAGIO_DROPBOX_SECRET) {
+                            return false;
                         }
-                        usort($output, function ($a, $b) {
-                            if ($a["date"] == $b["date"]) {
-                                return false;
-                            }
-                            return $a["date"] > $b["date"] ? -1 : 1;
-                        });
 
-                        if (sizeof($output) > $limit) {
-                            $trimBy            = sizeof($output) - $limit;
-                            $backupsForRemoval = array_slice(
-                                $output, -$trimBy, $trimBy, true
-                            );
+                        // Initialize the class
+                        $XAGIO_DropboxClient = new XAGIO_DropboxClient(
+                            $xagio_tokens["dropbox"]
+                        );
 
-                            // Remove backups
-                            foreach ($backupsForRemoval as $backup) {
-                                $XAGIO_DropboxClient->Delete(
-                                    "/" . $folder . "/" . $backup["file"]
-                                );
-                            }
-                        }
-                        return true;
-                    }
-                }
-            }
-            /* DROPBOX */
-
-            /* ONEDRIVE */
-            if ($backupLocation === "onedrive") {
-                // Include the DropBox Class
-                $oneDriveClass = $class_dir . "XAGIO_OnedriveClient.php";
-                if (!class_exists("XAGIO_OnedriveClient")) {
-                    require_once $oneDriveClass;
-                }
-
-                // check the token
-                $backup_OnedriveAccessToken = isset(
-                    $tokens["onedrive"]["access_token"]
-                ) ? $tokens["onedrive"]["access_token"] : "";
-
-                if (!empty($backup_OnedriveAccessToken)) {
-                    if (!XAGIO_ONEDRIVE_KEY || !XAGIO_ONEDRIVE_SECRET) {
-                        return;
-                    }
-
-                    // Initialize the class
-                    $XAGIO_OnedriveClient = new XAGIO_OnedriveClient();
-
-                    $XAGIO_OnedriveClient->SetAccessToken($tokens["onedrive"]);
-                    $XAGIO_OnedriveClient->renewAccessToken();
-
-                    $files = $XAGIO_OnedriveClient->GetFileFolder(
-                        "/drive/root:/xagio:/children"
-                    );
-
-                    // Find all backups
-                    if (sizeof($files["value"]) !== 0) {
-                        $backups = $files["value"];
-                        $output  = [];
-                        foreach ($backups as $backup) {
-                            $mystring = $backup["name"];
-                            $pos      = strpos($mystring, $folder);
-                            if ($pos === false) {
-                                continue;
-                            } else {
-                                if ($pos == 0) {
-                                    $output[] = [
-                                        "file" => $backup["name"],
-                                        "size" => $backup["size"],
-                                        "date" => gmdate(
-                                            "Y-m-d H:i:s", strtotime(
-                                                $backup["lastModifiedDateTime"]
-                                            )
-                                        ),
-                                        "id"   => $backup["id"],
+                        $xagio_files = $XAGIO_DropboxClient->ListFolder($folder);
+                        if ($xagio_files !== false) {
+                            $xagio_output = [];
+                            foreach ($xagio_files["entries"] as $xagio_file) {
+                                if ($xagio_file[".tag"] == "file" && strpos($xagio_file["name"], $folder) !== false) {
+                                    $xagio_output[] = [
+                                        "file" => $xagio_file["name"],
+                                        "size" => $xagio_file["size"],
+                                        "date" => $xagio_file["client_modified"],
+                                        "id"   => $xagio_file["id"],
                                     ];
-                                } else {
-                                    continue;
                                 }
                             }
-                        }
-                        if (sizeof($output) !== 0) {
-                            usort($output, function ($a, $b) {
+                            usort($xagio_output, function ($a, $b) {
                                 if ($a["date"] == $b["date"]) {
-                                    return 0;
+                                    return false;
                                 }
                                 return $a["date"] > $b["date"] ? -1 : 1;
                             });
 
-                            if (sizeof($output) > $limit) {
-                                $trimBy            = sizeof($output) - $limit;
+                            if (sizeof($xagio_output) > $limit) {
+                                $trimBy            = sizeof($xagio_output) - $limit;
                                 $backupsForRemoval = array_slice(
-                                    $output, -$trimBy, $trimBy, true
+                                    $xagio_output, -$trimBy, $trimBy, true
                                 );
 
                                 // Remove backups
-                                foreach ($backupsForRemoval as $backup) {
-                                    $XAGIO_OnedriveClient->deleteCall(
-                                        "/drive/root:/xagio/" . $backup["file"]
+                                foreach ($backupsForRemoval as $xagio_backup) {
+                                    $XAGIO_DropboxClient->Delete(
+                                        "/" . $folder . "/" . $xagio_backup["file"]
                                     );
                                 }
                             }
@@ -1724,67 +1893,206 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                         }
                     }
                 }
-            }
-            /* ONEDRIVE */
+                /* DROPBOX */
 
-            /* XAGIO_GoogleDrive */
-            if ($backupLocation === "googledrive") {
-                // Include the DropBox Class
-                $XAGIO_GoogleDriveClass = $class_dir . "XAGIO_GoogleDrive.php";
-                if (!class_exists("XAGIO_GoogleDrive")) {
-                    require_once $XAGIO_GoogleDriveClass;
-                }
+                /* ONEDRIVE */
+                if ($backupLocation === "onedrive") {
 
-                // check the token
-                $backup_XAGIO_GoogleDriveAccessToken = isset($tokens["googledrive"]) ? $tokens["googledrive"] : "";
+                    // check the token
+                    $backup_OnedriveAccessToken = isset(
+                        $xagio_tokens["onedrive"]["access_token"]
+                    ) ? $xagio_tokens["onedrive"]["access_token"] : "";
 
-                if (!empty($backup_XAGIO_GoogleDriveAccessToken)) {
-                    if (!XAGIO_GoogleDrive_KEY || !XAGIO_GoogleDrive_SECRET) {
-                        return;
-                    }
-
-                    // Initialize the class
-                    $XAGIO_GoogleDriveClient = new XAGIO_GoogleDrive(
-                        $backup_XAGIO_GoogleDriveAccessToken
-                    );
-
-                    $files = $XAGIO_GoogleDriveClient->ListFiles($folder);
-                    if ($files !== false) {
-                        $output = [];
-
-                        foreach ($files["items"] as $file) {
-                            $output[] = [
-                                "file" => $file["title"],
-                                "size" => $file["fileSize"],
-                                "date" => $file["createdDate"],
-                                "id"   => $file["id"],
-                            ];
+                    if (!empty($backup_OnedriveAccessToken)) {
+                        if (!XAGIO_ONEDRIVE_KEY || !XAGIO_ONEDRIVE_SECRET) {
+                            return false;
                         }
-                        usort($output, function ($a, $b) {
-                            if ($a["date"] == $b["date"]) {
-                                return 0;
+
+                        // Initialize the class
+                        $XAGIO_OnedriveClient = new XAGIO_OnedriveClient();
+
+                        $XAGIO_OnedriveClient->SetAccessToken($xagio_tokens["onedrive"]);
+                        $XAGIO_OnedriveClient->renewAccessToken();
+
+                        $xagio_files = $XAGIO_OnedriveClient->GetFileFolder(
+                            "/drive/root:/xagio:/children"
+                        );
+
+                        // Find all backups
+                        if (sizeof($xagio_files["value"]) !== 0) {
+                            $xagio_backups = $xagio_files["value"];
+                            $xagio_output  = [];
+                            foreach ($xagio_backups as $xagio_backup) {
+                                $mystring = $xagio_backup["name"];
+                                $pos      = strpos($mystring, $folder);
+                                if ($pos === false) {
+                                    continue;
+                                } else {
+                                    if ($pos == 0) {
+                                        $xagio_output[] = [
+                                            "file" => $xagio_backup["name"],
+                                            "size" => $xagio_backup["size"],
+                                            "date" => gmdate(
+                                                "Y-m-d H:i:s", strtotime(
+                                                    $xagio_backup["lastModifiedDateTime"]
+                                                )
+                                            ),
+                                            "id"   => $xagio_backup["id"],
+                                        ];
+                                    } else {
+                                        continue;
+                                    }
+                                }
                             }
-                            return $a["date"] > $b["date"] ? -1 : 1;
-                        });
+                            if (sizeof($xagio_output) !== 0) {
+                                usort($xagio_output, function ($a, $b) {
+                                    if ($a["date"] == $b["date"]) {
+                                        return 0;
+                                    }
+                                    return $a["date"] > $b["date"] ? -1 : 1;
+                                });
 
-                        if (sizeof($output) > $limit) {
-                            $trimBy            = sizeof($output) - $limit;
-                            $backupsForRemoval = array_slice(
-                                $output, -$trimBy, $trimBy, true
-                            );
+                                if (sizeof($xagio_output) > $limit) {
+                                    $trimBy            = sizeof($xagio_output) - $limit;
+                                    $backupsForRemoval = array_slice(
+                                        $xagio_output, -$trimBy, $trimBy, true
+                                    );
 
-                            // Remove backups
-                            foreach ($backupsForRemoval as $backup) {
-                                $XAGIO_GoogleDriveClient->Delete($backup["id"]);
+                                    // Remove backups
+                                    foreach ($backupsForRemoval as $xagio_backup) {
+                                        $XAGIO_OnedriveClient->deleteCall(
+                                            "/drive/root:/xagio/" . $xagio_backup["file"]
+                                        );
+                                    }
+                                }
+                                return true;
                             }
                         }
-                        return true;
                     }
                 }
-            }
-            /* XAGIO_GoogleDrive */
+                /* ONEDRIVE */
 
-            return false;
+                /* XAGIO_GoogleDrive */
+                if ($backupLocation === "googledrive") {
+
+                    // check the token
+                    $backup_XAGIO_GoogleDriveAccessToken = isset($xagio_tokens["googledrive"]) ? $xagio_tokens["googledrive"] : "";
+
+                    if (!empty($backup_XAGIO_GoogleDriveAccessToken)) {
+                        if (!XAGIO_GOOGLEDRIVE_KEY || !XAGIO_GOOGLEDRIVE_SECRET) {
+                            return false;
+                        }
+
+                        // Initialize the class
+                        $XAGIO_GoogleDriveClient = new XAGIO_GoogleDrive(
+                            $backup_XAGIO_GoogleDriveAccessToken
+                        );
+
+                        $xagio_files = $XAGIO_GoogleDriveClient->ListFiles($folder);
+
+                        if ($xagio_files !== false) {
+                            $xagio_output = [];
+
+                            foreach ($xagio_files["items"] as $xagio_file) {
+                                $xagio_output[] = [
+                                    "file" => $xagio_file["title"],
+                                    "size" => $xagio_file["fileSize"],
+                                    "date" => $xagio_file["createdDate"],
+                                    "id"   => $xagio_file["id"],
+                                ];
+                            }
+                            usort($xagio_output, function ($a, $b) {
+                                if ($a["date"] == $b["date"]) {
+                                    return 0;
+                                }
+                                return $a["date"] > $b["date"] ? -1 : 1;
+                            });
+
+
+                            if (sizeof($xagio_output) > $limit) {
+                                $trimBy            = sizeof($xagio_output) - $limit;
+                                $backupsForRemoval = array_slice(
+                                    $xagio_output, -$trimBy, $trimBy, true
+                                );
+
+                                // Remove backups
+                                foreach ($backupsForRemoval as $xagio_backup) {
+                                    $XAGIO_GoogleDriveClient->Delete($xagio_backup["id"]);
+                                }
+                            }
+                            return true;
+                        }
+                    }
+                }
+                /* XAGIO_GoogleDrive */
+
+                /* AMAZON S3 */
+                if ($backupLocation === "amazons3") {
+
+                    $backup_AmazonAccessKey = isset($xagio_tokens["amazon"]["access_key"]) ? $xagio_tokens["amazon"]["access_key"] : "";
+                    $backup_AmazonSecretKey = isset($xagio_tokens["amazon"]["secret_key"]) ? $xagio_tokens["amazon"]["secret_key"] : "";
+                    $backup_AmazonBucket    = isset($xagio_tokens["amazon"]["bucket"]) ? $xagio_tokens["amazon"]["bucket"] : "";
+                    $backup_AmazonRegion    = isset($xagio_tokens["amazon"]["region"]) ? $xagio_tokens["amazon"]["region"] : "";
+
+                    if (!empty($backup_AmazonAccessKey) && !empty($backup_AmazonSecretKey) && !empty($backup_AmazonRegion) && !empty($backup_AmazonBucket)) {
+
+                        $S3 = new XAGIO_S3(
+                            $backup_AmazonAccessKey, $backup_AmazonSecretKey, $backup_AmazonRegion, $backup_AmazonBucket
+                        );
+
+                        $domain   = wp_parse_url(get_site_url(), PHP_URL_HOST);
+                        $folder   = self::getFolderName($domain);
+                        $contents = $S3->list_files($folder);
+
+                        if (!is_wp_error($contents)) {
+                            $xagio_output = [];
+
+                            foreach ($contents as $xagio_file) {
+                                $xagio_name = str_replace(
+                                    $folder . "/", "", $xagio_file["Key"]
+                                );
+                                if (empty($xagio_name))
+                                    continue;
+                                if (strpos($xagio_file["Key"], $folder) !== false) {
+                                    $xagio_output[] = [
+                                        "file" => $xagio_name,
+                                        "size" => $xagio_file["Size"],
+                                        "date" => gmdate(
+                                            "Y-m-d H:i:s", strtotime($xagio_file['LastModified'])
+                                        ),
+                                        "id"   => $xagio_file["Key"],
+                                    ];
+                                }
+                            }
+
+                            usort($xagio_output, function ($a, $b) {
+                                if ($a["date"] == $b["date"]) {
+                                    return 0;
+                                }
+                                return $a["date"] > $b["date"] ? -1 : 1;
+                            });
+
+                            if (sizeof($xagio_output) > $limit) {
+                                $trimBy            = sizeof($xagio_output) - $limit;
+                                $backupsForRemoval = array_slice(
+                                    $xagio_output, -$trimBy, $trimBy, true
+                                );
+
+                                // Remove backups
+                                foreach ($backupsForRemoval as $xagio_backup) {
+                                    $S3->remove_file($xagio_backup["id"]);
+                                }
+                            }
+                        }
+                    }
+                }
+                /* AMAZON S3 */
+
+                return false;
+            } catch (Exception $ex) {
+                return false;
+            }
+
         }
 
         private static function excludeFromFiles($listOfFiles)
@@ -1792,24 +2100,24 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             if (XAGIO_BACKUPS_IGNORE_DOMAINS == true) {
                 $domains  = [];
                 $new_list = [];
-                foreach ($listOfFiles as $file) {
-                    if (is_dir($file)) {
-                        $test = str_replace(ABSPATH, "", $file);
+                foreach ($listOfFiles as $xagio_file) {
+                    if (is_dir($xagio_file)) {
+                        $test = str_replace(ABSPATH, "", $xagio_file);
                         if (preg_match(
                             "/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]/", $test
                         )) {
                             $domains[] = $test;
                         } else {
-                            $new_list[] = $file;
+                            $new_list[] = $xagio_file;
                         }
                     } else {
                         foreach ($domains as $domain) {
-                            if (strpos($file, $domain) !== false) {
+                            if (strpos($xagio_file, $domain) !== false) {
                                 continue 2;
                             }
                         }
 
-                        $new_list[] = $file;
+                        $new_list[] = $xagio_file;
                     }
                 }
 
@@ -1830,10 +2138,10 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             $backup_type        = sanitize_text_field(wp_unslash($_POST["type"]));
             $backup_destination = sanitize_text_field(wp_unslash($_POST["destination"]));
 
-            $output = null;
+            $xagio_output = null;
 
             if ($backup_destination == "local") {
-                $output = self::doCloneBackup($backup_type);
+                $xagio_output = self::doCloneBackup($backup_type);
             } else {
                 if (!self::checkIfBackupLocationIsSet($backup_destination)) {
                     xagio_json('error', 'This location is not set up yet. Please set it up first.');
@@ -1843,11 +2151,11 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 $backupLocation = get_option("XAGIO_BACKUP_LOCATION");
                 update_option("XAGIO_BACKUP_LOCATION", $backup_destination);
                 $_POST['create_id'] = 0;
-                $output             = self::doBackup($backup_type);
+                $xagio_output             = self::doBackup($backup_type);
                 update_option("XAGIO_BACKUP_LOCATION", $backupLocation);
             }
 
-            xagio_jsonc($output);
+            xagio_jsonc($xagio_output);
         }
 
         public static function removeBackup()
@@ -1858,10 +2166,10 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $name         = sanitize_text_field(wp_unslash($_POST["name"]));
+            $xagio_name         = sanitize_text_field(wp_unslash($_POST["name"]));
             $backupFolder = XAGIO_PATH . "/backups/";
-            if (file_exists($backupFolder . $name)) {
-                wp_delete_file($backupFolder . $name);
+            if (file_exists($backupFolder . $xagio_name)) {
+                wp_delete_file($backupFolder . $xagio_name);
             }
         }
 
@@ -1872,6 +2180,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
             if (!file_exists($backupFolder)) {
                 xagio_mkdir($backupFolder);
+                xagio_file_put_contents($backupFolder . '/index.html', 'Access Denied');
             }
 
             // WordPress Directory
@@ -1880,6 +2189,10 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             $backupName = wp_parse_url(get_site_url());
             $backupName = strtolower($backupName["host"]);
             $backupName = str_replace(".", "_", $backupName) . "_" . $type . "_" . gmdate("H_i_s__Y_m_d");
+
+            // Append a short secure random string to make it unique
+            $randomSuffix = hash('sha256', bin2hex(random_bytes(4))); // 8 hex characters
+            $backupName   .= "_" . $randomSuffix;
 
             // Backup ZIP File
             $backupFile = $backupFolder . DIRECTORY_SEPARATOR . $backupName . ".zip";
@@ -1893,8 +2206,8 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             // Start the MySQL backup process
             if ($type == "mysql") {
 
-                $output = self::doBackupMySQL($backupFile);
-                if (!$output) {
+                $xagio_output = self::doBackupMySQL($backupFile);
+                if (!$xagio_output) {
                     return [
                         "status"  => "error",
                         "message" => "Failed to create backup. Make sure you have enough space on the disk, or write permissions."
@@ -1910,8 +2223,8 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 ];
             } elseif ($type == "full") {
 
-                $output = self::doBackupMySQL($backupSQL);
-                if (!$output) {
+                $xagio_output = self::doBackupMySQL($backupSQL);
+                if (!$xagio_output) {
                     return [
                         "status"  => "error",
                         "message" => "Failed to create backup. Make sure you have enough space on the disk, or write permissions."
@@ -1974,232 +2287,251 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
         // Function that handles the overall backup process
         public static function doBackup($type = "full")
         {
-            // Update keys first
-            XAGIO_SYNC::getBackupSettings();
+            try {
+                // Update keys first
+                XAGIO_SYNC::getBackupSettings();
 
-            $createID       = isset($_POST['create_id']) ? intval($_POST["create_id"]) : 0;
-            $backupLocation = get_option("XAGIO_BACKUP_LOCATION");
-            $tokens         = get_option("XAGIO_BACKUP_SETTINGS");
+                $createID       = isset($_POST['create_id']) ? intval($_POST["create_id"]) : 0;
+                $backupLocation = get_option("XAGIO_BACKUP_LOCATION");
+                $xagio_tokens         = get_option("XAGIO_BACKUP_SETTINGS");
 
-            // Check if tokens and location are set
-            if (empty($tokens) || empty($backupLocation) || $backupLocation == "none") {
-                $message = "Please set your Storage Method and credentials for the preferred method.";
-                return self::handleError($createID, $message);
-            }
+                // Check if tokens and location are set
+                if (empty($xagio_tokens) || empty($backupLocation) || $backupLocation == "none") {
+                    $message = "Please set your Storage Method and credentials for the preferred method.";
+                    return self::handleOutput($createID, 'error', $message);
+                }
 
-            // Check and create backup folder if necessary
-            $backupFolder = XAGIO_PATH . "/backups";
-            if (!file_exists($backupFolder)) {
-                xagio_mkdir($backupFolder);
-            }
+                // Check and create backup folder if necessary
+                $backupFolder = XAGIO_PATH . "/backups";
+                if (!file_exists($backupFolder)) {
+                    xagio_mkdir($backupFolder);
+                    xagio_file_put_contents($backupFolder . '/index.html', 'Access Denied');
+                }
 
-            // WordPress Directory and Backup Names
-            $wordPressHomeDir = ABSPATH;
-            $siteName         = self::getName(site_url());
-            $backupName       = $siteName . "_backup_{$type}_" . gmdate("m-d-Y_H-i");
-            $backupFile       = $backupFolder . DIRECTORY_SEPARATOR . $backupName . ".zip";
-            $backupSQL        = $wordPressHomeDir . "mysql.zip";
+                // WordPress Directory and Backup Names
+                $wordPressHomeDir = ABSPATH;
+                $siteName         = self::getName(site_url());
+                $backupName       = $siteName . "_backup_{$type}_" . gmdate("m-d-Y_H-i");
 
-            if ($type == "full" || $type == "mysql") {
+                // Append a short secure random string to make it unique
+                $randomSuffix = hash('sha256', bin2hex(random_bytes(4))); // 8 hex characters
+                $backupName   .= "_" . $randomSuffix;
 
-                if (file_exists($backupSQL)) {
+                $backupFile = $backupFolder . DIRECTORY_SEPARATOR . $backupName . ".zip";
+                $backupSQL  = $wordPressHomeDir . "mysql.zip";
+
+                if ($type == "full" || $type == "mysql") {
+
+                    if (file_exists($backupSQL)) {
+                        wp_delete_file($backupSQL);
+                    }
+
+                    // Start the MySQL backup process
+                    $xagio_output = self::doBackupMySQL($backupSQL);
+                    if (!$xagio_output) {
+                        return self::handleOutput($createID, "error", "Failed to create database backup. Make sure you have enough space on the disk, or write permissions.");
+                    }
+
+                }
+
+                if ($type == "full" || $type == "files") {
+                    $listOfFilesAndFolders = self::excludeFromFiles(glob($wordPressHomeDir . "*"));
+
+                    if (!class_exists("xagio_ZipArchiveX")) {
+                        return self::handleOutput($createID, "error", "ZipArchive is not installed.");
+                    }
+
+                    $archive = new xagio_ZipArchiveX();
+                    if ($archive->open($backupFile, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+                        return self::handleOutput($createID, "error", "Cannot create zip archive! Make sure that you have write permissions!");
+                    }
+
+                    $archive->pack($listOfFilesAndFolders, $wordPressHomeDir);
+                    $archive->close();
+
+                } else if ($type == "mysql") {
+
+                    xagio_rename($backupSQL, $backupFile);
+
+                }
+
+
+                if (!file_exists($backupFile)) {
+                    return self::handleOutput($createID, "error", "Failed to create a backup. Could not zip the files.");
+                }
+
+                if ($type == "full" || $type == "mysql") {
+                    // Remove the MySQL backup from Root Dir
                     wp_delete_file($backupSQL);
                 }
 
-                // Start the MySQL backup process
-                $output = self::doBackupMySQL($backupSQL);
-                if (!$output) {
-                    return [
-                        "status"  => "error",
-                        "message" => "Failed to create backup. Make sure you have enough space on the disk, or write permissions."
-                    ];
+                // Start uploading the backup to the remote server
+                $upload_status = self::uploadToRemoteServer($backupLocation, $xagio_tokens, $backupFile, $siteName, $createID);
+
+                // Check if upload was successful
+                if (is_string($upload_status)) {
+                    return self::handleOutput($createID, 'error', $upload_status);
                 }
 
-            }
+                // Trim backups
+                self::trimBackups();
 
-            if ($type == "full" || $type == "files") {
-                $listOfFilesAndFolders = self::excludeFromFiles(glob($wordPressHomeDir . "*"));
+                return $upload_status;
 
-                if (!class_exists("xagio_ZipArchiveX")) {
-                    return [
-                        "status"  => "error",
-                        "message" => "ZipArchive is not installed."
-                    ];
-                }
+            } catch (Exception $ex) {
 
-                $archive = new xagio_ZipArchiveX();
-                if ($archive->open($backupFile, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-                    return self::handleError($createID, "Cannot create zip archive! Make sure that you have write permissions!");
-                }
-
-                $archive->pack($listOfFilesAndFolders, $wordPressHomeDir);
-                $archive->close();
-
-            } else if ($type == "mysql") {
-
-                xagio_rename($backupSQL, $backupFile);
+                return self::handleOutput($createID, 'error', 'Backup failed. Error: ' . $ex->getMessage());
 
             }
-
-
-
-            if (!file_exists($backupFile)) {
-                return self::handleError($createID, "Failed to create a backup. Could not zip the files.");
-            }
-
-            if ($type == "full" || $type == "mysql") {
-                // Remove the MySQL backup from Root Dir
-                wp_delete_file($backupSQL);
-            }
-
-            // Start uploading the backup to the remote server
-            self::uploadToRemoteServer($backupLocation, $tokens, $backupFile, $siteName, $createID);
-
-            // Remove the files backup
-            wp_delete_file($backupFile);
-
-            // Trim backups
-            self::trimBackups();
-
-            if ($createID == "0") {
-                self::sendCronBackupLogs("success | Backup successfully created.", "Backup successfully created.");
-                return [
-                    "status"  => "success",
-                    "message" => "Backup successfully created."
-                ];
-            } else {
-                XAGIO_API::apiRequest("backups", "POST", [
-                    "message"   => "Backup successfully created.",
-                    "create_id" => $createID
-                ]);
-            }
-
-            return false;
         }
 
-        private static function handleError($createID, $message)
+        public static function handleOutput($createID, $status, $message)
         {
-            if ($createID === "0") {
-                self::sendCronBackupLogs("Error", $message);
-                return [
-                    "status"  => "error",
-                    "message" => $message
-                ];
-            } else {
-                XAGIO_API::apiRequest("backups", "POST", [
-                    "message"   => $message,
-                    "create_id" => $createID
-                ]);
+            $domain = wp_parse_url(site_url(), PHP_URL_HOST);
+            $data   = [
+                "status"  => $status,
+                "message" => $message,
+                "domain"  => $domain
+            ];
+
+            if ($createID != "0") {
+                $data["create_id"] = $createID;
             }
-            return $message;
+
+            XAGIO_API::apiRequest("backups", "POST", $data);
+
+            return [
+                "status"  => $status,
+                "message" => $message
+            ];
         }
 
-        private static function uploadToRemoteServer($backupLocation, $tokens, $backupFile, $siteName, $createID)
+        private static function uploadToRemoteServer($backupLocation, $xagio_tokens, $backupFile, $siteName, $createID)
         {
             switch ($backupLocation) {
                 case "dropbox":
-                    self::uploadToDropbox($tokens, $backupFile, $siteName, $createID);
-                    break;
+                    return self::uploadToDropbox($xagio_tokens, $backupFile, $siteName, $createID);
                 case "onedrive":
-                    self::uploadToOnedrive($tokens, $backupFile, $siteName, $createID);
-                    break;
+                    return self::uploadToOnedrive($xagio_tokens, $backupFile, $siteName, $createID);
                 case "googledrive":
-                    self::uploadToXAGIO_GoogleDrive($tokens, $backupFile, $siteName, $createID);
-                    break;
+                    return self::uploadToGoogleDrive($xagio_tokens, $backupFile, $siteName, $createID);
+                case "amazons3":
+                    return self::uploadToAmazonS3($xagio_tokens, $backupFile, $siteName, $createID);
                 default:
-                    self::handleError($createID, "Unsupported backup location.");
-                    break;
+                    return self::handleOutput($createID, "error", "Unsupported backup location.");
             }
         }
 
-        private static function uploadToDropbox($tokens, $backupFile, $siteName, $createID)
+        private static function uploadToAmazonS3($xagio_tokens, $backupFile, $siteName, $createID)
         {
-            $dropBoxClass = dirname(__FILE__) . "/../ext/XAGIO_DropboxClient.php";
-            if (!class_exists("XAGIO_DropboxClient")) {
-                require_once $dropBoxClass;
-            }
+            $backup_AmazonAccessKey = $xagio_tokens["amazon"]["access_key"] ?? "";
+            $backup_AmazonSecretKey = $xagio_tokens["amazon"]["secret_key"] ?? "";
+            $backup_AmazonBucket    = $xagio_tokens["amazon"]["bucket"] ?? "";
+            $backup_AmazonRegion    = $xagio_tokens["amazon"]["region"] ?? "";
 
-            $backup_DropboxAccessToken = $tokens["dropbox"] ?? "";
+            if (!empty($backup_AmazonAccessKey) && !empty($backup_AmazonSecretKey) && !empty($backup_AmazonBucket) && !empty($backup_AmazonRegion)) {
+
+                $S3 = new XAGIO_S3(
+                    $backup_AmazonAccessKey, $backup_AmazonSecretKey, $backup_AmazonRegion, $backup_AmazonBucket
+                );
+
+                $folder       = self::getFolderName($siteName);
+                $amazonOutput = $S3->upload($backupFile, $folder . '/' . basename($backupFile), $createID);
+
+                if (is_wp_error($amazonOutput)) {
+                    return $amazonOutput->get_error_message();
+                }
+
+                return [
+                    'status'  => 'success',
+                    'message' => 'Local Backup is created and enqueued to be uploaded to Amazon S3, please check back later.'
+                ];
+
+            } else {
+                return "Amazon S3 credentials are invalid. Make sure your website is synchronized, or try to reauthorize Amazon S3 on Xagio Cloud.";
+            }
+        }
+
+        private static function uploadToDropbox($xagio_tokens, $backupFile, $siteName, $createID)
+        {
+            $backup_DropboxAccessToken = $xagio_tokens["dropbox"] ?? "";
 
             if (!empty($backup_DropboxAccessToken) && XAGIO_DROPBOX_KEY && XAGIO_DROPBOX_SECRET) {
                 $XAGIO_DropboxClient = new XAGIO_DropboxClient($backup_DropboxAccessToken);
 
                 $XAGIO_DropboxClient->CreateFolder($siteName);
-                $dropboxOutput = $XAGIO_DropboxClient->Upload($backupFile, "/" . $siteName);
+                $dropboxOutput = $XAGIO_DropboxClient->upload($backupFile, "/" . $siteName, $createID);
 
-                if (isset($dropboxOutput["error_summary"])) {
-                    self::handleError($createID, "Failed to upload backup to Dropbox. Info: " . $dropboxOutput["error_summary"]);
+                if (isset($dropboxOutput["error"])) {
+                    return "Failed to upload backup to Dropbox. Info: " . $dropboxOutput["error"];
                 }
+
+                return [
+                    'status'  => 'success',
+                    'message' => 'Local Backup is created and enqueued to be uploaded to DropBox, please check back later.'
+                ];
+
             } else {
-                self::handleError($createID, "Please synchronize backup settings on this website before trying again.");
+                return "Dropbox credentials are invalid. Make sure your website is synchronized, or try to reauthorize Dropbox on Xagio Cloud.";
             }
         }
 
-        private static function uploadToOnedrive($tokens, $backupFile, $siteName, $createID)
+        private static function uploadToOnedrive($xagio_tokens, $backupFile, $siteName, $createID)
         {
-            $oneDriveClass = dirname(__FILE__) . "/../ext/XAGIO_OnedriveClient.php";
-            if (!class_exists("XAGIO_OnedriveClient")) {
-                require_once $oneDriveClass;
-            }
-
-            $backup_OnedriveAccessToken = $tokens["onedrive"] ?? "";
+            $backup_OnedriveAccessToken = $xagio_tokens["onedrive"] ?? "";
 
             if (!empty($backup_OnedriveAccessToken) && XAGIO_ONEDRIVE_KEY && XAGIO_ONEDRIVE_SECRET) {
                 $XAGIO_OnedriveClient = new XAGIO_OnedriveClient();
 
                 $XAGIO_OnedriveClient->SetAccessToken($backup_OnedriveAccessToken);
                 $XAGIO_OnedriveClient->renewAccessToken();
+
                 $XAGIO_OnedriveClient->CreateFolder();
-                $onedriveOutput = $XAGIO_OnedriveClient->upload($backupFile);
+                $onedriveOutput = $XAGIO_OnedriveClient->upload($backupFile, $createID);
 
                 if (isset($onedriveOutput["error"])) {
-                    self::handleError($createID, "Failed to upload backup to OneDrive. Info: " . $onedriveOutput["error"]["message"]);
+                    return "Failed to upload backup to OneDrive. Info: " . $onedriveOutput["error"];
                 }
+
+                return [
+                    'status'  => 'success',
+                    'message' => 'Local Backup is created and enqueued to be uploaded to OneDrive, please check back later.'
+                ];
+
             } else {
-                self::handleError($createID, "Please synchronize backup settings on this website before trying again.");
+                return "OneDrive credentials are invalid. Make sure your website is synchronized, or try to reauthorize OneDrive on Xagio Cloud.";
             }
         }
 
-        private static function uploadToXAGIO_GoogleDrive($tokens, $backupFile, $siteName, $createID)
+        private static function uploadToGoogleDrive($xagio_tokens, $backupFile, $siteName, $createID)
         {
-            $XAGIO_GoogleDriveClass = dirname(__FILE__) . "/../ext/XAGIO_GoogleDrive.php";
-            if (!class_exists("XAGIO_GoogleDrive")) {
-                require_once $XAGIO_GoogleDriveClass;
-            }
+            $backup_XAGIO_GoogleDriveAccessToken = $xagio_tokens["googledrive"] ?? "";
 
-            $backup_XAGIO_GoogleDriveAccessToken = $tokens["googledrive"] ?? "";
-
-            if (!empty($backup_XAGIO_GoogleDriveAccessToken) && XAGIO_GoogleDrive_KEY && XAGIO_GoogleDrive_SECRET) {
+            if (!empty($backup_XAGIO_GoogleDriveAccessToken) && XAGIO_GOOGLEDRIVE_KEY && XAGIO_GOOGLEDRIVE_SECRET) {
                 $XAGIO_GoogleDriveClient = new XAGIO_GoogleDrive($backup_XAGIO_GoogleDriveAccessToken);
 
                 $XAGIO_GoogleDriveClient->CreateFolder("Xagio");
                 $XAGIO_GoogleDriveClient->CreateFolder($siteName, "Xagio");
-                $XAGIO_GoogleDriveOutput = $XAGIO_GoogleDriveClient->Upload($backupFile, $siteName);
+                $XAGIO_GoogleDriveOutput = $XAGIO_GoogleDriveClient->upload($backupFile, $siteName, $createID);
 
                 if (isset($XAGIO_GoogleDriveOutput["error"])) {
-                    self::handleError($createID, "Failed to upload backup to Google Drive. Info: " . $XAGIO_GoogleDriveOutput["errors"][0]["message"]);
+                    return "Failed to upload backup to Google Drive. Info: " . $XAGIO_GoogleDriveOutput["error"];
                 }
+
+                return [
+                    'status'  => 'success',
+                    'message' => 'Local Backup is created and enqueued to be uploaded to GoogleDrive, please check back later.'
+                ];
+
             } else {
-                self::handleError($createID, "Please synchronize backup settings on this website before trying again.");
+                return "GoogleDrive credentials are invalid. Make sure your website is synchronized, or try to reauthorize GoogleDrive on Xagio Cloud.";
             }
         }
 
-        // Function that will send Cron backup logs to panel
-        public static function sendCronBackupLogs($status, $message)
-        {
-            $domainName = self::getName(site_url(), "only_host");
-
-            XAGIO_API::apiRequest($endpoint = "backups", $method = "POST", [
-                "status"  => $status,
-                "message" => $message,
-                "domain"  => $domainName,
-            ]);
-        }
-
         // Function that handle MySQL backup
-        public static function doBackupMySQL($location)
+        public static function doBackupMySQL($xagio_location)
         {
-            if (!xagio_is_writable(dirname($location))) {
+            if (!xagio_is_writable(dirname($xagio_location))) {
                 return false;
             }
 
@@ -2223,33 +2555,34 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             // Get all tables in the current database
             $tables = $wpdb->get_results("SHOW TABLES", ARRAY_N);
 
-            $i = 0;
+            $xagio_i = 0;
 
             foreach ($tables as $table) {
-                $table = $table[0];
-                $i_file = str_pad($i, 6, "0", STR_PAD_LEFT);
+                $table  = $table[0];
+                $i_file = str_pad($xagio_i, 6, "0", STR_PAD_LEFT);
 
                 // Create table structure file
-                $tableDump = "DROP TABLE IF EXISTS `{$table}`;\n";
+                $tableDump   = "DROP TABLE IF EXISTS `{$table}`;\n";
                 $createTable = $wpdb->get_row("SHOW CREATE TABLE `$table`", ARRAY_N);
-                $tableDump .= $createTable[1] . ";\n\n";
+                $tableDump   .= $createTable[1] . ";\n\n";
 
                 $wp_filesystem->put_contents(
-                    $backupFolder . "/" . $i_file . "_" . $table . ".sql",
-                    $tableDump,
-                    0777
+                    $backupFolder . "/" . $i_file . "_" . $table . ".sql", $tableDump, 0777
                 );
 
                 // Create data file and handle rows in batches
                 $sqlFilePath = $backupFolder . "/" . $i_file . "_" . $table . "_data.sql";
-                $batchSize = 1000; // Adjust based on your needs
-                $offset = 0;
+                $batchSize   = 1000; // Adjust based on your needs
+                $offset      = 0;
 
                 // Initialize the file using wp_filesystem
                 $wp_filesystem->put_contents($sqlFilePath, '', 0777);
 
                 // Open the file for appending using call_user_func_array
-                $fileHandle = call_user_func_array('fopen', array($sqlFilePath, 'a'));
+                $fileHandle = call_user_func_array('fopen', array(
+                    $sqlFilePath,
+                    'a'
+                ));
 
                 if (!$fileHandle) {
                     return false;
@@ -2259,11 +2592,8 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                     // Get a batch of rows
                     $rows = $wpdb->get_results(
                         $wpdb->prepare(
-                            "SELECT * FROM `$table` LIMIT %d OFFSET %d",
-                            $batchSize,
-                            $offset
-                        ),
-                        ARRAY_A
+                            "SELECT * FROM `$table` LIMIT %d OFFSET %d", $batchSize, $offset
+                        ), ARRAY_A
                     );
 
                     if (empty($rows)) {
@@ -2272,22 +2602,28 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
                     $insertData = '';
                     foreach ($rows as $row) {
-                        $values = array_map(function ($value) use ($wpdb) {
-                            return isset($value) ? "'" . addslashes($value) . "'" : "NULL";
+                        $values = array_map(function ($xagio_value) use ($wpdb) {
+                            return isset($xagio_value) ? "'" . addslashes($xagio_value) . "'" : "NULL";
                         }, array_values($row));
 
                         $insertData .= "INSERT INTO `$table` VALUES (" . implode(", ", $values) . ");\n";
 
                         // Write to file when batch reaches 1MB to prevent memory buildup
                         if (strlen($insertData) > 1024 * 1024) {
-                            call_user_func_array('fwrite', array($fileHandle, $insertData));
+                            call_user_func_array('fwrite', array(
+                                $fileHandle,
+                                $insertData
+                            ));
                             $insertData = '';
                         }
                     }
 
                     // Write any remaining data
                     if (!empty($insertData)) {
-                        call_user_func_array('fwrite', array($fileHandle, $insertData));
+                        call_user_func_array('fwrite', array(
+                            $fileHandle,
+                            $insertData
+                        ));
                     }
 
                     $offset += $batchSize;
@@ -2295,7 +2631,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
                 // Close the file handle
                 call_user_func_array('fclose', array($fileHandle));
-                $i++;
+                $xagio_i++;
             }
 
             $listOfFilesAndFolders = glob($backupFolder . "/*");
@@ -2307,7 +2643,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 // Start the ZIP creation process
                 $archive = new xagio_ZipArchiveX();
                 if ($archive->open(
-                        $location, ZipArchive::CREATE | ZipArchive::OVERWRITE
+                        $xagio_location, ZipArchive::CREATE | ZipArchive::OVERWRITE
                     ) !== true) {
                     return false;
                 }
@@ -2321,35 +2657,35 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
             xagio_removeRecursiveDir($backupFolder);
 
-            return $location;
+            return $xagio_location;
         }
 
         // Functions that handle SQL files
-        public static function remove_comments(&$output)
+        public static function remove_comments(&$xagio_output)
         {
-            $lines  = explode("\n", $output);
-            $output = "";
+            $lines  = explode("\n", $xagio_output);
+            $xagio_output = "";
 
             // try to keep mem. use down
             $linecount = count($lines);
 
             $in_comment = false;
-            for ($i = 0; $i < $linecount; $i++) {
-                if (preg_match("/^\/\*/", preg_quote($lines[$i]))) {
+            for ($xagio_i = 0; $xagio_i < $linecount; $xagio_i++) {
+                if (preg_match("/^\/\*/", preg_quote($lines[$xagio_i]))) {
                     $in_comment = true;
                 }
 
                 if (!$in_comment) {
-                    $output .= $lines[$i] . "\n";
+                    $xagio_output .= $lines[$xagio_i] . "\n";
                 }
 
-                if (preg_match("/\*\/$/", preg_quote($lines[$i]))) {
+                if (preg_match("/\*\/$/", preg_quote($lines[$xagio_i]))) {
                     $in_comment = false;
                 }
             }
 
             unset($lines);
-            return $output;
+            return $xagio_output;
         }
 
         public static function remove_remarks($sql)
@@ -2360,48 +2696,48 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             $sql = "";
 
             $linecount = count($lines);
-            $output    = "";
+            $xagio_output    = "";
 
-            for ($i = 0; $i < $linecount; $i++) {
-                if ($i != $linecount - 1 || strlen($lines[$i]) > 0) {
-                    if (isset($lines[$i][0]) && $lines[$i][0] != "#") {
-                        $output .= $lines[$i] . "\n";
+            for ($xagio_i = 0; $xagio_i < $linecount; $xagio_i++) {
+                if ($xagio_i != $linecount - 1 || strlen($lines[$xagio_i]) > 0) {
+                    if (isset($lines[$xagio_i][0]) && $lines[$xagio_i][0] != "#") {
+                        $xagio_output .= $lines[$xagio_i] . "\n";
                     } else {
-                        $output .= "\n";
+                        $xagio_output .= "\n";
                     }
                     // Trading a bit of speed for lower mem. use here.
-                    $lines[$i] = "";
+                    $lines[$xagio_i] = "";
                 }
             }
 
-            return $output;
+            return $xagio_output;
         }
 
         public static function split_sql_file($sql, $delimiter)
         {
             // Split up our string into "possible" SQL statements.
-            $tokens = explode($delimiter, $sql);
+            $xagio_tokens = explode($delimiter, $sql);
 
             // try to save mem.
             $sql    = "";
-            $output = [];
+            $xagio_output = [];
 
             // we don't actually care about the matches preg gives us.
             $matches = [];
 
             // this is faster than calling count($oktens) every time thru the loop.
-            $token_count = count($tokens);
-            for ($i = 0; $i < $token_count; $i++) {
+            $token_count = count($xagio_tokens);
+            for ($xagio_i = 0; $xagio_i < $token_count; $xagio_i++) {
                 // Don't wanna add an empty string as the last thing in the array.
-                if ($i != $token_count - 1 || strlen($tokens[$i] > 0)) {
+                if ($xagio_i != $token_count - 1 || strlen($xagio_tokens[$xagio_i] > 0)) {
                     // This is the total number of single quotes in the token.
                     $total_quotes = preg_match_all(
-                        "/'/", $tokens[$i], $matches
+                        "/'/", $xagio_tokens[$xagio_i], $matches
                     );
                     // Counts single quotes that are preceded by an odd number of backslashes,
                     // which means they're escaped quotes.
                     $escaped_quotes = preg_match_all(
-                        "/(?<!\\\\)(\\\\\\\\)*\\\\'/", $tokens[$i], $matches
+                        "/(?<!\\\\)(\\\\\\\\)*\\\\'/", $xagio_tokens[$xagio_i], $matches
                     );
 
                     $unescaped_quotes = $total_quotes - $escaped_quotes;
@@ -2409,28 +2745,28 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                     // If the number of unescaped quotes is even, then the delimiter did NOT occur inside a string literal.
                     if ($unescaped_quotes % 2 == 0) {
                         // It's a complete sql statement.
-                        $output[] = $tokens[$i];
+                        $xagio_output[] = $xagio_tokens[$xagio_i];
                         // save memory.
-                        $tokens[$i] = "";
+                        $xagio_tokens[$xagio_i] = "";
                     } else {
                         // incomplete sql statement. keep adding tokens until we have a complete one.
                         // $temp will hold what we have so far.
-                        $temp = $tokens[$i] . $delimiter;
+                        $temp = $xagio_tokens[$xagio_i] . $delimiter;
                         // save memory..
-                        $tokens[$i] = "";
+                        $xagio_tokens[$xagio_i] = "";
 
                         // Do we have a complete statement yet?
                         $complete_stmt = false;
 
-                        for ($j = $i + 1; !$complete_stmt && $j < $token_count; $j++) {
+                        for ($j = $xagio_i + 1; !$complete_stmt && $j < $token_count; $j++) {
                             // This is the total number of single quotes in the token.
                             $total_quotes = preg_match_all(
-                                "/'/", $tokens[$j], $matches
+                                "/'/", $xagio_tokens[$j], $matches
                             );
                             // Counts single quotes that are preceded by an odd number of backslashes,
                             // which means they're escaped quotes.
                             $escaped_quotes = preg_match_all(
-                                "/(?<!\\\\)(\\\\\\\\)*\\\\'/", $tokens[$j], $matches
+                                "/(?<!\\\\)(\\\\\\\\)*\\\\'/", $xagio_tokens[$j], $matches
                             );
 
                             $unescaped_quotes = $total_quotes - $escaped_quotes;
@@ -2438,40 +2774,40 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                             if ($unescaped_quotes % 2 == 1) {
                                 // odd number of unescaped quotes. In combination with the previous incomplete
                                 // statement(s), we now have a complete statement. (2 odds always make an even)
-                                $output[] = $temp . $tokens[$j];
+                                $xagio_output[] = $temp . $xagio_tokens[$j];
 
                                 // save memory.
-                                $tokens[$j] = "";
+                                $xagio_tokens[$j] = "";
                                 $temp       = "";
 
                                 // exit the loop.
                                 $complete_stmt = true;
                                 // make sure the outer loop continues at the right point.
-                                $i = $j;
+                                $xagio_i = $j;
                             } else {
                                 // even number of unescaped quotes. We still don't have a complete statement.
                                 // (1 odd and 1 even always make an odd)
-                                $temp .= $tokens[$j] . $delimiter;
+                                $temp .= $xagio_tokens[$j] . $delimiter;
                                 // save memory.
-                                $tokens[$j] = "";
+                                $xagio_tokens[$j] = "";
                             }
                         } // for..
                     } // else
                 }
             }
 
-            return $output;
+            return $xagio_output;
         }
 
-        public static function getName($url, $only_host = false)
+        public static function getName($xagio_url, $only_host = false)
         {
-            $parts = wp_parse_url($url);
+            $parts = wp_parse_url($xagio_url);
             if ($only_host) {
-                $name = $parts["host"];
+                $xagio_name = $parts["host"];
             } else {
-                $name = str_replace(".", "_", $parts["host"]);
+                $xagio_name = str_replace(".", "_", $parts["host"]);
             }
-            return $name;
+            return $xagio_name;
         }
 
         private static function loadKeys()
@@ -2500,14 +2836,14 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                     "XAGIO_ONEDRIVE_SECRET", isset($secret_keys["onedrive"]) ? $secret_keys["onedrive"]["private"] : false
                 );
             }
-            if (!defined("XAGIO_GoogleDrive_KEY")) {
+            if (!defined("XAGIO_GOOGLEDRIVE_KEY")) {
                 define(
-                    "XAGIO_GoogleDrive_KEY", isset($secret_keys["googledrive"]) ? $secret_keys["googledrive"]["public"] : false
+                    "XAGIO_GOOGLEDRIVE_KEY", isset($secret_keys["googledrive"]) ? $secret_keys["googledrive"]["public"] : false
                 );
             }
-            if (!defined("XAGIO_GoogleDrive_SECRET")) {
+            if (!defined("XAGIO_GOOGLEDRIVE_SECRET")) {
                 define(
-                    "XAGIO_GoogleDrive_SECRET", isset($secret_keys["googledrive"]) ? $secret_keys["googledrive"]["private"] : false
+                    "XAGIO_GOOGLEDRIVE_SECRET", isset($secret_keys["googledrive"]) ? $secret_keys["googledrive"]["private"] : false
                 );
             }
             /** Backup Application Keys */

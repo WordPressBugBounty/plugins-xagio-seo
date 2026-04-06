@@ -59,11 +59,13 @@ if (!class_exists('XAGIO_MODEL_TINYMCE')) {
         public static function loadAssets()
         {
             global $post_type;
+            global $wpdb;
+
+            $shortcodes = $wpdb->get_results('SELECT * FROM xag_shortcodes');
 
             if ($post_type === 'page' || $post_type === 'post' || $post_type === 'product') {
                 wp_localize_script('xagio_admin', 'xagio_tinymce_data', [
-                        'shortcodes' => [],
-                        // XAGIO_MODEL_SHORTCODES::getAllData('xag_shortcodes'),
+                        'shortcodes' => $shortcodes,
                         'keywords'   => self::getKeywords(),
                     ]);
             }
@@ -71,39 +73,75 @@ if (!class_exists('XAGIO_MODEL_TINYMCE')) {
 
         public static function pixabayDownloadImage()
         {
-
             check_ajax_referer('xagio_nonce', '_xagio_nonce');
 
-            if (!isset($_POST['img'], $_POST['title'])) {
-                wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
+            // Block Subscribers / low-privilege users
+            if ( ! is_user_logged_in() || ! current_user_can('upload_files') ) {
+                xagio_json('error', 'Forbidden.');
+            }
+
+            if (empty($_POST['img']) || empty($_POST['title'])) {
+                xagio_json('error', 'Required parameters are missing.');
             }
 
             $uploads   = wp_upload_dir();
-            $image_url = sanitize_text_field(wp_unslash($_POST['img']));
-            $name      = sanitize_text_field(wp_unslash($_POST['title'])) . '.jpg';
+            $image_url = esc_url_raw(wp_unslash($_POST['img']));
+            $title     = sanitize_text_field(wp_unslash($_POST['title']));
 
-            $filename            = wp_unique_filename($uploads['path'], $name, $unique_filename_callback = NULL);
+            if (empty($image_url) || empty($title)) {
+                xagio_json('error', 'Invalid parameters.');
+            }
+
+            // Allow Pixabay only
+            $allowed_hosts = [
+                'pixabay.com',
+                'www.pixabay.com',
+                'cdn.pixabay.com'
+            ];
+
+            $parts  = wp_parse_url($image_url);
+            $host   = strtolower($parts['host'] ?? '');
+            $scheme = strtolower($parts['scheme'] ?? '');
+
+            if (!$host || !in_array($host, $allowed_hosts, true)) {
+                xagio_json('error', 'Invalid image source.');
+            }
+
+            if (!in_array($scheme, ['http', 'https'], true)) {
+                xagio_json('error', 'Invalid image URL.');
+            }
+
+            $xagio_name = $title . '.jpg';
+            $filename   = wp_unique_filename($uploads['path'], $xagio_name, NULL);
+
             $wp_file_type        = wp_check_filetype($filename, NULL);
-            $full_path_file_name = $uploads['path'] . "/" . $filename;
+            $full_path_file_name = trailingslashit($uploads['path']) . $filename;
 
             $image_string = self::fetch_image($image_url);
 
-            $fileSaved = xagio_file_put_contents($uploads['path'] . "/" . $filename, $image_string);
+            if ($image_string === false || $image_string === '') {
+                xagio_json('error', 'Failed to download image.');
+            }
+
+            $fileSaved = xagio_file_put_contents($full_path_file_name, $image_string);
             if (!$fileSaved) {
                 xagio_json('error', 'Cannot save this selected image to server. Please contact support.');
             }
 
             $attachment = [
-                'post_mime_type' => $wp_file_type['type'],
+                'post_mime_type' => $wp_file_type['type'] ?: 'image/jpeg',
                 'post_title'     => preg_replace('/\.[^.]+$/', '', $filename),
                 'post_content'   => '',
                 'post_status'    => 'inherit',
-                'guid'           => $uploads['url'] . "/" . $filename,
+                'guid'           => trailingslashit($uploads['url']) . $filename,
             ];
-            $attach_id  = wp_insert_attachment($attachment, $full_path_file_name, 0);
+
+            $attach_id = wp_insert_attachment($attachment, $full_path_file_name, 0);
             if (!$attach_id) {
+                wp_delete_file($full_path_file_name);
                 xagio_json('error', 'Failed save this selected image into the database. Please contact support.');
             }
+
             require_once(ABSPATH . 'wp-admin/includes/image.php');
             $attach_data = wp_generate_attachment_metadata($attach_id, $full_path_file_name);
             wp_update_attachment_metadata($attach_id, $attach_data);
@@ -119,34 +157,33 @@ if (!class_exists('XAGIO_MODEL_TINYMCE')) {
         /**
          * Function for downloading Pixabay images
          */
-        public static function fetch_image($url)
+        public static function fetch_image($xagio_url)
         {
             if (function_exists("curl_init")) {
-                return self::curl_fetch_image($url);
-            } else if (ini_get("allow_url_fopen")) {
-                return self::fopen_fetch_image($url);
+                return self::curl_fetch_image($xagio_url);
             }
+
+            return false;
         }
 
-        public static function curl_fetch_image($url)
+        public static function curl_fetch_image($xagio_url)
         {
-            $response = wp_remote_get($url, [
+            $resp = wp_safe_remote_get($xagio_url, [
                 'timeout' => 10,
-                // Adjust the timeout as needed
+                'redirection' => 2,
+                'headers' => ['Accept' => 'image/*'],
             ]);
 
-            if (is_wp_error($response)) {
-                return false; // Or handle the error as needed
+            if (is_wp_error($resp)) {
+                return false;
             }
 
-            $image = wp_remote_retrieve_body($response);
-            return $image;
-        }
+            $content_type = wp_remote_retrieve_header($resp, 'content-type');
+            if (!$content_type || stripos($content_type, 'image/') !== 0) {
+                return false;
+            }
 
-        public static function fopen_fetch_image($url)
-        {
-            $image = xagio_file_get_contents($url, FALSE);
-            return $image;
+            return wp_remote_retrieve_body($resp);
         }
 
 
@@ -194,10 +231,18 @@ if (!class_exists('XAGIO_MODEL_TINYMCE')) {
 						ORDER BY xag_keywords.keyword ASC
 					", ARRAY_A
             );
+
+
+
             if (sizeof($data) > 0) {
                 foreach ($data as $d) {
+
+                    if (!isset($d['url'])) {
+                        $d['url'] = '';
+                    }
+
                     if ($d['keyword'] != '') {
-                        $d['url']                      = sanitize_title_with_dashes($d['url']);
+                        $d['url']                      = isset($d['url']) ? sanitize_title_with_dashes($d['url']) : '';
                         $formatted[$d['group_name']][] = $d;
                     }
                 }

@@ -9,8 +9,8 @@ function xagioConnectModal() {
     });
 }
 
-function xagioModal(title = "Confirm", message, callback = false) {
-    let dialog = jQuery('<dialog class="xagio-modal">');
+function xagioModal(title = "Confirm", message, callback = false, additionalClass = "") {
+    let dialog = jQuery(`<dialog class="xagio-modal ${additionalClass}">`);
 
 
     dialog.html(`<div class="xagio-modal-header">
@@ -231,21 +231,29 @@ function xagioNotify(status, message, instantCloseDialogNotification = false, se
     $(document).on('submit', '#xagio-deactivate', function (e) {
         e.preventDefault();
         let $this = $(this);
+        let btn = $this.find('.xagio-button[type="submit"]');
+        let i = btn.find('i')
+
+        btn.attr('disabled', true);
+        if (i.length > 0) {
+            i.attr('class', 'xagio-icon xagio-icon-sync xagio-icon-spin');
+        }
+
         $.ajax({
-                   url    : xagio_data.wp_post,
-                   type   : 'POST',
-                   data   : $this.serialize(),
-                   success: function (response) {
-                       if (response.status == 'success') {
-                           window.location.href = originalDeleteUrl;
-                       } else {
-                           alert(response.message);
-                       }
-                   },
-                   error  : function (xhr, status, error) {
-                       alert('Error: ' + error);
-                   }
-               });
+            url    : xagio_data.wp_post,
+            type   : 'POST',
+            data   : $this.serialize(),
+            success: function (response) {
+                if (response.status == 'success') {
+                    window.location.href = originalDeleteUrl;
+                } else {
+                    alert(response.message);
+                }
+            },
+            error  : function (xhr, status, error) {
+                alert('Error: ' + error);
+            }
+        });
     });
 
     // Prepend _ajax_nonce to every AJAX request
@@ -497,7 +505,7 @@ function xagioNotify(status, message, instantCloseDialogNotification = false, se
 
             container = $(".xagio-dropdown-simple .xagio-button-dropdown");
             if (!container.is(e.target) && container.has(e.target).length === 0 &&
-                !$('.xagio-dropdown > button').is(e.target)) {
+                !$('.xagio-dropdown-simple > button').is(e.target)) {
                 container.prev('button.xagio-dropdown-show').removeClass('xagio-dropdown-show');
                 container.hide();
             }
@@ -523,6 +531,8 @@ function xagioNotify(status, message, instantCloseDialogNotification = false, se
         });
 
         $(document).on('click', '.xagio-dropdown-simple > button', function (e) {
+            e.stopPropagation();
+
             let btn = $(this);
             let dropdown = btn.next('.xagio-button-dropdown');
 

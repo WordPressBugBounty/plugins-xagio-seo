@@ -94,14 +94,14 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
             $columns        = $size / $x_spacing;
             $rows           = $size / $y_spacing;
 
-            for ($i = 0; $i < $rows; $i++) {
+            for ($xagio_i = 0; $xagio_i < $rows; $xagio_i++) {
 
                 $row = [];
 
                 for ($ii = 0; $ii < $columns; $ii++) {
 
                     $x = $ii * $x_spacing;
-                    $y = $i * $y_spacing;
+                    $y = $xagio_i * $y_spacing;
 
                     if ($x == 0) {
                         $x = $padding;
@@ -135,17 +135,17 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
             }
 
             // Loop through rows
-            for ($r = $offset['r']; $r < sizeof($grid); $r++) {
+            for ($xagio_r = $offset['r']; $xagio_r < sizeof($grid); $xagio_r++) {
 
                 // Loop through columns
-                for ($c = $offset['c']; $c < sizeof($grid[$r]); $c++) {
+                for ($c = $offset['c']; $c < sizeof($grid[$xagio_r]); $c++) {
 
-                    if ($grid[$r][$c]['f'] == TRUE) {
-                        $grid[$r][$c]['f'] = FALSE;
-                        $grid[$r][$c]['c'] = $c;
-                        $grid[$r][$c]['r'] = $r;
-                        $grid[$r][$c]['i'] = $id;
-                        return $grid[$r][$c];
+                    if ($grid[$xagio_r][$c]['f'] == TRUE) {
+                        $grid[$xagio_r][$c]['f'] = FALSE;
+                        $grid[$xagio_r][$c]['c'] = $c;
+                        $grid[$xagio_r][$c]['r'] = $xagio_r;
+                        $grid[$xagio_r][$c]['i'] = $id;
+                        return $grid[$xagio_r][$c];
                     }
 
                 }
@@ -161,44 +161,44 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
 
                 if ($vertical == FALSE) {
 
-                    $r = $parented_by['r'] + 1;
+                    $xagio_r = $parented_by['r'] + 1;
 
-                    if ($r > sizeof($grid)) {
-                        $r = sizeof($grid);
+                    if ($xagio_r > sizeof($grid)) {
+                        $xagio_r = sizeof($grid);
                     }
 
                     // Loop through columns
-                    for ($c = 0; $c < sizeof($grid[$r]); $c++) {
+                    for ($c = 0; $c < sizeof($grid[$xagio_r]); $c++) {
 
-                        if ($grid[$r][$c]['f'] == TRUE) {
-                            $grid[$r][$c]['f'] = FALSE;
-                            $grid[$r][$c]['c'] = $c;
-                            $grid[$r][$c]['r'] = $r;
-                            $grid[$r][$c]['i'] = $id;
-                            return $grid[$r][$c];
+                        if ($grid[$xagio_r][$c]['f'] == TRUE) {
+                            $grid[$xagio_r][$c]['f'] = FALSE;
+                            $grid[$xagio_r][$c]['c'] = $c;
+                            $grid[$xagio_r][$c]['r'] = $xagio_r;
+                            $grid[$xagio_r][$c]['i'] = $id;
+                            return $grid[$xagio_r][$c];
                         }
 
                     }
 
-                    $r++;
+                    $xagio_r++;
 
                 } else {
 
-                    $r = $parented_by['r'] + 1;
+                    $xagio_r = $parented_by['r'] + 1;
                     $c = $parented_by['c'];
 
-                    if ($r > sizeof($grid)) {
-                        $r = $parented_by['r'];
+                    if ($xagio_r > sizeof($grid)) {
+                        $xagio_r = $parented_by['r'];
                         $c = $c + 1;
                     }
 
                     // Loop through columns
-                    for ($rr = $r; $rr < sizeof($grid); $rr++) {
+                    for ($rr = $xagio_r; $rr < sizeof($grid); $rr++) {
 
                         if ($grid[$rr][$c]['f'] == TRUE) {
                             $grid[$rr][$c]['f'] = FALSE;
                             $grid[$rr][$c]['c'] = $c;
-                            $grid[$rr][$c]['r'] = $r;
+                            $grid[$rr][$c]['r'] = $xagio_r;
                             $grid[$rr][$c]['i'] = $id;
                             return $grid[$rr][$c];
                         }
@@ -211,17 +211,17 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
             } else {
 
                 // Loop through rows
-                for ($r = 0; $r < sizeof($grid); $r++) {
+                for ($xagio_r = 0; $xagio_r < sizeof($grid); $xagio_r++) {
 
                     // Loop through columns
-                    for ($c = 0; $c < sizeof($grid[$r]); $c++) {
+                    for ($c = 0; $c < sizeof($grid[$xagio_r]); $c++) {
 
-                        if ($grid[$r][$c]['f'] == TRUE) {
-                            $grid[$r][$c]['f'] = FALSE;
-                            $grid[$r][$c]['c'] = $c;
-                            $grid[$r][$c]['r'] = $r;
-                            $grid[$r][$c]['i'] = $id;
-                            return $grid[$r][$c];
+                        if ($grid[$xagio_r][$c]['f'] == TRUE) {
+                            $grid[$xagio_r][$c]['f'] = FALSE;
+                            $grid[$xagio_r][$c]['c'] = $c;
+                            $grid[$xagio_r][$c]['r'] = $xagio_r;
+                            $grid[$xagio_r][$c]['i'] = $id;
+                            return $grid[$xagio_r][$c];
                         }
 
                     }
@@ -235,13 +235,13 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
         private static function _findGridSlot(&$grid, $id)
         {
             // Loop through rows
-            for ($r = 0; $r < sizeof($grid); $r++) {
+            for ($xagio_r = 0; $xagio_r < sizeof($grid); $xagio_r++) {
 
                 // Loop through columns
-                for ($c = 0; $c < sizeof($grid[$r]); $c++) {
-                    if (isset($grid[$r][$c]['i'])) {
-                        if ($grid[$r][$c]['i'] == $id) {
-                            return $grid[$r][$c];
+                for ($c = 0; $c < sizeof($grid[$xagio_r]); $c++) {
+                    if (isset($grid[$xagio_r][$c]['i'])) {
+                        if ($grid[$xagio_r][$c]['i'] == $id) {
+                            return $grid[$xagio_r][$c];
                         }
                     }
                 }
@@ -283,7 +283,7 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                 'grid'      => NULL,
             ];
 
-            $args = [
+            $xagio_args = [
                 'posts_per_page' => -1,
                 'orderby'        => 'ID',
                 'order'          => 'ASC',
@@ -298,13 +298,11 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
 
             $post = get_post($postID);
 
-            $content_post = get_post($post->ID);
-            $content      = $content_post->post_content;
-            $content      = apply_filters('the_content', $content);
-            $content      = html_entity_decode($content);
+            $xagio_content      = $post ? get_the_content( null, false, $post ) : '';
+            $xagio_content      = html_entity_decode($xagio_content);
 
             preg_match_all(
-                '/<a.*?href="([^"]+)".*?>(.*?)<\/a>/s', stripslashes(do_shortcode($content)), $matches, PREG_SET_ORDER
+                '/<a.*?href="([^"]+)".*?>(.*?)<\/a>/s', stripslashes(do_shortcode($xagio_content)), $matches, PREG_SET_ORDER
             );
 
             // Find the parent ID
@@ -359,19 +357,19 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
             if (!empty($matches)) {
                 foreach ($matches as $url_data) {
 
-                    $url = $url_data[1];
+                    $xagio_url = $url_data[1];
 
-                    $post_id = url_to_postid($url);
+                    $post_id = url_to_postid($xagio_url);
 
                     $post_child = get_post($post_id);
 
                     if ($post_id == 0) {
 
                         // External Links
-                        if (filter_var($url, FILTER_VALIDATE_URL)) {
+                        if (filter_var($xagio_url, FILTER_VALIDATE_URL)) {
 
                             // Check if image.... -.-
-                            if (in_array(substr($url, -4), [
+                            if (in_array(substr($xagio_url, -4), [
                                 '.png',
                                 '.jpg',
                                 'jpeg',
@@ -386,9 +384,9 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                             $domain = wp_parse_url($domain);
                             $domain = $domain['host'];
 
-                            if (xagio_string_contains($domain, $url)) {
+                            if (xagio_string_contains($domain, $xagio_url)) {
 
-                                $out = self::curlHead($url);
+                                $out = self::curlHead($xagio_url);
 
                                 if (isset($out['Location'])) {
 
@@ -411,10 +409,10 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                                     if ($out['HTTP'] == '404 Not Found') {
 
                                         $post_child             = new stdClass();
-                                        $post_child->ID         = md5($url);
+                                        $post_child->ID         = md5($xagio_url);
                                         $post_child->post_type  = 'page';
                                         $post_child->post_title = wp_strip_all_tags($url_data[2]);
-                                        $post_child->permalink  = $url;
+                                        $post_child->permalink  = $xagio_url;
                                         $post_child->subtitle   = '<span class="subtitle-404">404 Page Not Found</span>';
                                         $post_child->class      = 'operator-404';
 
@@ -429,10 +427,10 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                             } else {
 
                                 $post_child             = new stdClass();
-                                $post_child->ID         = md5($url);
+                                $post_child->ID         = md5($xagio_url);
                                 $post_child->post_type  = 'external';
                                 $post_child->post_title = wp_strip_all_tags($url_data[2]);
-                                $post_child->permalink  = $url;
+                                $post_child->permalink  = $xagio_url;
                                 $post_child->subtitle   = '<span class="uk-text-success">dofollow</span> <i class="xagio-icon xagio-icon-question-circle" data-xagio-tooltip data-xagio-title="This is a normal, default link which search engines will follow and crawl."></i>';
 
                                 if (strpos($url_data[0], 'rel') !== FALSE && strpos($url_data[0], 'nofollow') !== FALSE) {
@@ -443,7 +441,7 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
 
                         } else {
 
-                            $checkURL = $url;
+                            $checkURL = $xagio_url;
                             $checkURL = get_site_url(NULL, $checkURL);
 
                             // Check if image.... -.-
@@ -554,12 +552,12 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                     $subConnector_from = NULL;
                     $subConnector_to   = NULL;
                     $reversed          = array_reverse($silo['links']);
-                    for ($i = 0; $i < sizeof($reversed); $i++) {
-                        if ($reversed[$i]['fromOperator'] == $parent_id && $subConnector_from === NULL) {
-                            $subConnector_from = $reversed[$i]['fromSubConnector'];
+                    for ($xagio_i = 0; $xagio_i < sizeof($reversed); $xagio_i++) {
+                        if ($reversed[$xagio_i]['fromOperator'] == $parent_id && $subConnector_from === NULL) {
+                            $subConnector_from = $reversed[$xagio_i]['fromSubConnector'];
                         }
-                        if ($reversed[$i]['toOperator'] == $operator_id && $subConnector_to === NULL) {
-                            $subConnector_to = $reversed[$i]['toSubConnector'];
+                        if ($reversed[$xagio_i]['toOperator'] == $operator_id && $subConnector_to === NULL) {
+                            $subConnector_to = $reversed[$xagio_i]['toSubConnector'];
                         }
                     }
 
@@ -611,7 +609,7 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                 'grid'      => NULL,
             ];
 
-            $args = [
+            $xagio_args = [
                 'posts_per_page' => -1,
                 'orderby'        => 'ID',
                 'order'          => 'ASC',
@@ -624,18 +622,16 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                 ],
             ];
 
-            $posts = get_posts($args);
+            $posts = get_posts($xagio_args);
             foreach ($posts as $post) {
 
                 if (!wp_is_post_revision($post->ID)) {
 
-                    $content_post = get_post($post->ID);
-                    $content      = $content_post->post_content;
-                    $content      = apply_filters('the_content', $content);
-                    $content      = html_entity_decode($content);
+                    $xagio_content      = $post ? get_the_content( null, false, $post ) : '';
+                    $xagio_content      = html_entity_decode($xagio_content);
 
                     preg_match_all(
-                        '/<a.*?href="([^"]+)".*?>(.*?)<\/a>/s', stripslashes(do_shortcode($content)), $matches, PREG_SET_ORDER
+                        '/<a.*?href="([^"]+)".*?>(.*?)<\/a>/s', stripslashes(do_shortcode($xagio_content)), $matches, PREG_SET_ORDER
                     );
 
                     if (!empty($matches)) {
@@ -691,18 +687,18 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
 
                         foreach ($matches as $url_data) {
 
-                            $url = $url_data[1];
+                            $xagio_url = $url_data[1];
 
-                            $post_id    = url_to_postid($url);
+                            $post_id    = url_to_postid($xagio_url);
                             $post_child = get_post($post_id);
 
                             if ($post_id == 0) {
 
                                 // External Links
-                                if (filter_var($url, FILTER_VALIDATE_URL)) {
+                                if (filter_var($xagio_url, FILTER_VALIDATE_URL)) {
 
                                     // Check if image.... -.-
-                                    if (in_array(substr($url, -4), [
+                                    if (in_array(substr($xagio_url, -4), [
                                         '.png',
                                         '.jpg',
                                         'jpeg',
@@ -717,9 +713,9 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                                     $domain = wp_parse_url($domain);
                                     $domain = $domain['host'];
 
-                                    if (xagio_string_contains($domain, $url)) {
+                                    if (xagio_string_contains($domain, $xagio_url)) {
 
-                                        $out = self::curlHead($url);
+                                        $out = self::curlHead($xagio_url);
 
                                         if (isset($out['Location'])) {
 
@@ -744,10 +740,10 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                                             if ($out['HTTP'] == '404 Not Found') {
 
                                                 $post_child             = new stdClass();
-                                                $post_child->ID         = md5($url);
+                                                $post_child->ID         = md5($xagio_url);
                                                 $post_child->post_type  = 'page';
                                                 $post_child->post_title = wp_strip_all_tags($url_data[2]);
-                                                $post_child->permalink  = $url;
+                                                $post_child->permalink  = $xagio_url;
                                                 $post_child->subtitle   = '<span class="subtitle-404">404 Page Not Found</span>';
                                                 $post_child->class      = 'operator-404';
 
@@ -762,10 +758,10 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                                     } else {
 
                                         $post_child             = new stdClass();
-                                        $post_child->ID         = md5($url);
+                                        $post_child->ID         = md5($xagio_url);
                                         $post_child->post_type  = 'external';
                                         $post_child->post_title = wp_strip_all_tags($url_data[2]);
-                                        $post_child->permalink  = $url;
+                                        $post_child->permalink  = $xagio_url;
                                         $post_child->subtitle   = '<span class="uk-text-success">dofollow</span> <i class="xagio-icon xagio-icon-question-circle" data-xagio-tooltip data-xagio-title="This is a normal, default link which search engines will follow and crawl."></i>';
 
                                         if (strpos($url_data[0], 'rel') !== FALSE && strpos($url_data[0], 'nofollow') !== FALSE) {
@@ -776,7 +772,7 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
 
                                 } else {
 
-                                    $checkURL = $url;
+                                    $checkURL = $xagio_url;
                                     $checkURL = get_site_url(NULL, $checkURL);
 
                                     // Check if image.... -.-
@@ -889,12 +885,12 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                             $subConnector_from = NULL;
                             $subConnector_to   = NULL;
                             $reversed          = array_reverse($silo['links']);
-                            for ($i = 0; $i < sizeof($reversed); $i++) {
-                                if ($reversed[$i]['fromOperator'] == $parent_id && $subConnector_from === NULL) {
-                                    $subConnector_from = $reversed[$i]['fromSubConnector'];
+                            for ($xagio_i = 0; $xagio_i < sizeof($reversed); $xagio_i++) {
+                                if ($reversed[$xagio_i]['fromOperator'] == $parent_id && $subConnector_from === NULL) {
+                                    $subConnector_from = $reversed[$xagio_i]['fromSubConnector'];
                                 }
-                                if ($reversed[$i]['toOperator'] == $operator_id && $subConnector_to === NULL) {
-                                    $subConnector_to = $reversed[$i]['toSubConnector'];
+                                if ($reversed[$xagio_i]['toOperator'] == $operator_id && $subConnector_to === NULL) {
+                                    $subConnector_to = $reversed[$xagio_i]['toSubConnector'];
                                 }
                             }
 
@@ -922,26 +918,26 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
             );
         }
 
-        private static function curlHead($url)
+        private static function curlHead($xagio_url)
         {
-            $response = wp_remote_head($url);
+            $xagio_response = wp_remote_head($xagio_url);
 
-            if (is_wp_error($response)) {
+            if (is_wp_error($xagio_response)) {
                 return FALSE;
             }
 
-            $headers = wp_remote_retrieve_headers($response);
+            $headers = wp_remote_retrieve_headers($xagio_response);
 
             if (empty($headers)) {
                 return FALSE;
             }
 
             $return = [];
-            foreach ($headers as $key => $value) {
-                if (is_array($value)) {
-                    $value = implode(', ', $value);
+            foreach ($headers as $xagio_key => $xagio_value) {
+                if (is_array($xagio_value)) {
+                    $xagio_value = implode(', ', $xagio_value);
                 }
-                $return[trim($key)] = trim($value);
+                $return[trim($xagio_key)] = trim($xagio_value);
             }
 
             return $return;
@@ -957,7 +953,7 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
 
             sleep(0.5);
 
-            $name      = sanitize_text_field(wp_unslash($_POST['name']));
+            $xagio_name      = sanitize_text_field(wp_unslash($_POST['name']));
             $type      = sanitize_text_field(wp_unslash($_POST['type']));
             $importAll = isset($_POST['importAll']) ? sanitize_text_field(wp_unslash($_POST['importAll'])) : false;
             $importAll = $importAll == 'yes';
@@ -1054,7 +1050,7 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                         // Create a parent page if not exists
                         if ($parent_id === NULL) {
 
-                            $parent = get_post($page->post_parent);
+                            $xagio_parent = get_post($page->post_parent);
 
                             $parent_slot = self::_createGridSlot(
                                 $grid_pages, FALSE, 'page-' . $page->post_parent
@@ -1062,7 +1058,7 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
 
                             $pages_op['operators'][] = [
                                 'properties' => [
-                                    'title'    => $parent->post_title,
+                                    'title'    => $xagio_parent->post_title,
                                     'subtitle' => '',
                                     'attached' => XAGIO_MODEL_PROJECTS::isAttachedToGroup($page->ID),
                                     'icon'     => 'xagio-icon-flie',
@@ -1134,9 +1130,9 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                         // Find the last link
                         $subConnector = NULL;
                         $reversed     = array_reverse($pages_op['links']);
-                        for ($i = 0; $i < sizeof($reversed); $i++) {
-                            if ($reversed[$i]['fromOperator'] == $parent_id) {
-                                $subConnector = $reversed[$i]['fromSubConnector'];
+                        for ($xagio_i = 0; $xagio_i < sizeof($reversed); $xagio_i++) {
+                            if ($reversed[$xagio_i]['fromOperator'] == $parent_id) {
+                                $subConnector = $reversed[$xagio_i]['fromSubConnector'];
                                 break;
                             }
                         }
@@ -1154,7 +1150,7 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
 
                 }
 
-                $silo[$name] = urlencode(wp_json_encode($pages_op));
+                $silo[$xagio_name] = urlencode(wp_json_encode($pages_op));
 
             } else {
 
@@ -1246,7 +1242,7 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                     }
 
                     // Get the posts from each tag
-                    $args = [
+                    $xagio_args = [
                         'posts_per_page' => -1,
                         'tax_query'      => [
                             [
@@ -1258,7 +1254,7 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                     ];
 
                     // Go through each Post
-                    $posts = get_posts($args);
+                    $posts = get_posts($xagio_args);
 
                     foreach ($posts as $post) {
 
@@ -1302,12 +1298,12 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                         $subConnector_from = NULL;
                         $subConnector_to   = NULL;
                         $reversed          = array_reverse($posts_op['links']);
-                        for ($i = 0; $i < sizeof($reversed); $i++) {
-                            if ($reversed[$i]['fromOperator'] == $operator_id && $subConnector_from === NULL) {
-                                $subConnector_from = $reversed[$i]['fromSubConnector'];
+                        for ($xagio_i = 0; $xagio_i < sizeof($reversed); $xagio_i++) {
+                            if ($reversed[$xagio_i]['fromOperator'] == $operator_id && $subConnector_from === NULL) {
+                                $subConnector_from = $reversed[$xagio_i]['fromSubConnector'];
                             }
-                            if ($reversed[$i]['toOperator'] == $parent_id && $subConnector_to === NULL) {
-                                $subConnector_to = $reversed[$i]['toSubConnector'];
+                            if ($reversed[$xagio_i]['toOperator'] == $parent_id && $subConnector_to === NULL) {
+                                $subConnector_to = $reversed[$xagio_i]['toSubConnector'];
                             }
                         }
 
@@ -1373,7 +1369,7 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                     }
 
                     // Get the posts from each tag
-                    $args = [
+                    $xagio_args = [
                         'posts_per_page' => -1,
                         'tax_query'      => [
                             [
@@ -1385,7 +1381,7 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                     ];
 
                     // Go through each Post
-                    $posts = get_posts($args);
+                    $posts = get_posts($xagio_args);
 
                     foreach ($posts as $post) {
 
@@ -1428,12 +1424,12 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                         $subConnector_from = NULL;
                         $subConnector_to   = NULL;
                         $reversed          = array_reverse($posts_op['links']);
-                        for ($i = 0; $i < sizeof($reversed); $i++) {
-                            if ($reversed[$i]['fromOperator'] == $operator_id && $subConnector_from === NULL) {
-                                $subConnector_from = $reversed[$i]['fromSubConnector'];
+                        for ($xagio_i = 0; $xagio_i < sizeof($reversed); $xagio_i++) {
+                            if ($reversed[$xagio_i]['fromOperator'] == $operator_id && $subConnector_from === NULL) {
+                                $subConnector_from = $reversed[$xagio_i]['fromSubConnector'];
                             }
-                            if ($reversed[$i]['toOperator'] == $parent_id && $subConnector_to === NULL) {
-                                $subConnector_to = $reversed[$i]['toSubConnector'];
+                            if ($reversed[$xagio_i]['toOperator'] == $parent_id && $subConnector_to === NULL) {
+                                $subConnector_to = $reversed[$xagio_i]['toSubConnector'];
                             }
                         }
 
@@ -1451,7 +1447,7 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
 
                 }
 
-                $silo[$name] = urlencode(wp_json_encode($posts_op));
+                $silo[$xagio_name] = urlencode(wp_json_encode($posts_op));
 
             }
 
@@ -1477,13 +1473,13 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
 
             if ($type == 'page' || $type == 'post') {
 
-                $post_data = [
+                $xagio_post_data = [
                     'ID'         => $id,
                     'post_title' => $title,
                 ];
 
                 // Update the post into the database
-                wp_update_post($post_data);
+                wp_update_post($xagio_post_data);
 
             } else if ($type == 'tag' || $type == 'category') {
 
@@ -1521,9 +1517,9 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $name = sanitize_text_field(wp_unslash($_POST['name']));
+            $xagio_name = sanitize_text_field(wp_unslash($_POST['name']));
 
-            wp_create_category($name);
+            wp_create_category($xagio_name);
         }
 
         public static function newTag()
@@ -1534,9 +1530,9 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $name = sanitize_text_field(wp_unslash($_POST['name']));
+            $xagio_name = sanitize_text_field(wp_unslash($_POST['name']));
 
-            wp_create_tag($name);
+            wp_create_tag($xagio_name);
         }
 
         public static function resetParentsCategoriesTags()
@@ -1545,13 +1541,13 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
             //			$posts = get_posts();
             //
             //			foreach ($pages as $page) {
-            //				$post_data = [
+            //				$xagio_post_data = [
             //					'ID'          => $page->ID,
             //					'post_parent' => 0
             //				];
             //
             //				// Update the post into the database
-            //				wp_update_post($post_data);
+            //				wp_update_post($xagio_post_data);
             //			}
             //
             //			foreach ($posts as $post) {
@@ -1671,12 +1667,12 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
 
                     // Create a parent page if not exists
                     if ($parent_id === NULL) {
-                        $parent                   = get_post($post->post_parent);
+                        $xagio_parent                   = get_post($post->post_parent);
                         $operators['operators'][] = [
                             'properties' => [
-                                'title'    => $parent->post_title,
+                                'title'    => $xagio_parent->post_title,
                                 'subtitle' => '',
-                                'attached' => XAGIO_MODEL_PROJECTS::isAttachedToGroup($parent->ID),
+                                'attached' => XAGIO_MODEL_PROJECTS::isAttachedToGroup($xagio_parent->ID),
                                 'icon'     => 'xagio-icon-flie',
                                 'inputs'   => [
                                     'input_1' => [
@@ -1689,9 +1685,9 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                                         'multiple' => TRUE,
                                     ],
                                 ],
-                                'class'    => 'operator-page op-page-' . $parent->ID,
-                                'ID'       => 'op-page-' . $parent->ID,
-                                'realID'   => $parent->ID,
+                                'class'    => 'operator-page op-page-' . $xagio_parent->ID,
+                                'ID'       => 'op-page-' . $xagio_parent->ID,
+                                'realID'   => $xagio_parent->ID,
                                 'type'     => 'page',
                             ],
                             'left'       => @$operators['operators'][sizeof($operators['operators']) - 1]['left'],
@@ -1730,9 +1726,9 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                     }
 
                     // Remove the existing links
-                    for ($i = 0; $i < sizeof($operators['links']); $i++) {
-                        if ($operators['links'][$i]['toOperator'] == $operator_id) {
-                            unset($operators['links'][$i]);
+                    for ($xagio_i = 0; $xagio_i < sizeof($operators['links']); $xagio_i++) {
+                        if ($operators['links'][$xagio_i]['toOperator'] == $operator_id) {
+                            unset($operators['links'][$xagio_i]);
                             break;
                         }
                     }
@@ -1742,9 +1738,9 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                     // Find the last link
                     $subConnector = NULL;
                     $reversed     = array_reverse($operators['links']);
-                    for ($i = 0; $i < sizeof($reversed); $i++) {
-                        if ($reversed[$i]['fromOperator'] == $parent_id) {
-                            $subConnector = $reversed[$i]['fromSubConnector'];
+                    for ($xagio_i = 0; $xagio_i < sizeof($reversed); $xagio_i++) {
+                        if ($reversed[$xagio_i]['fromOperator'] == $parent_id) {
+                            $subConnector = $reversed[$xagio_i]['fromSubConnector'];
                             break;
                         }
                     }
@@ -1861,12 +1857,12 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                             $subConnector_tag      = NULL;
                             $subConnector_operator = NULL;
                             $reversed              = array_reverse($operators['links']);
-                            for ($i = 0; $i < sizeof($reversed); $i++) {
-                                if ($reversed[$i]['toOperator'] == $tag_id && $subConnector_tag === NULL) {
-                                    $subConnector_tag = $reversed[$i]['toSubConnector'];
+                            for ($xagio_i = 0; $xagio_i < sizeof($reversed); $xagio_i++) {
+                                if ($reversed[$xagio_i]['toOperator'] == $tag_id && $subConnector_tag === NULL) {
+                                    $subConnector_tag = $reversed[$xagio_i]['toSubConnector'];
                                 }
-                                if ($reversed[$i]['fromOperator'] == $operator_id && $subConnector_operator === NULL) {
-                                    $subConnector_operator = $reversed[$i]['fromSubConnector'];
+                                if ($reversed[$xagio_i]['fromOperator'] == $operator_id && $subConnector_operator === NULL) {
+                                    $subConnector_operator = $reversed[$xagio_i]['fromSubConnector'];
                                 }
                             }
 
@@ -1934,12 +1930,12 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                             $subConnector_category = NULL;
                             $subConnector_operator = NULL;
                             $reversed              = array_reverse($operators['links']);
-                            for ($i = 0; $i < sizeof($reversed); $i++) {
-                                if ($reversed[$i]['toOperator'] == $category_id && $subConnector_category === NULL) {
-                                    $subConnector_category = $reversed[$i]['toSubConnector'];
+                            for ($xagio_i = 0; $xagio_i < sizeof($reversed); $xagio_i++) {
+                                if ($reversed[$xagio_i]['toOperator'] == $category_id && $subConnector_category === NULL) {
+                                    $subConnector_category = $reversed[$xagio_i]['toSubConnector'];
                                 }
-                                if ($reversed[$i]['fromOperator'] == $operator_id && $subConnector_operator === NULL) {
-                                    $subConnector_operator = $reversed[$i]['fromSubConnector'];
+                                if ($reversed[$xagio_i]['fromOperator'] == $operator_id && $subConnector_operator === NULL) {
+                                    $subConnector_operator = $reversed[$xagio_i]['fromSubConnector'];
                                 }
                             }
 
@@ -1977,13 +1973,13 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
             }
 
             $type = sanitize_text_field(wp_unslash($_POST['type']));
-            $name = sanitize_text_field(wp_unslash($_POST['name']));
+            $xagio_name = sanitize_text_field(wp_unslash($_POST['name']));
 
             $option = get_option('xagio_silo_' . $type);
             if (!is_array($option))
                 $option = [];
 
-            unset($option[$name]);
+            unset($option[$xagio_name]);
 
             update_option('xagio_silo_' . $type, $option);
         }
@@ -1997,13 +1993,13 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
             }
 
             $type = sanitize_text_field(wp_unslash($_POST['type']));
-            $name = sanitize_text_field(wp_unslash($_POST['name']));
+            $xagio_name = sanitize_text_field(wp_unslash($_POST['name']));
 
             $option = get_option('xagio_silo_' . $type);
             if (!is_array($option))
                 $option = [];
 
-            if (isset($option[$name])) {
+            if (isset($option[$xagio_name])) {
                 xagio_json('error', 'SILO with the same name already exists. Please choose a different name.');
                 return;
             }
@@ -2059,7 +2055,7 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                 ];
             }
 
-            $option[$name] = urlencode(wp_json_encode($silo));
+            $option[$xagio_name] = urlencode(wp_json_encode($silo));
 
             update_option('xagio_silo_' . $type, $option);
 
@@ -2131,7 +2127,7 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $name = sanitize_text_field(wp_unslash($_POST['name']));
+            $xagio_name = sanitize_text_field(wp_unslash($_POST['name']));
             $silo = sanitize_text_field(wp_unslash($_POST['silo']));
             $type = sanitize_text_field(wp_unslash($_POST['type']));
 
@@ -2141,7 +2137,7 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                 $option = [];
             }
 
-            $option[$name] = urlencode($silo);
+            $option[$xagio_name] = urlencode($silo);
 
             $silo = json_decode(
                 stripslashes($silo), TRUE
@@ -2152,7 +2148,7 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                 foreach ($silo['links'] as $link) {
 
                     $child  = $silo['operators'][$link['toOperator']]['properties'];
-                    $parent = $silo['operators'][$link['fromOperator']]['properties'];
+                    $xagio_parent = $silo['operators'][$link['fromOperator']]['properties'];
 
                     $childID = explode(
                         '-', $child['ID']
@@ -2160,17 +2156,17 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                     $childID = $childID[sizeof($childID) - 1];
 
                     $parentID = explode(
-                        '-', $parent['ID']
+                        '-', $xagio_parent['ID']
                     );
                     $parentID = $parentID[sizeof($parentID) - 1];
 
-                    $post_data = [
+                    $xagio_post_data = [
                         'ID'          => $childID,
                         'post_parent' => $parentID,
                     ];
 
                     // Update the post into the database
-                    wp_update_post($post_data);
+                    wp_update_post($xagio_post_data);
 
                 }
 
@@ -2181,7 +2177,7 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                 foreach ($silo['links'] as $link) {
 
                     $child  = $silo['operators'][$link['fromOperator']]['properties'];
-                    $parent = $silo['operators'][$link['toOperator']]['properties'];
+                    $xagio_parent = $silo['operators'][$link['toOperator']]['properties'];
 
                     $childID = explode(
                         '-', $child['ID']
@@ -2189,7 +2185,7 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                     $childID = $childID[sizeof($childID) - 1];
 
                     $parentID   = explode(
-                        '-', $parent['ID']
+                        '-', $xagio_parent['ID']
                     );
                     $parentType = $parentID[sizeof($parentID) - 2];
                     $parentID   = $parentID[sizeof($parentID) - 1];
@@ -2271,16 +2267,16 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $name = sanitize_text_field(wp_unslash($_POST['name']));
+            $xagio_name = sanitize_text_field(wp_unslash($_POST['name']));
             $type = sanitize_text_field(wp_unslash($_POST['type']));
 
             $silo = get_option('xagio_silo_' . $type);
             if (!is_array($silo))
                 $silo = [];
 
-            if (isset($silo[$name])) {
+            if (isset($silo[$xagio_name])) {
 
-                $silo = $silo[$name];
+                $silo = $silo[$xagio_name];
 
                 $silo = stripslashes(urldecode($silo));
 
@@ -2346,29 +2342,29 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
 
             if ($type == 'pages') {
 
-                for ($i = 0; $i < sizeof($silo['operators']); $i++) {
-                    $silo['operators'][$i]['properties']['permalink'] = get_permalink(
-                        $silo['operators'][$i]['properties']['realID']
+                for ($xagio_i = 0; $xagio_i < sizeof($silo['operators']); $xagio_i++) {
+                    $silo['operators'][$xagio_i]['properties']['permalink'] = get_permalink(
+                        $silo['operators'][$xagio_i]['properties']['realID']
                     );
-                    $silo['operators'][$i]['properties']['title']     = get_the_title(
-                        $silo['operators'][$i]['properties']['realID']
+                    $silo['operators'][$xagio_i]['properties']['title']     = get_the_title(
+                        $silo['operators'][$xagio_i]['properties']['realID']
                     );
                 }
 
             } else if ($type == 'posts') {
 
-                for ($i = 0; $i < sizeof($silo['operators']); $i++) {
-                    if ($silo['operators'][$i]['properties']['type'] != 'post') {
-                        $silo['operators'][$i]['properties']['title']     = @get_term($silo['operators'][$i]['properties']['realID'])->name;
-                        $silo['operators'][$i]['properties']['permalink'] = get_term_link(
-                            $silo['operators'][$i]['properties']['realID']
+                for ($xagio_i = 0; $xagio_i < sizeof($silo['operators']); $xagio_i++) {
+                    if ($silo['operators'][$xagio_i]['properties']['type'] != 'post') {
+                        $silo['operators'][$xagio_i]['properties']['title']     = @get_term($silo['operators'][$xagio_i]['properties']['realID'])->name;
+                        $silo['operators'][$xagio_i]['properties']['permalink'] = get_term_link(
+                            $silo['operators'][$xagio_i]['properties']['realID']
                         );
                     } else {
-                        $silo['operators'][$i]['properties']['title']     = get_the_title(
-                            $silo['operators'][$i]['properties']['realID']
+                        $silo['operators'][$xagio_i]['properties']['title']     = get_the_title(
+                            $silo['operators'][$xagio_i]['properties']['realID']
                         );
-                        $silo['operators'][$i]['properties']['permalink'] = get_permalink(
-                            $silo['operators'][$i]['properties']['realID']
+                        $silo['operators'][$xagio_i]['properties']['permalink'] = get_permalink(
+                            $silo['operators'][$xagio_i]['properties']['realID']
                         );
                     }
 
@@ -2402,18 +2398,18 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
             $title   = sanitize_text_field(wp_unslash($_POST['title']));
             $status  = sanitize_text_field(wp_unslash($_POST['status']));
             $type    = sanitize_text_field(wp_unslash($_POST['type']));
-            $url     = sanitize_url(wp_unslash($_POST['url']));
+            $xagio_url     = sanitize_url(wp_unslash($_POST['url']));
 
-            $post_data = [
+            $xagio_post_data = [
                 'post_title'  => $title,
-                //                'post_content' => $content,
+                //                'post_content' => $xagio_content,
                 'post_status' => $status,
                 'post_author' => $user_id,
                 'post_type'   => $type,
-                'post_name'   => $url,
+                'post_name'   => $xagio_url,
             ];
 
-            wp_insert_post($post_data);
+            wp_insert_post($xagio_post_data);
         }
 
         public static function deletePage()
@@ -2504,13 +2500,13 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
 
             $h1    = sanitize_text_field(wp_unslash($_POST['h1']));
             $title = sanitize_text_field(wp_unslash($_POST['title']));
-            $desc  = sanitize_text_field(wp_unslash($_POST['desc']));
+            $xagio_desc  = sanitize_text_field(wp_unslash($_POST['desc']));
             $slug  = sanitize_text_field(wp_unslash($_POST['slug']));
 
             if ($type == 'category' || $type == 'tag') {
 
                 update_term_meta($id, 'XAGIO_SEO_TITLE', $title);
-                update_term_meta($id, 'XAGIO_SEO_DESCRIPTION', $desc);
+                update_term_meta($id, 'XAGIO_SEO_DESCRIPTION', $xagio_desc);
 
                 $term_update = [
                     'name' => $h1,
@@ -2527,7 +2523,7 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
             } else {
 
                 update_post_meta($id, 'XAGIO_SEO_TITLE', $title);
-                update_post_meta($id, 'XAGIO_SEO_DESCRIPTION', $desc);
+                update_post_meta($id, 'XAGIO_SEO_DESCRIPTION', $xagio_desc);
 
                 $post_update = [
                     'ID'         => $id,
@@ -2566,9 +2562,9 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
         public static function _removeOperator(&$operators, $operator_id, $type = 'toOperator')
         {
             $newLinks = [];
-            for ($i = 0; $i < sizeof($operators['links']); $i++) {
-                if ($operators['links'][$i][$type] != $operator_id) {
-                    $newLinks[] = $operators['links'][$i];
+            for ($xagio_i = 0; $xagio_i < sizeof($operators['links']); $xagio_i++) {
+                if ($operators['links'][$xagio_i][$type] != $operator_id) {
+                    $newLinks[] = $operators['links'][$xagio_i];
                 }
             }
             $operators['links'] = $newLinks;
@@ -2580,8 +2576,8 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
         public static function _hasChildren($operators, $operator_id)
         {
             $hasChildren = FALSE;
-            for ($i = 0; $i < sizeof($operators['links']); $i++) {
-                if ($operators['links'][$i]['toOperator'] == $operator_id) {
+            for ($xagio_i = 0; $xagio_i < sizeof($operators['links']); $xagio_i++) {
+                if ($operators['links'][$xagio_i]['toOperator'] == $operator_id) {
                     $hasChildren = TRUE;
                     break;
                 }
@@ -2593,9 +2589,9 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
         {
             if (!isset($operators['operators']))
                 return NULL;
-            for ($i = 0; $i < sizeof($operators['operators']); $i++) {
-                if ($operators['operators'][$i]['properties']['realID'] == $id && $operators['operators'][$i]['properties']['type'] == $type) {
-                    return $i;
+            for ($xagio_i = 0; $xagio_i < sizeof($operators['operators']); $xagio_i++) {
+                if ($operators['operators'][$xagio_i]['properties']['realID'] == $id && $operators['operators'][$xagio_i]['properties']['type'] == $type) {
+                    return $xagio_i;
                 }
             }
             return NULL;

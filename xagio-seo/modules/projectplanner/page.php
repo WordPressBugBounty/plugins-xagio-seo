@@ -14,14 +14,27 @@
  */
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
-$country = get_option('XAGIO_LOCATION_DEFAULT_KEYWORD_COUNTRY');
-$language = get_option('XAGIO_LOCATION_DEFAULT_KEYWORD_LANGUAGE');
-$audit_language = get_option('XAGIO_LOCATION_DEFAULT_AUDIT_LANGUAGE');
-$ai_wizard_se = get_option('XAGIO_LOCATION_DEFAULT_AI_SEARCH_ENGINE');
-$ai_wizard_location = get_option('XAGIO_LOCATION_DEFAULT_AI_LOCATION');
+$xagio_country = get_option('XAGIO_LOCATION_DEFAULT_KEYWORD_COUNTRY');
+$xagio_language = get_option('XAGIO_LOCATION_DEFAULT_KEYWORD_LANGUAGE');
+$xagio_audit_language = get_option('XAGIO_LOCATION_DEFAULT_AUDIT_LANGUAGE');
+$xagio_ai_wizard_se = get_option('XAGIO_LOCATION_DEFAULT_AI_SEARCH_ENGINE');
+$xagio_ai_wizard_location = get_option('XAGIO_LOCATION_DEFAULT_AI_LOCATION');
 
-$MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
+$xagio_default_country = get_option('XAGIO_LOCATION_DEFAULT_COUNTRY');
+$xagio_default_city_code = get_option('XAGIO_LOCATION_DEFAULT_CITY');
+$xagio_country_list = xagio_get_countries();
+if($xagio_default_city_code != null){
+    $xagio_default_city = xagio_get_city_by_code($xagio_default_city_code);
+} else {
+    $xagio_default_city = array();
+}
+
+$XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 ?>
+
+<script>
+    let siteUrl = '<?php echo esc_url(XAGIO_URL); ?>';
+</script>
 
 <div class="xagio-main-header">
     <img class="logo-image repo-xagio" src="<?php echo  esc_url(XAGIO_URL); ?>assets/img/logo-xagio.webp"/>
@@ -29,18 +42,26 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
         Project Planner
     </h2>
     <div class="xagio-header-actions-in-project" style="display: none">
-        <div class="xagio-credits">
-            <ul>
-                <li id="xags-allowance" data-xagio-tooltip data-xagio-tooltip-position="bottom" data-xagio-title="These are your current XAGS (xRenew)">
-                    <img class="xags" src="<?php echo esc_url(plugins_url('xagio-seo/assets/img/xrenew_white.png')); ?>"/> <span class="value"><i class="xagio-icon xagio-icon-sync xagio-icon-spin"></i></span>
-                </li>
-                <li id="xags" data-xagio-tooltip data-xagio-tooltip-position="bottom" data-xagio-title="These are your current XAGS (xBank)">
-                    <img class="xags" src="<?php echo esc_url(plugins_url('xagio-seo/assets/img/xbank_white.png')); ?>"/> <span class="value"><i class="xagio-icon xagio-icon-sync xagio-icon-spin"></i></span>
-                </li>
-            </ul>
 
+        <div class="xags-container">
+            <div class="xags-item xrenew" id="xags-allowance" data-xagio-tooltip data-xagio-tooltip-position="bottom" data-xagio-title="These are your current XAGS (xRenew)">
+                <img src="<?php echo esc_url(XAGIO_URL); ?>assets/img/logos/xRenew.png" alt="xR"
+                     class="xags-icon">
+                <span class="value">0</span>
+            </div>
+            <span class="xags-divider"></span>
+            <div class="xags-item xbanks" id="xags" data-xagio-tooltip data-xagio-tooltip-position="bottom" data-xagio-title="These are your current XAGS (xBank)">
+                <img src="<?php echo esc_url(XAGIO_URL); ?>assets/img/logos/xBanks.png" alt="xB"
+                     class="xags-icon">
+                <span class="value">0</span>
+            </div>
         </div>
-        <a href="https://xagio.com/xbank-store/" target="_blank" class="xagio-button xagio-button-secondary xagio-button-dashboard-link"><i class="xagio-icon xagio-icon-store"></i> Buy XAGS</a>
+
+        <?php if(XAGIO_CONNECTED) { ?>
+            <a href="https://xagio.com/store/" target="_blank" class="xagio-button xagio-button-secondary"><i class="xagio-icon xagio-icon-store"></i> Buy XAGS</a>
+        <?php } else { ?>
+            <a href="https://xagio.com/?goto=upluginplan" target="_blank" class="xagio-button xagio-button-secondary"><i class="xagio-icon xagio-icon-store"></i> TRY A XAGIO PLAN</a>
+        <?php } ?>
     </div>
     <div class="xagio-header-actions">
         <div class="xagio-dropdown">
@@ -59,7 +80,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
         <button class="xagio-button xagio-button-primary aiWizardBtn"><i class="xagio-icon xagio-icon-ai"></i> AI Wizard</button>
 
     </div>
-    <?php if(isset($MEMBERSHIP_INFO["membership"]) && $MEMBERSHIP_INFO["membership"] === "Xagio AI Free") { ?>
+    <?php if(isset($XAGIO_MEMBERSHIP_INFO["membership"]) && $XAGIO_MEMBERSHIP_INFO["membership"] === "Xagio AI Free") { ?>
         <a href="https://xagio.com/?goto=wppremfeatures" target="_blank" class="xagio-button xagio-button-secondary xagio-button-premium-button">
             See Xagio Premium Features
         </a>
@@ -90,7 +111,9 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
             </div>
 
             <div class="xagio-flex-right xagio-flex-gap-small">
-                <button class="xagio-button xagio-button-primary auditWebsiteMigration xagio-text-no-wrap" data-modal="internal"><i class="xagio-icon xagio-icon-magnifying-glass-chart"></i> Import My Keywords & Rankings</button>
+                <button class="xagio-button xagio-button-primary delete-projects xagio-text-no-wrap xagio-hidden"><i class="xagio-icon xagio-icon-delete"></i> Delete Selected Projects</button>
+                <button class="xagio-button xagio-button-primary xagio-text-no-wrap importPages"><i class="xagio-icon xagio-icon-magnifying-glass-chart"></i> Import My Pages</button>
+                <button class="xagio-button xagio-button-primary auditWebsiteMigration xagio-text-no-wrap" data-modal="internal"><i class="xagio-icon xagio-icon-magnifying-glass-chart"></i> Import My Rankings</button>
                 <input type="text" class="xagio-input-text-mini search-projects" placeholder="Search...">
             </div>
         </h5>
@@ -99,7 +122,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
             <table class="xagio-table pTable" cellspacing="0" width="100%">
                 <thead>
                 <tr>
-                    <th>ID</th>
+                    <th><input type="checkbox" class="select-all-projects"/></th>
                     <th>Project Name</th>
                     <th>Created Date</th>
                     <th class="xagio-text-center">Groups</th>
@@ -123,6 +146,9 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
             <div class="project-actions">
                 <!-- Go back to Projects -->
                 <button class="xagio-button xagio-button-primary closeProject"><i class="xagio-icon xagio-icon-arrow-left"></i> Projects</button>
+                <button type="button" class="xagio-button xagio-button-primary ai-clustering">
+                    <i class="xagio-icon xagio-icon-ai"></i> AI Clustering
+                </button>
 
                 <!-- Keyword Functions -->
                 <div class="xagio-dropdown-simple actions-button">
@@ -132,10 +158,12 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                     <ul class="xagio-button-dropdown">
                         <li><a href="#" class="getVolumeAndCPC" data-xagio-dropdown-close data-type="all">Get Volume & CPC</a></li>
                         <li><a href="#" class="getKeywordData" data-xagio-dropdown-close data-type="all">Get Competition</a></li>
+                        <li><a href="#" class="track_rankings" data-xagio-dropdown-close data-type="all">Track Rankings</a></li>
                         <li><a href="#" class="phraseMatch" data-xagio-dropdown-close data-group-id="0">Cluster Keywords</a></li>
                         <li><a href="#" class="seedKeyword" data-xagio-dropdown-close data-group-id="0">Seed Keywords</a></li>
                         <li><a href="#" class="consolidateKeywords" data-xagio-dropdown-close data-xagio-tooltip data-xagio-title="Move all keywords into a new group in this project">Consolidate Keywords</a></li>
                         <li><a href="#" class="deleteDuplicate" data-xagio-dropdown-close>De Duplicate Keywords</a></li>
+                        <li><a href="#" class="moveKeywords" data-xagio-dropdown-close data-type="all">Move Keywords</a></li>
                         <li class="xagio-nav-divider"></li>
                         <li><a href="#" class="exportKeywords" data-xagio-dropdown-close>Export Keywords</a></li>
                         <li class="xagio-nav-divider"></li>
@@ -182,12 +210,12 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                     </select>
                 </button>
 
-                <div class="uk-button-dropdown" data-xagio-tooltip data-xagio-tooltip-position="bottom" data-xagio-title="Sort Groups">
-                    <ul id="groupSort" class="uk-subnav uk-subnav-pill">
-                        <li class="xagio-button xagio-button-primary xagio-action-button sort-groups-asc " data-uk-sort="name:asc" style="display: none">
+                <div data-xagio-tooltip data-xagio-tooltip-position="bottom" data-xagio-title="Sort Groups">
+                    <ul id="groupSort">
+                        <li class="xagio-button xagio-button-primary xagio-action-button sort-groups-asc" style="display: none">
                             <a href="#"><i class="xagio-icon xagio-icon-sort-up"></i></a>
                         </li>
-                        <li data-uk-sort="name:desc" class="xagio-button xagio-button-primary xagio-action-button sort-groups-desc ">
+                        <li class="xagio-button xagio-button-primary xagio-action-button sort-groups-desc">
                             <a href="#"><i class="xagio-icon xagio-icon-sort"></i></a>
                         </li>
                     </ul>
@@ -195,10 +223,33 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 
                 <button class="xagio-button xagio-button-primary xagio-action-button saveProject" data-xagio-tooltip data-xagio-tooltip-position="bottom" data-xagio-title="Save Project"><i class="xagio-icon xagio-icon-save"></i></button>
                 <button class="xagio-button xagio-button-primary xagio-action-button add-empty-group" data-xagio-tooltip data-xagio-tooltip-position="bottom" data-xagio-title="Add Empty Group"><i class="xagio-icon xagio-icon-plus"></i></button>
+                <button class="xagio-button xagio-button-primary global-wordCloud" data-xagio-tooltip data-xagio-tooltip-position="bottom" data-xagio-title="Open Global Word Cloud"><i class="xagio-icon xagio-icon-cloud"></i></button>
             </div>
         </div>
 
+        <div class="keyword-cloud-global-holder">
+            <div class="xagio-keyword-cloud-global"></div>
+            <div class="seed-keywords-global" style="display: none">
 
+                <div class="seed-keywords-panel-start">
+                    <i class="xagio-icon xagio-icon-info"></i> <div>Select keywords to start seeding.</div>
+                </div>
+
+                <div class="seed-keywords-panel-select" style="display: none">
+                    <div>
+                        Seed groups for the following keywords
+                    </div>
+
+                    <form id="seedPanelForm">
+                        <div class="seed-keywords-inputs">
+
+                        </div>
+                    </form>
+
+                    <button class="xagio-button xagio-button-primary seed-keywords-panel-global" type="button"><i class="xagio-icon xagio-icon-check"></i> Seed New Group</button>
+                </div>
+            </div>
+        </div>
 
 
         <div class="project-groups">
@@ -222,6 +273,10 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 
 <!-- Cloud Template -->
 <div class="cloud template hide" style="display: none;"></div>
+
+<div class="loading hidden">
+    <div class="ocw-loading-text"> Clustering groups...</div>
+</div>
 
 <!-- Shared Project -->
 <dialog id="shared_project_link" class="xagio-modal xagio-modal-lg">
@@ -272,26 +327,19 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
     </div>
 
     <div class="xagio-modal-body">
-        <table class="uk-table uk-table-hover table-redirects">
+        <table class="xagio-table table-redirects">
             <thead>
             <tr>
-                <th><i class="xagio-icon xagio-icon-globe"></i> URL</th>
-                <th><i class="xagio-icon xagio-icon-sync"></i> Redirects to</th>
-                <th><i class="xagio-icon xagio-icon-cogs"></i></th>
+                <th style="width: 20%;">URL</th>
+                <th>Redirects to</th>
+                <th style="width: 20%" class="xagio-text-center">Actions</th>
             </tr>
             </thead>
             <tbody>
             <tr>
-                <td colspan="4">Can't find any active redirects.</td>
+                <td colspan="3" class="xagio-text-center">Can't find any active redirects.</td>
             </tr>
             </tbody>
-            <tfoot>
-            <tr>
-                <th><i class="xagio-icon xagio-icon-globe"></i> URL</th>
-                <th><i class="xagio-icon xagio-icon-sync"></i> Redirects to</th>
-                <th><i class="xagio-icon xagio-icon-cogs"></i></th>
-            </tr>
-            </tfoot>
         </table>
 
         <div class="xagio-flex-right xagio-flex-gap-medium xagio-margin-top-medium">
@@ -391,7 +439,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 
     <div class="xagio-modal-body">
         <div class="xagio-alert xagio-alert-primary xagio-margin-bottom-large">
-            <i class="xagio-icon xagio-icon-info"></i> Lorem ipsum dolor sit amet, consectetur adipisicing elit. Cupiditate, dolores ea eveniet, hic impedit ipsam ipsum magnam, maxime nihil placeat temporibus ullam unde vitae. Ad aliquam doloremque doloribus nulla quam!
+            <i class="xagio-icon xagio-icon-info"></i> Set your own conditional formatting rules, or choose the default settings.
         </div>
 
         <div class="xagio-flex-space-between xagio-margin-bottom-large cf-actions-holder">
@@ -648,6 +696,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                         <li><a href="#" class="copyKeywords" data-xagio-dropdown-close >Copy To Clipboard</a></li>
                         <li><a href="#" class="seedKeyword" data-xagio-dropdown-close  data-group-id="0">Seed Keywords</a></li>
                         <li><a href="#" class="phraseMatch" data-xagio-dropdown-close  data-group-id="0">Cluster Keywords</a></li>
+                        <li><a href="#" class="moveKeywords" data-xagio-dropdown-close>Move Keywords</a></li>
                         <li class="xagio-nav-header">GROUP MANAGEMENT</li>
                         <li><a href="#" class="attachToPagePost" data-xagio-dropdown-close  target="_blank">Attach To Page/Post</a></li>
                         <li><a href="#" class="detachPagePost" data-xagio-dropdown-close  target="_blank">Detach Page/Post</a></li>
@@ -968,6 +1017,10 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
         <input type="hidden" id="suggestion-main-keyword" value="">
         <p class="ai-heading">
             <i class="xagio-icon xagio-icon-ai"></i> You are about to request <span class="input-name">AI Generated Content</span>. Below are the details regarding this operation.
+        </p>
+
+        <p class="ai-clustering-explanation" style="display: none;">
+            This prompt performs strict keyword clustering by normalizing all service, role, and location terms (e.g., singular form, merged synonyms for modifiers) and grouping them into unique clusters based on those normalized keys. It recursively audits and merges/splits clusters to ensure that no duplicates, missing assignments, or invalid merges (like true synonyms such as “attorney” and “lawyer”) exist, enforcing complete consistency and accuracy in the final output.
         </p>
 
         <div class="xagio-flex-even-columns xagio-flex-gap-medium xagio-margin-top-medium">
@@ -1302,10 +1355,21 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                 </select>
             </div>
 
-            <div class="xagio-flex-right xagio-flex-gap-medium xagio-margin-top-medium">
-                <button type="button" class="xagio-button xagio-button-outline" data-xagio-close-modal><i class="xagio-icon xagio-icon-close"></i> Cancel</button>
-                <button class="xagio-button xagio-button-primary" type="submit"><i class="xagio-icon xagio-icon-check"></i> Move</button>
+            <div class="xagio-flex-center xagio-flex-gap-medium xagio-margin-top-medium">
+                <div class="xagio-slider-container xagio-margin-none">
+                    <input type="hidden" class="defaults-input" name="keep_copy" id="keep_copy" value="0">
+                    <div class="xagio-slider-frame">
+                        <span class="xagio-slider-button" data-element="keep_copy"></span>
+                    </div>
+                    <p class="xagio-slider-label">Keep a copy in the current project</p>
+                </div>
+
+                <div class="xagio-flex-right xagio-flex-gap-medium">
+                    <button type="button" class="xagio-button xagio-button-outline" data-xagio-close-modal><i class="xagio-icon xagio-icon-close"></i> Cancel</button>
+                    <button class="xagio-button xagio-button-primary" type="submit"><i class="xagio-icon xagio-icon-check"></i> Move</button>
+                </div>
             </div>
+
         </form>
 
     </div>
@@ -1517,8 +1581,16 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 
 <div class="cluster_preview_template template hide">
     <div class="cluster_group">
-        <div class="cluster_group_name"></div>
-        <div class="cluster_group_keywords"></div>
+        <div class="cluster_group_name" contenteditable="true"></div>
+        <ul class="cluster_group_keywords uk-sortable"></ul>
+    </div>
+</div>
+
+<!--new row in seed keywords modal-->
+<div class="seed_panel_container_template xagio-hidden">
+    <div class="seed-panel-name-container">
+        <input type="hidden" name="seed_group_name[]">
+        <input type="text" name="seed_keywords[]" class="xagio-input-text-mini" placeholder="eg. flowers, blanket">
     </div>
 </div>
 
@@ -1632,7 +1704,6 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
     </div>
 </dialog>
 
-
 <!-- New Project -->
 <dialog id="newProject" class="xagio-modal">
     <div class="xagio-modal-header">
@@ -1654,6 +1725,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
         </form>
     </div>
 </dialog>
+
 <!-- New Group -->
 <dialog id="newGroup" class="xagio-modal">
     <div class="xagio-modal-header">
@@ -1674,6 +1746,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
         </form>
     </div>
 </dialog>
+
 <!-- Audit Website -->
 <dialog id="auditWebsiteModal" class="xagio-modal">
     <div class="xagio-modal-header">
@@ -1699,7 +1772,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                     <div>
                         <label class="modal-label" for="auditWebsite_lang">Location:</label>
                         <input type="hidden" name="lang_code" id="auditWebsite_langCode" value="US"/>
-                        <select id="auditWebsite_lang" name="lang" class="xagio-input-select xagio-input-select-gray" data-default="<?php echo esc_attr($audit_language) ? wp_kses_post($audit_language) : "en,US" ?>">
+                        <select id="auditWebsite_lang" name="lang" class="xagio-input-select xagio-input-select-gray" data-default="<?php echo esc_attr($xagio_audit_language) ? wp_kses_post($xagio_audit_language) : "en,US" ?>">
                             <option value="fr" data-lang="fr" data-lang-code="DZ">Algeria (fr)</option>
                             <option value="es" data-lang="es" data-lang-code="AR">Argentina (es)</option>
                             <option value="en" data-lang="en" data-lang-code="AU">Australia (en)</option>
@@ -1781,7 +1854,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                     </div>
                 </div>
 
-                <div class="xagio-flex xagio-flex-gap-large xagio-flex-align-top xagio-flex-wrap xagio-margin-top-medium">
+                <div class="xagio-2-column-30-70-grid xagio-flex-gap-large xagio-flex-align-top xagio-flex-wrap xagio-margin-top-medium">
                     <div>
                         <label class="modal-label">Exact Match URL <i class="xagio-icon xagio-icon-info help-icon" data-xagio-tooltip data-xagio-title="If this option is enabled we will pull keywords only from exact match URL"></i></label>
                         <div class="xagio-slider-container">
@@ -1847,11 +1920,11 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                     <input type="checkbox" name="ignore_local" class="xagio-input-checkbox" value="on" id="auditWebsite_ignoreLocal"/>
                 </div>
 
-                <div class="xagio-flex-space-between xagio-flex-gap-medium xagio-margin-top-medium">
+                <div class="xagio-flex-space-between xagio-flex-gap-medium xagio-margin-top-medium xagio-flex-even-columns">
                     <div class="modal-audit-cost xagio-flex-gap-small">
-                        <i class="xagio-icon xagio-icon-info"></i> <p>This action will cost you <span id="auditCost"></span> XAGS</p>
+                        <i class="xagio-icon xagio-icon-info"></i> <div id="xagsCost"></div>
                     </div>
-                    <div class="xagio-flex-row xagio-flex-gap-medium">
+                    <div class="xagio-flex-right xagio-flex-gap-medium">
                         <button class="xagio-button xagio-button-outline" type="button" data-xagio-close-modal><i class="xagio-icon xagio-icon-close"></i> Cancel</button>
                         <button class="xagio-button xagio-button-primary auditWebsiteBtn" type="submit" ><i class="xagio-icon xagio-icon-magnifying-glass-chart"></i> Run Audit</button>
                     </div>
@@ -1862,6 +1935,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
     </div>
 </dialog>
 
+<!-- Audit Website Internal -->
 <dialog id="auditWebsiteModalInternal" class="xagio-modal">
     <div class="xagio-modal-header">
         <h3 class="xagio-modal-title"><i class="xagio-icon xagio-icon-magnifying-glass-chart"></i> Import Pages & Rankings</h3>
@@ -1885,7 +1959,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                 <div>
                     <h3 class="modal-label">Location:</h3>
                     <input type="hidden" name="lang_code" id="auditWebsite_langCode_internal" value="US"/>
-                    <select id="auditWebsite_lang_internal" name="lang" class="xagio-input-select xagio-input-select-gray" data-default="<?php echo $audit_language ? wp_kses_post($audit_language) : "en,US" ?>">
+                    <select id="auditWebsite_lang_internal" name="lang" class="xagio-input-select xagio-input-select-gray" data-default="<?php echo $xagio_audit_language ? wp_kses_post($xagio_audit_language) : "en,US" ?>">
                         <option value="fr" data-lang="fr" data-lang-code="DZ">Algeria (fr)</option>
                         <option value="es" data-lang="es" data-lang-code="AR">Argentina (es)</option>
                         <option value="en" data-lang="en" data-lang-code="AU">Australia (en)</option>
@@ -1983,16 +2057,36 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                 </div>
             </div>
 
-            <div class="xagio-flex-space-between xagio-flex-gap-medium xagio-margin-top-medium">
+            <div class="xagio-flex-space-between xagio-flex-gap-medium xagio-margin-top-medium xagio-flex-even-columns">
                 <div class="modal-audit-cost xagio-flex-gap-small">
-                    <i class="xagio-icon xagio-icon-info"></i> <p>This action will cost you <span id="auditCostImport"></span> XAGS</p>
+                    <i class="xagio-icon xagio-icon-info"></i>
+                    <div id="xagsCost"></div>
                 </div>
-                <div class="xagio-flex-row xagio-flex-gap-medium">
+                <div class="xagio-flex-right xagio-flex-gap-medium">
                     <button class="xagio-button xagio-button-outline" type="button" data-xagio-close-modal><i class="xagio-icon xagio-icon-close"></i> Cancel</button>
                     <button class="xagio-button xagio-button-primary auditWebsiteBtn" type="submit"><i class="xagio-icon xagio-icon-magnifying-glass-chart"></i> Import</button>
                 </div>
             </div>
         </form>
+    </div>
+</dialog>
+
+<!-- Import Pages -->
+<dialog id="importPagesModal" class="xagio-modal">
+    <div class="xagio-modal-header">
+        <h3 class="xagio-modal-title"><i class="xagio-icon xagio-icon-magnifying-glass-chart"></i> Import Pages</h3>
+        <button class="xagio-modal-close"><i class="xagio-icon xagio-icon-close"></i></button>
+    </div>
+
+    <div class="xagio-modal-body">
+        <div class="xagio-alert xagio-alert-primary xagio-margin-bottom-large">
+            <i class="xagio-icon xagio-icon-info"></i>
+            This operation will import all your sites pages & posts into the project planner.
+        </div>
+        <div class="xagio-flex-right xagio-flex-gap-medium">
+            <button class="xagio-button xagio-button-outline" type="button" data-xagio-close-modal><i class="xagio-icon xagio-icon-close"></i> Cancel</button>
+            <button class="xagio-button xagio-button-primary importPagesBtn" type="submit"><i class="xagio-icon xagio-icon-magnifying-glass-chart"></i> Import</button>
+        </div>
     </div>
 </dialog>
 
@@ -2035,7 +2129,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
             <div class="xagio-flex-even-columns xagio-flex-gap-medium">
                 <div>
                     <label class="modal-label" for="getCompetition_languageCode">Language</label>
-                    <select id="getCompetition_languageCode" class="xagio-input-select xagio-input-select-gray" name="language" data-default="<?php echo esc_attr($language) ?? ""; ?>">
+                    <select id="getCompetition_languageCode" class="xagio-input-select xagio-input-select-gray" name="language" data-default="<?php echo esc_attr($xagio_language) ?? ""; ?>">
                         <option value="">-- All Languages --</option>
                         <option	value="ar">Arabic</option>
                         <option	value="bn">Bengali</option>
@@ -2089,7 +2183,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                 </div>
                 <div>
                     <label class="modal-label" for="getCompetition_locationCode">Country</label>
-                    <select id="getCompetition_locationCode" class="xagio-input-select xagio-input-select-gray" name="location" data-default="<?php echo esc_attr($country) ?? ""; ?>">
+                    <select id="getCompetition_locationCode" class="xagio-input-select xagio-input-select-gray" name="location" data-default="<?php echo esc_attr($xagio_country) ?? ""; ?>">
                         <option	value="">WorldWide</option>
                         <option	value="Afghanistan">Afghanistan</option>
                         <option	value="Albania">Albania</option>
@@ -2338,15 +2432,9 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                 </div>
             </div>
 
-            <div class="xagio-alert xagio-alert-primary xagio-margin-top-medium">
-                <p class="keyword_competition_cost_text"><i class="xagio-icon xagio-icon-info"></i> XAGS: <span class="keyword_competition_cost">-</span></p>
-                <div class="progress">
-                    <div class="progress-bar progress-keywords-scrape" role="progressbar" aria-valuemin="0" aria-valuemax="100"></div>
-                    <div class="progress-value"><span>∞ / ∞</span></div>
-                </div>
-            </div>
-
-            <div class="xagio-flex-right xagio-flex-gap-medium xagio-margin-top-large">
+            <div class="xag-cost-container xagio-flex-gap-small xagio-margin-top-medium">
+                <i class="xagio-icon xagio-icon-info"></i>
+                <div id="xagsCost"></div>
             </div>
 
             <div class="xagio-flex-space-between xagio-flex-gap-medium xagio-margin-top-large">
@@ -2381,7 +2469,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
             <div class="xagio-flex-even-columns xagio-flex-gap-medium">
                 <div>
                     <label class="modal-label" for="autoCreateGroups_languageCode">Language</label>
-                    <select id="getVolAndCpc_languageCode" class="xagio-input-select xagio-input-select-gray" name="language" data-default="<?php echo esc_attr($language) ?? ""; ?>">
+                    <select id="getVolAndCpc_languageCode" class="xagio-input-select xagio-input-select-gray" name="language" data-default="<?php echo esc_attr($xagio_language) ?? ""; ?>">
                         <option value="">-- All Languages --</option>
                         <option	value="ar">Arabic</option>
                         <option	value="bn">Bengali</option>
@@ -2435,7 +2523,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                 </div>
                 <div>
                     <label class="modal-label" for="autoCreateGroups_locationCode">Country</label>
-                    <select id="getVolAndCpc_locationCode" class="xagio-input-select xagio-input-select-gray" name="location" data-default="<?php echo esc_attr($country) ?? ""; ?>">
+                    <select id="getVolAndCpc_locationCode" class="xagio-input-select xagio-input-select-gray" name="location" data-default="<?php echo esc_attr($xagio_country) ?? ""; ?>">
                         <option	value="">WorldWide</option>
                         <option	value="Afghanistan">Afghanistan</option>
                         <option	value="Albania">Albania</option>
@@ -2684,12 +2772,9 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                 </div>
             </div>
 
-            <div class="xagio-alert xagio-alert-primary xagio-margin-top-medium">
-                <p class="keyword_volume_cost_text"><i class="xagio-icon xagio-icon-info"></i> XAGS: <span class="keyword_volume_cost">-</span></p>
-                <div class="progress">
-                    <div class="progress-bar progress-keywords-volume" role="progressbar" aria-valuemin="0" aria-valuemax="100"></div>
-                    <div class="progress-value"><span>∞ / ∞</span></div>
-                </div>
+            <div class="xag-cost-container xagio-flex-gap-small xagio-margin-top-medium">
+                <i class="xagio-icon xagio-icon-info"></i>
+                <div id="xagsCost"></div>
             </div>
 
             <div class="xagio-flex-space-between xagio-flex-gap-medium xagio-margin-top-large">
@@ -2721,7 +2806,6 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
         <form id="rankTrackingForm">
             <input type="hidden" name="keywords" id="keywords">
 
-            <div class="xagio-flex-even-columns xagio-flex-gap-medium">
                 <div class="rank-tracking-modal-se">
                     <label class="modal-label" for="search_engine">Select Engine</label>
                     <select id="search_engine" class="xagio-input-select xagio-input-select-gray" multiple="" name="search_engine[]">
@@ -3717,257 +3801,43 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                         <option value="371">google.co.zw (Zimbabwe/Zulu)</option>
                     </select>
                 </div>
+            <div class="xagio-flex-even-columns xagio-flex-gap-medium xagio-margin-top-medium">
                 <div>
-                    <label class="modal-label" for="search_location">Country</label>
+                    <label class="modal-label" for="search_country">Country</label>
+                    <select id="search_country" class="xagio-input-select xagio-input-select-gray" name="search_country">
+                        <option></option>
+                        <?php
+                            foreach($xagio_country_list as $xagio_item)
+                            {
+                        ?>    
+                            <option value="<?php echo esc_html($xagio_item['location_code']) ?>" data-countrycode="<?php echo esc_html($xagio_item['country_iso_code']) ?>" <?php if($xagio_item['location_code'] == $xagio_default_country) {?> selected <?php } ?>><?php echo esc_html($xagio_item['location_name']) ?></option>
+                        <?php
+                            }
+                        ?>
+                    </select>
+                </div>
+                <div>
+                    <label class="modal-label" for="search_location">Location <i class="xagio-icon xagio-icon-sync xagio-icon-spin" id="loading_cities" style="display:none;"></i></label>
                     <select id="search_location" class="xagio-input-select xagio-input-select-gray" name="search_location">
-                        <option value="2004">Afghanistan</option>
-                        <option value="2008">Albania</option>
-                        <option value="2010">Antarctica</option>
-                        <option value="2012">Algeria</option>
-                        <option value="2016">American Samoa</option>
-                        <option value="2020">Andorra</option>
-                        <option value="2024">Angola</option>
-                        <option value="2028">Antigua and Barbuda</option>
-                        <option value="2031">Azerbaijan</option>
-                        <option value="2032">Argentina</option>
-                        <option value="2036">Australia</option>
-                        <option value="2040">Austria</option>
-                        <option value="2044">The Bahamas</option>
-                        <option value="2048">Bahrain</option>
-                        <option value="2050">Bangladesh</option>
-                        <option value="2051">Armenia</option>
-                        <option value="2052">Barbados</option>
-                        <option value="2056">Belgium</option>
-                        <option value="2060">Bermuda</option>
-                        <option value="2064">Bhutan</option>
-                        <option value="2068">Bolivia</option>
-                        <option value="2070">Bosnia and Herzegovina</option>
-                        <option value="2072">Botswana</option>
-                        <option value="2074">Bouvet Island</option>
-                        <option value="2076">Brazil</option>
-                        <option value="2084">Belize</option>
-                        <option value="2086">British Indian Ocean Territory</option>
-                        <option value="2090">Solomon Islands</option>
-                        <option value="2092">British Virgin Islands</option>
-                        <option value="2096">Brunei</option>
-                        <option value="2100">Bulgaria</option>
-                        <option value="2104">Myanmar (Burma)</option>
-                        <option value="2108">Burundi</option>
-                        <option value="2112">Belarus</option>
-                        <option value="2116">Cambodia</option>
-                        <option value="2120">Cameroon</option>
-                        <option value="2124">Canada</option>
-                        <option value="2132">Cape Verde</option>
-                        <option value="2136">Cayman Islands</option>
-                        <option value="2140">Central African Republic</option>
-                        <option value="2144">Sri Lanka</option>
-                        <option value="2148">Chad</option>
-                        <option value="2152">Chile</option>
-                        <option value="2156">China</option>
-                        <option value="2158">Taiwan</option>
-                        <option value="2162">Christmas Island</option>
-                        <option value="2166">Cocos (Keeling) Islands</option>
-                        <option value="2170">Colombia</option>
-                        <option value="2174">Comoros</option>
-                        <option value="2175">Mayotte</option>
-                        <option value="2178">Republic of the Congo</option>
-                        <option value="2180">Democratic Republic of the Congo</option>
-                        <option value="2184">Cook Islands</option>
-                        <option value="2188">Costa Rica</option>
-                        <option value="2191">Croatia</option>
-                        <option value="2196">Cyprus</option>
-                        <option value="2203">Czechia</option>
-                        <option value="2204">Benin</option>
-                        <option value="2208">Denmark</option>
-                        <option value="2212">Dominica</option>
-                        <option value="2214">Dominican Republic</option>
-                        <option value="2218">Ecuador</option>
-                        <option value="2222">El Salvador</option>
-                        <option value="2226">Equatorial Guinea</option>
-                        <option value="2231">Ethiopia</option>
-                        <option value="2232">Eritrea</option>
-                        <option value="2233">Estonia</option>
-                        <option value="2234">Faroe Islands</option>
-                        <option value="2238">Falkland Islands (Islas Malvinas)</option>
-                        <option value="2239">South Georgia and the South Sandwich Islands</option>
-                        <option value="2242">Fiji</option>
-                        <option value="2246">Finland</option>
-                        <option value="2250">France</option>
-                        <option value="2254">French Guiana</option>
-                        <option value="2258">French Polynesia</option>
-                        <option value="2260">French Southern and Antarctic Lands</option>
-                        <option value="2262">Djibouti</option>
-                        <option value="2266">Gabon</option>
-                        <option value="2268">Georgia</option>
-                        <option value="2270">The Gambia</option>
-                        <option value="2275">Palestine</option>
-                        <option value="2276">Germany</option>
-                        <option value="2288">Ghana</option>
-                        <option value="2292">Gibraltar</option>
-                        <option value="2296">Kiribati</option>
-                        <option value="2300">Greece</option>
-                        <option value="2304">Greenland</option>
-                        <option value="2308">Grenada</option>
-                        <option value="2312">Guadeloupe</option>
-                        <option value="2316">Guam</option>
-                        <option value="2320">Guatemala</option>
-                        <option value="2324">Guinea</option>
-                        <option value="2328">Guyana</option>
-                        <option value="2332">Haiti</option>
-                        <option value="2334">Heard Island and McDonald Islands</option>
-                        <option value="2336">Vatican City</option>
-                        <option value="2340">Honduras</option>
-                        <option value="2344">Hong Kong</option>
-                        <option value="2348">Hungary</option>
-                        <option value="2352">Iceland</option>
-                        <option value="2356">India</option>
-                        <option value="2360">Indonesia</option>
-                        <option value="2368">Iraq</option>
-                        <option value="2372">Ireland</option>
-                        <option value="2376">Israel</option>
-                        <option value="2380">Italy</option>
-                        <option value="2384">Cote d'Ivoire</option>
-                        <option value="2388">Jamaica</option>
-                        <option value="2392">Japan</option>
-                        <option value="2398">Kazakhstan</option>
-                        <option value="2400">Jordan</option>
-                        <option value="2404">Kenya</option>
-                        <option value="2410">South Korea</option>
-                        <option value="2414">Kuwait</option>
-                        <option value="2417">Kyrgyzstan</option>
-                        <option value="2418">Laos</option>
-                        <option value="2422">Lebanon</option>
-                        <option value="2426">Lesotho</option>
-                        <option value="2428">Latvia</option>
-                        <option value="2430">Liberia</option>
-                        <option value="2434">Libya</option>
-                        <option value="2438">Liechtenstein</option>
-                        <option value="2440">Lithuania</option>
-                        <option value="2442">Luxembourg</option>
-                        <option value="2446">Macau</option>
-                        <option value="2450">Madagascar</option>
-                        <option value="2454">Malawi</option>
-                        <option value="2458">Malaysia</option>
-                        <option value="2462">Maldives</option>
-                        <option value="2466">Mali</option>
-                        <option value="2470">Malta</option>
-                        <option value="2474">Martinique</option>
-                        <option value="2478">Mauritania</option>
-                        <option value="2480">Mauritius</option>
-                        <option value="2484">Mexico</option>
-                        <option value="2492">Monaco</option>
-                        <option value="2496">Mongolia</option>
-                        <option value="2498">Moldova</option>
-                        <option value="2499">Montenegro</option>
-                        <option value="2500">Montserrat</option>
-                        <option value="2504">Morocco</option>
-                        <option value="2508">Mozambique</option>
-                        <option value="2512">Oman</option>
-                        <option value="2516">Namibia</option>
-                        <option value="2520">Nauru</option>
-                        <option value="2524">Nepal</option>
-                        <option value="2528">Netherlands</option>
-                        <option value="2530">Netherlands Antilles</option>
-                        <option value="2531">Curacao</option>
-                        <option value="2533">Aruba</option>
-                        <option value="2534">Sint Maarten</option>
-                        <option value="2535">Caribbean Netherlands</option>
-                        <option value="2540">New Caledonia</option>
-                        <option value="2548">Vanuatu</option>
-                        <option value="2554">New Zealand</option>
-                        <option value="2558">Nicaragua</option>
-                        <option value="2562">Niger</option>
-                        <option value="2566">Nigeria</option>
-                        <option value="2570">Niue</option>
-                        <option value="2574">Norfolk Island</option>
-                        <option value="2578">Norway</option>
-                        <option value="2580">Northern Mariana Islands</option>
-                        <option value="2581">United States Minor Outlying Islands</option>
-                        <option value="2583">Federated States of Micronesia</option>
-                        <option value="2584">Marshall Islands</option>
-                        <option value="2585">Palau</option>
-                        <option value="2586">Pakistan</option>
-                        <option value="2591">Panama</option>
-                        <option value="2598">Papua New Guinea</option>
-                        <option value="2600">Paraguay</option>
-                        <option value="2604">Peru</option>
-                        <option value="2608">Philippines</option>
-                        <option value="2612">Pitcairn Islands</option>
-                        <option value="2616">Poland</option>
-                        <option value="2620">Portugal</option>
-                        <option value="2624">Guinea-Bissau</option>
-                        <option value="2626">Timor-Leste</option>
-                        <option value="2630">Puerto Rico</option>
-                        <option value="2634">Qatar</option>
-                        <option value="2638">Reunion</option>
-                        <option value="2642">Romania</option>
-                        <option value="2643">Russia</option>
-                        <option value="2646">Rwanda</option>
-                        <option value="2654">Saint Helena, Ascension and Tristan da Cunha</option>
-                        <option value="2659">Saint Kitts and Nevis</option>
-                        <option value="2660">Anguilla</option>
-                        <option value="2662">Saint Lucia</option>
-                        <option value="2666">Saint Pierre and Miquelon</option>
-                        <option value="2670">Saint Vincent and the Grenadines</option>
-                        <option value="2674">San Marino</option>
-                        <option value="2678">Sao Tome and Principe</option>
-                        <option value="2682">Saudi Arabia</option>
-                        <option value="2686">Senegal</option>
-                        <option value="2688">Serbia</option>
-                        <option value="2690">Seychelles</option>
-                        <option value="2694">Sierra Leone</option>
-                        <option value="2702">Singapore</option>
-                        <option value="2703">Slovakia</option>
-                        <option value="2704">Vietnam</option>
-                        <option value="2705">Slovenia</option>
-                        <option value="2706">Somalia</option>
-                        <option value="2710">South Africa</option>
-                        <option value="2716">Zimbabwe</option>
-                        <option value="2724">Spain</option>
-                        <option value="2732">Western Sahara</option>
-                        <option value="2740">Suriname</option>
-                        <option value="2744">Svalbard and Jan Mayen</option>
-                        <option value="2748">Eswatini</option>
-                        <option value="2752">Sweden</option>
-                        <option value="2756">Switzerland</option>
-                        <option value="2762">Tajikistan</option>
-                        <option value="2764">Thailand</option>
-                        <option value="2768">Togo</option>
-                        <option value="2772">Tokelau</option>
-                        <option value="2776">Tonga</option>
-                        <option value="2780">Trinidad and Tobago</option>
-                        <option value="2784">United Arab Emirates</option>
-                        <option value="2788">Tunisia</option>
-                        <option value="2792">Turkey</option>
-                        <option value="2795">Turkmenistan</option>
-                        <option value="2796">Turks and Caicos Islands</option>
-                        <option value="2798">Tuvalu</option>
-                        <option value="2800">Uganda</option>
-                        <option value="2804">Ukraine</option>
-                        <option value="2807">North Macedonia</option>
-                        <option value="2818">Egypt</option>
-                        <option value="2826">United Kingdom</option>
-                        <option value="2831">Guernsey</option>
-                        <option value="2832">Jersey</option>
-                        <option value="2834">Tanzania</option>
-                        <option value="2840" selected>United States</option>
-                        <option value="2850">U.S. Virgin Islands</option>
-                        <option value="2854">Burkina Faso</option>
-                        <option value="2858">Uruguay</option>
-                        <option value="2860">Uzbekistan</option>
-                        <option value="2862">Venezuela</option>
-                        <option value="2876">Wallis and Futuna</option>
-                        <option value="2882">Samoa</option>
-                        <option value="2887">Yemen</option>
-                        <option value="2894">Zambia</option>
+                        <?php if(!empty($xagio_default_city)) {?>
+                            <option value="<?php echo esc_html($xagio_default_city['id']) ?>"><?php echo esc_html($xagio_default_city['text']) ?></option>
+                        <?php } ?>
                     </select>
                 </div>
             </div>
 
-            <div class="xagio-flex-right xagio-flex-gap-medium xagio-margin-top-large">
-                <button class="xagio-button xagio-button-outline" data-xagio-close-modal type="button"><i class="xagio-icon xagio-icon-close"></i> Cancel</button>
-                <button class="xagio-button xagio-button-primary submitKeywords" type="submit"><i class="xagio-icon xagio-icon-check"></i> Submit Keywords to Rank Tracker</button>
+            <div class="xagio-flex-row xagio-margin-top-large">
+                <div class="xag-cost-container xagio-flex-gap-small">
+                    <i class="xagio-icon xagio-icon-info"></i>
+                    <div id="xagsCost"></div>
+                </div>
+
+                <div class="xagio-flex-right xagio-flex-gap-medium">
+                    <button class="xagio-button xagio-button-outline" data-xagio-close-modal type="button"><i class="xagio-icon xagio-icon-close"></i> Cancel</button>
+                    <button class="xagio-button xagio-button-primary submitKeywords" type="submit"><i class="xagio-icon xagio-icon-check"></i> Submit Keywords to Rank Tracker</button>
+                </div>
             </div>
+
         </form>
     </div>
 
@@ -4198,7 +4068,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                     <div class="aiwizard-search-holder xagio-margin-top-medium">
                                         <div>
                                             <label for="top_ten_search_engine" class="step-text-secondary">Search Engine</label>
-                                            <select id="top_ten_search_engine" name="top_ten_search_engine" class="xagio-input-select xagio-input-select-gray" data-default="<?php echo esc_attr($ai_wizard_se) ? wp_kses_post($ai_wizard_se) : "14" ?>">
+                                            <select id="top_ten_search_engine" name="top_ten_search_engine" class="xagio-input-select xagio-input-select-gray" data-default="<?php echo esc_attr($xagio_ai_wizard_se) ? wp_kses_post($xagio_ai_wizard_se) : "14" ?>">
                                                 <option value="5820">google.com.af (Afghanistan/Arabic)</option>
                                                 <option value="5297">google.com.af (Afghanistan/English)</option>
                                                 <option value="37">google.com.af (Afghanistan/Pashto)</option>
@@ -5149,7 +5019,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                         </div>
                                         <div>
                                             <label for="top_ten_search_location" class="step-text-secondary">Search Location</label>
-                                            <select id="top_ten_search_location" name="top_ten_search_location" class="xagio-input-select xagio-input-select-gray" data-default="<?php echo esc_attr($ai_wizard_location) ? wp_kses_post($ai_wizard_location) : "2840" ?>">
+                                            <select id="top_ten_search_location" name="top_ten_search_location" class="xagio-input-select xagio-input-select-gray" data-default="<?php echo esc_attr($xagio_ai_wizard_location) ? wp_kses_post($xagio_ai_wizard_location) : "2840" ?>">
                                                 <option value="2004">Afghanistan</option>
                                                 <option value="2008">Albania</option>
                                                 <option value="2010">Antarctica</option>
@@ -5402,7 +5272,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 
                                     <div class="xagio-alert keyword-search">
                                         <div class="keyword-example"></div>
-                                        <button type="button" class="xagio-button xagio-button-mini xagio-button-outline" id="swap-words" >
+                                        <button type="button" class="xagio-button xagio-button-outline" id="swap-words" >
                                             <i class="xagio-icon xagio-icon-sync"></i> Swap words
                                         </button>
                                     </div>
@@ -5425,7 +5295,7 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                 <div class="step-body">
 
                                     <div class="xagio-alert xagio-alert-primary top-ten-results-info">
-                                        <i class="xagio-icon xagio-icon-info"></i> Now select which website most resembles what you want to create, and we are Audit and pull their ranking keywords
+                                        <i class="xagio-icon xagio-icon-info"></i> Now, select the website that most closely resembles what you want to create. We will audit it and pull its ranking keywords.
                                     </div>
 
                                     <div class="top-ten-options xagio-margin-top-medium" style="display: none">
@@ -5560,7 +5430,16 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                 </div>
 
                                 <div class="ai-wizard-buttons ai-wizard-sticky-buttons">
-                                    <div class="ai-wizard-cost-label" style="display: none;">Cost: <span class="ai-wizard-cost-value">0</span> XAGS</div>
+                                    <div class="ai-wizard-cost-label" style="display: none;">
+                                        <div class="xag-cost-container xagio-flex-gap-small">
+                                            <i class="xagio-icon xagio-icon-info"></i>
+                                            <div id="xagsCost">This action will cost you
+                                                <div>
+                                                    <img src="<?php echo esc_url(XAGIO_URL); ?>assets/img/logos/xRenew.png" alt="xR" class="xags-icon"><span>0</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div class="xagio-flex xagio-flex-gap-medium">
                                         <a href="#" class="xagio-button xagio-button-outline prev-step"><i class="xagio-icon xagio-icon-close"></i> Cancel</a>
                                         <a href="#" class="xagio-button xagio-button-primary finish"><i class="xagio-icon xagio-icon-check"></i> Finish</a>
@@ -5605,4 +5484,26 @@ $MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
             <a class="xagio-button xagio-button-primary" href="https://xagio.net/ai" target="_blank"><i class="xagio-icon xagio-icon-check"></i> Upgrade Now!</a>
         </div>
     </div>
+</dialog>
+
+<!-- Move Keywords Modal -->
+<dialog id="moveKeywordsModal" class="xagio-modal">
+    <div class="xagio-modal-header">
+        <h3 class="xagio-modal-title"><i class="xagio-icon xagio-icon-info"></i> Confirm</h3>
+        <button class="xagio-modal-close"><i class="xagio-icon xagio-icon-close"></i></button>
+    </div>
+
+    <div class="xagio-modal-body">
+        <input type="hidden" class="ids">
+
+        <label for="moveKeywordGroupSelect" class="modal-label">Move keywords to an existing group, or create a new one by typing its name:</label>
+        <select id="moveKeywordGroupSelect">
+        </select>
+
+        <div class="xagio-flex-right xagio-flex-gap-medium xagio-margin-top-large">
+            <button class="xagio-button xagio-button-outline" data-xagio-close-modal type="button"><i class="xagio-icon xagio-icon-close"></i> Cancel</button>
+            <button class="xagio-button xagio-button-primary" id="submitMoveKeywords" type="button"><i class="xagio-icon xagio-icon-check"></i> Continue</button>
+        </div>
+    </div>
+
 </dialog>

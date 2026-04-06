@@ -35,69 +35,69 @@ if (!class_exists('XAGIO_MODEL_REVIEWWIDGETFORM')) {
             parent::__construct(FALSE, '[Xagio] - Display Reviews', $widget_ops);
         }
 
-        function widget($args, $instance)
+        function widget($xagio_args, $xagio_instance)
         {
 
-            $render = function ($instance) {
+            $render = function ($xagio_instance) {
                 include(XAGIO_PATH . '/modules/reviews/metabox/display_reviews.php');
             };
 
-            $render($instance);
+            $render($xagio_instance);
         }
 
         function update($new_instance, $old_instance)
         {
-            $instance = [];
+            $xagio_instance = [];
 
-            if(isset($instance['limit_reviews'])) {
-                $instance['limit_reviews']        = $new_instance['limit_reviews'];
+            if(isset($xagio_instance['limit_reviews'])) {
+                $xagio_instance['limit_reviews']        = $new_instance['limit_reviews'];
             }
 
-            if(isset($instance['random_reviews'])) {
-                $instance['random_reviews']       = $new_instance['random_reviews'];
+            if(isset($xagio_instance['random_reviews'])) {
+                $xagio_instance['random_reviews']       = $new_instance['random_reviews'];
             }
 
-            if(isset($instance['limit_reviews_number'])) {
-                $instance['limit_reviews_number'] = $new_instance['limit_reviews_number'];
+            if(isset($xagio_instance['limit_reviews_number'])) {
+                $xagio_instance['limit_reviews_number'] = $new_instance['limit_reviews_number'];
             }
 
-            if(isset($instance['aggregate_rating'])) {
-                $instance['aggregate_rating']     = $new_instance['aggregate_rating'];
+            if(isset($xagio_instance['aggregate_rating'])) {
+                $xagio_instance['aggregate_rating']     = $new_instance['aggregate_rating'];
             }
 
 
 
 
-            return $instance;
+            return $xagio_instance;
         }
 
-        function form($instance)
+        function form($xagio_instance)
         {
 
-            $limit_reviews = '';
-            if (isset($instance['limit_reviews'])) {
-                if ($instance['limit_reviews'] == 1) {
-                    $limit_reviews = 'checked';
+            $xagio_limit_reviews = '';
+            if (isset($xagio_instance['limit_reviews'])) {
+                if ($xagio_instance['limit_reviews'] == 1) {
+                    $xagio_limit_reviews = 'checked';
                 }
             }
 
             $limit_reviews_number = 5;
-            if (isset($instance['limit_reviews_number'])) {
-                if (!empty($instance['limit_reviews_number'])) {
-                    $limit_reviews_number = $instance['limit_reviews_number'];
+            if (isset($xagio_instance['limit_reviews_number'])) {
+                if (!empty($xagio_instance['limit_reviews_number'])) {
+                    $limit_reviews_number = $xagio_instance['limit_reviews_number'];
                 }
             }
 
             $random_reviews = '';
-            if (isset($instance['random_reviews'])) {
-                if ($instance['random_reviews'] == 1) {
+            if (isset($xagio_instance['random_reviews'])) {
+                if ($xagio_instance['random_reviews'] == 1) {
                     $random_reviews = 'checked';
                 }
             }
 
             $aggregate_rating = '';
-            if (isset($instance['aggregate_rating'])) {
-                if ($instance['aggregate_rating'] == 1) {
+            if (isset($xagio_instance['aggregate_rating'])) {
+                if ($xagio_instance['aggregate_rating'] == 1) {
                     $aggregate_rating = 'checked';
                 }
             }
@@ -105,7 +105,7 @@ if (!class_exists('XAGIO_MODEL_REVIEWWIDGETFORM')) {
             ?>
 
             <p>
-                <input type="checkbox" <?php echo esc_attr($limit_reviews); ?> value="1" class="checkbox"
+                <input type="checkbox" <?php echo esc_attr($xagio_limit_reviews); ?> value="1" class="checkbox"
                        id="<?php echo esc_attr($this->get_field_id('limit_reviews')); ?>"
                        name="<?php echo esc_attr($this->get_field_name('limit_reviews')); ?>">
                 <label for="<?php echo esc_attr($this->get_field_id('limit_reviews')); ?>"><b><i>Limit Displayed

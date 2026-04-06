@@ -815,3 +815,12 @@ span.star.gray {
     display: flex;
     align-items: center;
 }
+
+.cloud-provider p {
+    font-size: 15px;
+}
+
+.cloud-provider h4 {
+    font-size: 16px;
+    font-weight: 700;
+}

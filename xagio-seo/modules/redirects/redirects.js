@@ -8,6 +8,7 @@ let log_info = [
 ];
 let selected_redirects = [];
 let selected_logs = [];
+let selected_refs = 0;
 
 (function ($) {
     'use strict';
@@ -17,14 +18,20 @@ let selected_logs = [];
         $(document).on('change.uk.tab', function (e, active, prev) {
             if (typeof active != 'undefined') {
                 let currentTabIndex = active.index();
-                let settingsInfo    = $('.log-info');
+                let settingsInfo = $('.log-info');
                 settingsInfo.html(log_info[currentTabIndex]);
             }
         });
 
+        link.refreshXags();
         link.loadRedirects();
         link.addNewRedirect();
-        link.editNewRedirect();
+        link.editRedirect();
+        link.redirectNextStep();
+        link.editRedirectNextStep();
+        link.submitRedirect();
+        link.submitEditUrl();
+        link.redirectSelect();
         link.deleteRedirect();
         link.selectAllRedirects();
         link.uploadCSV();
@@ -39,6 +46,35 @@ let selected_logs = [];
         link.export404Log();
         link.LogSettings();
         link.customRedirectSettings();
+        link.retrieveMetrics();
+
+        $("#redirect_select").select2({
+                                          placeholder   : "Select page/post",
+                                          width         : '100%',
+                                          dropdownParent: $('#addRedirectModal')
+                                      });
+
+        $("#edit_redirect_select").select2({
+                                               placeholder   : "Select page/post",
+                                               width         : '100%',
+                                               dropdownParent: $('#editRedirectModal')
+                                           });
+
+        $("#editing-new-url").select2({
+                                          placeholder   : "Select page/post",
+                                          width         : '100%',
+                                          dropdownParent: $('#redirectToModal')
+                                      });
+
+        $("#redirect-to-select").select2({
+                                             placeholder   : "Select page/post",
+                                             width         : '100%',
+                                             dropdownParent: $('#addRedirectToModal')
+                                         });
+
+        $('#addRedirectModal').on('close', function () {
+            $('.add-new-redirect').disable();
+        })
 
         $(document).on('click', '.remove-selected-ids', function () {
             let checkbox = $(this);
@@ -49,7 +85,7 @@ let selected_logs = [];
             }
             selected_redirects = $.unique(selected_redirects);
 
-            if(selected_redirects.length > 0) {
+            if (selected_redirects.length > 0) {
                 $('.selected-redirects').html(selected_redirects.length);
                 $('.remove-selected-redirects').show();
             } else {
@@ -62,91 +98,133 @@ let selected_logs = [];
             let checkbox = $(this);
             if (checkbox.prop('checked')) {
                 selected_logs.push(checkbox.data('id'));
+                selected_refs += checkbox.data('ref');
             } else {
                 selected_logs = $.grep(selected_logs, (value) => value != checkbox.data('id'));
+                selected_refs -= checkbox.data('ref');
             }
             selected_logs = $.unique(selected_logs);
 
-            if(selected_logs.length > 0) {
+            if (selected_logs.length > 0) {
                 $('.selected-logs-count').html(selected_logs.length);
                 $('.remove-selected-log404').show();
             } else {
                 $('.selected-logs-count').html('');
                 $('.remove-selected-log404').hide();
             }
+            if (selected_refs > 0) {
+                $('.selected-refs-count').html(selected_refs);
+                $('.retrieve-metrics').show();
+            } else {
+                $('.selected-refs-count').html('');
+                $('.retrieve-metrics').hide();
+            }
         });
 
     });
 
     var link = {
+        allowances                               : {
+            cost          : []
+        },
 
-        loadRedirects         : function () {
-            var messages = {
-                empty  : '<tr><td colspan="5">Can\'t find any active redirects.</td></tr>',
-                loading: '<tr><td colspan="5"><i class="xagio-icon xagio-icon-sync xagio-icon-spin"></i> Loading ...</td></tr>'
-            };
-            var table    = $('.table-redirects');
-            var tbody    = table.find('tbody');
+        loadRedirects: function () {
+            let table = $('.table-redirects');
+            table.show();
 
-            tbody.empty().append(messages.loading);
-
-            $.post(xagio_data.wp_post, 'action=xagio_get_redirects', function (d) {
-                if (d.status == 'success') {
-
-                    let redirects_total = d.data.length;
-                    if (d.data.length == 0) {
-                        tbody.empty().append(messages.empty);
-                    } else {
-                        tbody.empty();
-
-                        $('.total-number-of-redirects').html(redirects_total);
-                        for (var i = 0; i < d.data.length; i++) {
-                            var data = d.data[i];
-                            if (!data.new.match("^http")) {
-                                data.new = '/' + data.new;
-                            }
-
-                            var qCheck;
-
-                            if (data.qry_str_url == true) {
-                                qCheck = 'checked="checked"';
-                            } else {
-                                qCheck = '';
-                            }
-
-                            let label = data.old;
-
-                            if (data.old == '') {
-                                label = 'Homepage'
-                            } else {
-                                label = '/' + data.old;
-                            }
-
-                            var html = '<tr>' +
-                                '<td><input type="checkbox" data-id="' + data.id + '" class="xagio-input-checkbox remove-selected-ids"></td>' +
-                                '<td><a target="_blank" href="/' + data.old + '">' + label + '</a></td>' +
-                                '<td><a target="_blank" href="' + data.new + '">' + data.new + '</a></td>' +
-                                '<td>' + data.date_created + '</td>' +
-                                '<td>' +
-                                '<div class="xagio-cell-actions-row xagio-flex-align-center"><button type="button" class="xagio-button xagio-button-primary xagio-button-mini edit-redirect" data-id="' + data.id + '" data-old-url="' + data.old + '" data-new-url="' + data.new + '" data-xagio-tooltip data-xagio-title="Edit this redirect"><i class="xagio-icon xagio-icon-edit"></i></button>' +
-                                '<button type="button" class="xagio-button xagio-button-danger xagio-button-mini delete-redirect " data-id="' + data.id + '" data-xagio-tooltip data-xagio-title="Trash this redirect"><i class="xagio-icon xagio-icon-delete"></i></button>' +
+            table.dataTable({
+                language: {
+                    search: "_INPUT_",
+                    searchPlaceholder: "Search redirects...",
+                    processing: "Loading redirects...",
+                    emptyTable: "Can't find any active redirects."
+                },
+                dom: '<"clear">rt<"xagio-table-bottom"lp><"clear">',
+                bDestroy: true,
+                bPaginate: true,
+                bAutoWidth: false,
+                bFilter: true,
+                bProcessing: true,
+                sServerMethod: "POST",
+                bServerSide: true,
+                sAjaxSource: xagio_data.wp_post,
+                iDisplayLength: 10,
+                aLengthMenu: [
+                    [5, 10, 50, 100, -1],
+                    [5, 10, 50, 100, "All"]
+                ],
+                aaSorting: [[3, 'desc']],
+                aoColumns: [
+                    {
+                        sClass: "xagio-text-center",
+                        mData: "id",
+                        bSortable: false,
+                        bSearchable: false,
+                        mRender: function (data, type, row) {
+                            return '<input type="checkbox" data-id="' + data +
+                                '" class="xagio-input-checkbox remove-selected-ids">';
+                        }
+                    },
+                    {
+                        sClass: "column-old-url",
+                        mData: "old",
+                        bSortable: false,
+                        bSearchable: true,
+                        mRender: function (data, type, row) {
+                            let label = row.old ? '/' + row.old : 'Homepage';
+                            return '<a target="_blank" href="/' + row.old + '">' + label + '</a>';
+                        }
+                    },
+                    {
+                        sClass: "column-new-url",
+                        mData: "new",
+                        bSortable: false,
+                        bSearchable: true,
+                        mRender: function (data, type, row) {
+                            let url = row.new.match(/^http/) ? row.new : '/' + row.new;
+                            return '<a target="_blank" href="' + url + '">' + url + '</a>';
+                        }
+                    },
+                    {
+                        sClass: "column-date-created xagio-text-center",
+                        mData: "date_created",
+                        bSortable: true,
+                        mRender: function (data) {
+                            return data;
+                        }
+                    },
+                    {
+                        sClass: "column-action xagio-text-center",
+                        mData: "id",
+                        bSortable: false,
+                        bSearchable: false,
+                        mRender: function (data, type, row) {
+                            return '<div class="xagio-cell-actions-row xagio-flex-align-center">' +
+                                '<button type="button" class="xagio-button xagio-button-primary xagio-button-mini edit-redirect" data-id="' +
+                                row.id + '" data-old-url="' + row.old + '" data-new-url="' + row.new +
+                                '" data-xagio-tooltip data-xagio-title="Edit this redirect"><i class="xagio-icon xagio-icon-edit"></i></button>' +
+                                '<button type="button" class="xagio-button xagio-button-danger xagio-button-mini delete-redirect" data-id="' +
+                                row.id + '" data-xagio-tooltip data-xagio-title="Trash this redirect"><i class="xagio-icon xagio-icon-delete"></i></button>' +
                                 `<div class="xagio-slider-container">
-                                    <input type="hidden" name="toggle-redirect-${data.id}" id="toggle-redirect-${data.id}" value="${data.is_redirect_active}" />
-                                    <div class="xagio-slider-frame">
-                                        <span class="xagio-slider-button toggle-redirect ${(data.is_redirect_active === "1") ? 'on' : ''}" data-element="toggle-redirect-${data.id}" data-id="${data.id}"></span>
-                                    </div>
-                                </div>` +
-                                       '</td>' +
-                                       '</tr>';
-                            tbody.append(html);
+                            <input type="hidden" name="toggle-redirect-${row.id}" id="toggle-redirect-${row.id}" value="${row.is_redirect_active}" />
+                            <div class="xagio-slider-frame">
+                                <span class="xagio-slider-button toggle-redirect ${(row.is_redirect_active === "1") ? 'on' : ''}" data-element="toggle-redirect-${row.id}" data-id="${row.id}"></span>
+                            </div>
+                        </div>` +
+                                '</div>';
                         }
                     }
-
-                } else {
-                    xagioNotify("danger", "An unknown error has occurred.");
+                ],
+                fnServerParams: function (aoData) {
+                    aoData.push({
+                        name: 'action',
+                        value: 'xagio_get_redirects'
+                    });
+                },
+                fnInitComplete: function (settings, json) {
+                    $('.total-number-of-redirects').html(json.iTotalRecords);
                 }
             });
-
         },
         selectAllRedirects    : function () {
             $(document).on('click', '.select-all-redirects', function (e) {
@@ -163,7 +241,7 @@ let selected_logs = [];
                 });
 
                 selected_redirects = $.unique(selected_redirects);
-                if(selected_redirects.length > 0) {
+                if (selected_redirects.length > 0) {
                     $('.selected-redirects').html(selected_redirects.length);
                     $('.remove-selected-redirects').show();
                 } else {
@@ -176,7 +254,7 @@ let selected_logs = [];
             $(document).on('click', '.delete-redirect', function (e) {
                 e.preventDefault();
                 var button = $(this);
-                var id     = $(this).data('id');
+                var id = $(this).data('id');
 
                 xagioModal("Are you sure?", "Are you sure that you want to delete this redirect?", function (yes) {
                     if (yes) {
@@ -205,8 +283,13 @@ let selected_logs = [];
                     if (yes) {
                         button.disable();
                         $.post(xagio_data.wp_post, 'action=xagio_delete_redirect&id=' + ids, function (d) {
-                            button.disable();
+                            button.disable().hide();
                             link.loadRedirects();
+
+                            // clear selected redirects array
+                            selected_redirects = [];
+
+                            xagioNotify(d.status, d.message);
                         });
                     }
                 });
@@ -221,6 +304,8 @@ let selected_logs = [];
                         $.post(xagio_data.wp_post, 'action=xagio_delete_all_redirects', function (d) {
                             button.disable();
                             link.loadRedirects();
+
+                            xagioNotify(d.status, d.message);
                         });
                     }
                 });
@@ -228,14 +313,13 @@ let selected_logs = [];
         },
         customRedirectSettings: function () {
             $(document).on('click', '.toggle-redirect', function (e) {
-                var button  = $(this);
-                var id      = $(this).data('id');
+                var button = $(this);
+                var id = $(this).data('id');
                 let checked = $(this).prop('checked');
                 let input = button.parents('.xagio-slider-container').find(`#toggle-redirect-${id}`).val();
 
                 $.post(xagio_data.wp_post, 'action=xagio_toggle_redirect&id=' + id + '&value=' + input, function (d) {
                     xagioNotify("success", "Setting updated.");
-                    link.loadRedirects();
                 });
 
             });
@@ -245,81 +329,164 @@ let selected_logs = [];
                 e.preventDefault();
 
                 let button = $(this);
-
-                xagioPromptModal("Confirm", "Old URL (use the /oldurl/ format):", function (result) {
-
-                    if (result) {
-                        let old_url = result;
-                        xagioPromptModal("Confirm", "Redirect to URL (use the /newurl/ format) (DANGER: Creating invalid redirects may result in breaking of your website):", function (result) {
-                            if (result) {
-                                button.disable('Saving...');
-                                $.post(xagio_data.wp_post, 'action=xagio_add_redirect&oldURL=' + encodeURIComponent(old_url) + '&newURL=' + encodeURIComponent(result), function (d) {
-                                    button.disable();
-                                    link.loadRedirects();
-
-                                    xagioNotify("success", "New redirect created.");
-                                });
-                            }
-                        });
-                    }
-                });
-
+                button.disable('Saving...');
+                $("#addRedirectModal")[0].showModal();
             });
         },
-        editNewRedirect       : function () {
+        editRedirect          : function () {
             $(document).on('click', '.edit-redirect', function (e) {
                 e.preventDefault();
 
-                var button = $(this);
+                let button = $(this);
 
-                var coldURL = button.data('old-url');
-                var cnewURL = button.data('new-url');
+                let coldURL = button.data('old-url');
+                let cnewURL = button.data('new-url');
+                let redirect_id = button.data('id');
 
-                var redirect_id = button.data('id');
+                let modal = $("#editRedirectModal");
 
-                var oldURL = null;
-                var newURL = null;
+                modal.find('.xagio-modal-title span').text(coldURL);
+                modal.find('#edit_redirect_select').val(coldURL).trigger('change');
+                modal.find('#edit_old_url').val(coldURL);
 
-                xagioPromptModal("Confirm", `Editing Old URL: ${coldURL}`, function (result) {
+                modal[0].showModal();
 
-                    if (result) {
-                        let url = result;
+                $('.edit-redirect-next-step').attr('data-old-url', coldURL).attr('data-new-url', cnewURL).attr('data-id', redirect_id);
+            });
+        },
+        redirectSelect        : function () {
+            $(document).on('change', '#redirect_select', function (e) {
+                let value = $(this).val();
 
-                        if (url == '') {
-                            oldURL = coldURL;
-                        } else {
-                            oldURL = url;
-                        }
+                $("#addRedirectModal").find('#old_url').val(`/${value}/`);
+            })
 
-                        xagioPromptModal("Confirm", `Editing New URL: ${cnewURL}`, function (res) {
-                            if (res) {
-                                let url = res;
+            $(document).on('change', '#edit_redirect_select', function (e) {
+                let value = $(this).val();
 
-                                if (url == '') {
-                                    newURL = cnewURL;
-                                } else {
-                                    newURL = url;
-                                }
+                $("#editRedirectModal").find('#edit_old_url').val(value);
+            })
 
-                                if (oldURL != null && newURL != null) {
+            $(document).on('change', '#editing-new-url', function (e) {
+                let value = $(this).val();
 
-                                    button.disable('Saving...');
+                $("#redirectToModal").find('#edit_new_url').val(value);
+            })
 
-                                    $.post(xagio_data.wp_post, 'action=xagio_edit_redirect&id=' + redirect_id + '&newURL=' + newURL + '&oldURL=' + oldURL, function (d) {
-                                        button.disable();
-                                        link.loadRedirects();
+            $(document).on('change', '#redirect-to-select', function (e) {
+                let value = $(this).val();
 
-                                        xagioNotify("success", "Redirect updated.");
-                                    });
+                $("#addRedirectToModal").find('#redirect-to-input').val(`/${value}/`);
+            })
+        },
+        redirectNextStep      : function () {
+            $(document).on('click', '.redirect-next-step', function () {
+                let select = $('#redirect_select');
+                let modal = $("#addRedirectModal");
+                let old_url = modal.find('#old_url').val();
 
-                                }
-                            }
-                        });
-                    }
+                if (old_url === '') {
+                    xagioNotify('danger', 'Input field cannot be empty. Please select a page/post or enter a URL manually!');
+                    return;
+                }
+
+                modal[0].close();
+                select.val(null).trigger('change');
+                $('#old_url').val('');
+
+                let secondModal = $("#addRedirectToModal");
+                secondModal.find('.submit-redirect').attr('data-old-url', old_url);
+
+                //open second modal
+                secondModal[0].showModal();
+            });
+        },
+
+        submitRedirect: function () {
+            $(document).on("click", ".submit-redirect", function () {
+                let button = $(this);
+                let select = $('#redirect-to-select');
+                let modal = $("#addRedirectToModal");
+                let input = modal.find('#redirect-to-input').val();
+                let oldURL = button.attr('data-old-url');
+
+                if (input === '') {
+                    xagioNotify('danger', 'Input field cannot be empty. Please select a page/post or enter a URL manually!');
+                    return;
+                }
+
+                button.disable("Saving...");
+
+                $.post(xagio_data.wp_post, 'action=xagio_add_redirect&oldURL=' + encodeURIComponent(oldURL) +
+                                           '&newURL=' + encodeURIComponent(input), function (d) {
+                    link.loadRedirects();
+                    button.disable();
+
+                    select.val(null).trigger('change');
+                    modal.find('#redirect-to-input').val('');
+
+                    modal[0].close();
+                    xagioNotify("success", "Redirect updated.");
                 });
             });
         },
-        uploadCSV             : function () {
+
+        editRedirectNextStep: function () {
+            $(document).on('click', '.edit-redirect-next-step', function (e) {
+                e.preventDefault();
+
+                let modal = $("#editRedirectModal");
+                //first modal input
+                let input = modal.find('#edit_old_url').val();
+
+                if (input === '') {
+                    xagioNotify('danger', 'Input field cannot be empty. Please select a page/post or enter a URL manually!');
+                    return;
+                }
+
+                let button = $(this);
+                let cnewURL = button.attr('data-new-url').replace(/^\/|\/$/g, "");
+                let redirect_id = button.data('id');
+
+                modal[0].close();
+
+                let secondModal = $("#redirectToModal");
+                secondModal.find('.xagio-modal-title span').text(cnewURL);
+                secondModal.find('#editing-new-url').val(cnewURL).trigger('change');
+                secondModal.find('#edit_new_url').val(cnewURL);
+                secondModal.find('.submit-edit-url').attr('data-old-url', input).attr('data-id', redirect_id);
+
+                //open second modal
+                secondModal[0].showModal();
+            });
+        },
+
+        submitEditUrl: function () {
+            $(document).on('click', '.submit-edit-url', function () {
+                let button = $(this);
+                let modal = $("#redirectToModal");
+                let newURL = modal.find('#edit_new_url').val();
+                let redirect_id = button.attr('data-id');
+                let oldURL = button.attr('data-old-url');
+
+                if (newURL === '') {
+                    xagioNotify('danger', 'Input field cannot be empty. Please select a page/post or enter a URL manually!');
+                    return;
+                }
+
+                button.disable("Saving...");
+
+                $.post(xagio_data.wp_post, 'action=xagio_edit_redirect&id=' + redirect_id + '&newURL=' + newURL +
+                                           '&oldURL=' + oldURL, function () {
+                    link.loadRedirects();
+                    button.disable();
+
+                    modal[0].close();
+                    xagioNotify("success", "Redirect updated.");
+                });
+            });
+        },
+        uploadCSV    : function () {
             $(document).on('click', '#csv_file_modal', function () {
                 $('#csv_modal')[0].showModal();
             });
@@ -347,15 +514,16 @@ let selected_logs = [];
 
                     reader.addEventListener('load', function (e) {
                         let csvdata = e.target.result;
-                        csvdata     = csvdata.split("\n");
+                        csvdata = csvdata.split("\n");
                         for (var i = 0; i < csvdata.length; i++) {
                             if (csvdata[i] != '') {
-                                var line   = csvdata[i];
-                                line       = line.split(",");
+                                var line = csvdata[i];
+                                line = line.split(",");
                                 var oldURL = line[0];
                                 var newURL = line[1];
 
-                                $.postq("rqueue", xagio_data.wp_post, 'action=xagio_add_redirect&oldURL=' + oldURL + '&newURL=' + newURL, function (d) {
+                                $.postq("rqueue", xagio_data.wp_post, 'action=xagio_add_redirect&oldURL=' + oldURL +
+                                                                      '&newURL=' + newURL, function (d) {
                                     xagioNotify("success", "Redirection added.");
                                 });
                             }
@@ -371,178 +539,193 @@ let selected_logs = [];
         },
 
         loadLog404       : function () {
-            var linkIp   = "";
+            var linkIp = "";
             var linkAgnt = "";
-            logTable     = $('.logTable');
+            logTable = $('.logTable');
             logTable.show();
             logTable.dataTable({
-                language        : {
-                    search           : "_INPUT_",
-                    searchPlaceholder: "Search 404 log...",
-                    processing       : "Loading 404 log...",
-                    emptyTable       : "Can\'t find any active logs."
-                },
-                "dom"           : '<"clear">rt<"xagio-table-bottom"lp><"clear">',
-                "bDestroy"      : true,
-                "bPaginate"     : true,
-                "bAutoWidth"    : false,
-                "bFilter"       : true,
-                "bProcessing"   : true,
-                "sServerMethod" : "POST",
-                "bServerSide"   : true,
-                "sAjaxSource"   : xagio_data.wp_post,
-                "iDisplayLength": 10,
-                "aLengthMenu"   : [
-                    [
-                        5,
-                        10,
-                        50,
-                        100,
-                        -1
-                    ],
-                    [
-                        5,
-                        10,
-                        50,
-                        100,
-                        "All"
-                    ]
-                ],
-                "aaSorting"     : [
-                    [
-                        3,
-                        'desc'
-                    ]
-                ],
-                "aoColumns"     : [
-                    {
-                        "sClass"     : "xagio-text-center",
-                        "mData"      : "id",
-                        "bSortable"  : false,
-                        "bSearchable": false,
-                        "mRender"    : function (data, type, row) {
-                            return '<input type="checkbox" data-id="' + data + '" class="xagio-input-checkbox remove-selected-log-ids">';
-                        }
-                    },
-                    {
-                        "sClass"     : "column-hits xagio-text-center",
-                        "bSortable"  : true,
-                        "bSearchable": false,
-                        "mData"      : "last_hit_counts",
-                        "mRender"    : function (data, type, row) {
-                            return data;
-                        }
-                    },
-                    {
-                        "sClass"     : "column-url",
-                        "bSortable"  : true,
-                        "bSearchable": true,
-                        "mData"      : "url",
-                        "mRender"    : function (data, type, row) {
-                            return '<a href="'+data+'" target="_blank">' + data + '</a>';
-                        }
-                    },
-                    {
-                        "sClass"   : "column-last-hit xagio-text-center",
-                        "bSortable": true,
-                        "mData"    : "date_updated",
-                        "mRender"  : function (data, type, row) {
-                            return data;
-                        }
-                    },
-                    {
-                        "sClass"     : "column-ip xagio-text-center",
-                        "bSortable"  : false,
-                        "bSearchable": false,
-                        "mData"      : "ip",
-                        "mRender"    : function (data, type, row) {
-                            var lengthIpCount = 0;
-                            var ipAr          = jQuery.parseJSON(data);
-                            linkIp            = " <span>" + ipAr.join("<br/>") + "</span>";
-                            lengthIpCount     = ipAr.length;
-                            var html          = lengthIpCount + ' <i title="View list of IPs" class="xagio-icon xagio-icon-list toggleIp tgl-btn-csr" ip-list="' + linkIp + '" log404s-toggle-id-ip="log404s-' + row.id + '-ip"></i>';
+                                   language        : {
+                                       search           : "_INPUT_",
+                                       searchPlaceholder: "Search 404 log...",
+                                       processing       : "Loading 404 log...",
+                                       emptyTable       : "Can\'t find any active logs."
+                                   },
+                                   "dom"           : '<"clear">rt<"xagio-table-bottom"lp><"clear">',
+                                   "bDestroy"      : true,
+                                   "bPaginate"     : true,
+                                   "bAutoWidth"    : false,
+                                   "bFilter"       : true,
+                                   "bProcessing"   : true,
+                                   "sServerMethod" : "POST",
+                                   "bServerSide"   : true,
+                                   "sAjaxSource"   : xagio_data.wp_post,
+                                   "iDisplayLength": 10,
+                                   "aLengthMenu"   : [
+                                       [
+                                           5,
+                                           10,
+                                           50,
+                                           100,
+                                           -1
+                                       ],
+                                       [
+                                           5,
+                                           10,
+                                           50,
+                                           100,
+                                           "All"
+                                       ]
+                                   ],
+                                   "aaSorting"     : [
+                                       [
+                                           3,
+                                           'desc'
+                                       ]
+                                   ],
+                                   "aoColumns"     : [
+                                       {
+                                           "sClass"     : "xagio-text-center",
+                                           "mData"      : "id",
+                                           "bSortable"  : false,
+                                           "bSearchable": false,
+                                           "mRender"    : function (data, type, row) {
+                                            let reference = row.reference;
+                                            let refCount = 0;
+                                            let referenceAr = jQuery.parseJSON(reference);
+                                            refCount = referenceAr.length;
+                                               return '<input type="checkbox" data-id="' + data +
+                                                      '" data-ref="'+ refCount +'" class="xagio-input-checkbox remove-selected-log-ids">';
+                                           }
+                                       },
+                                       {
+                                           "sClass"     : "column-hits xagio-text-center",
+                                           "bSortable"  : true,
+                                           "bSearchable": false,
+                                           "mData"      : "last_hit_counts",
+                                           "mRender"    : function (data, type, row) {
+                                               return data;
+                                           }
+                                       },
+                                       {
+                                           "sClass"     : "column-url",
+                                           "bSortable"  : true,
+                                           "bSearchable": true,
+                                           "mData"      : null,
+                                           "render"     : function (data, type, row) {
+                                               // row.url_href & row.url_text come from the escaped PHP above
+                                               return '<a href="' + row.url_href + '" target="_blank" rel="noopener">' +
+                                                      row.url_text +
+                                                      '</a>';
+                                           }
+                                       },
+                                       {
+                                           "sClass"   : "column-last-hit xagio-text-center",
+                                           "bSortable": true,
+                                           "mData"    : "date_updated",
+                                           "mRender"  : function (data, type, row) {
+                                               return data;
+                                           }
+                                       },
+                                       {
+                                           "sClass"     : "column-ip xagio-text-center",
+                                           "bSortable"  : false,
+                                           "bSearchable": false,
+                                           "mData"      : "ip",
+                                           "mRender"    : function (data, type, row) {
+                                               var lengthIpCount = 0;
+                                               var ipAr = jQuery.parseJSON(data);
+                                               linkIp = " <span>" + ipAr.join("<br/>") + "</span>";
+                                               lengthIpCount = ipAr.length;
+                                               var html = lengthIpCount +
+                                                          ' <i title="View list of IPs" class="xagio-icon xagio-icon-list toggleIp tgl-btn-csr" ip-list="' +
+                                                          linkIp + '" log404s-toggle-id-ip="log404s-' + row.id +
+                                                          '-ip"></i>';
 
-                            return html;
-                        }
-                    },
-                    {
-                        "sClass"     : "column-referers xagio-text-center",
-                        "bSortable"  : true,
-                        "bSearchable": false,
-                        "mData"      : "reference",
-                        "mRender"    : function (data, type, row) {
-                            var linkRes        = '';
-                            var lengthResCount = 0;
-                            var referenceAr    = jQuery.parseJSON(data);
-                            lengthResCount     = referenceAr.length;
+                                               return html;
+                                           }
+                                       },
+                                       {
+                                           "sClass"     : "column-referers xagio-text-center",
+                                           "bSortable"  : true,
+                                           "bSearchable": false,
+                                           "mData"      : "reference",
+                                           "mRender"    : function (data, type, row) {
+                                               var lengthResCount = 0;
+                                               var referenceAr = jQuery.parseJSON(data);
+                                               lengthResCount = referenceAr.length;
+                                               return lengthResCount +
+                                                          " <i title='View list of referring URLs' class='xagio-icon xagio-icon-list toggleRefer tgl-btn-csr' res-list=\'" +
+                                                          btoa(data) + "\' log404s-toggle-id-ref='log404s-" +
+                                                          row.id + "-referers'></i>";
+                                           }
+                                       },
+                                       {
+                                           "sClass"     : "column-agent xagio-text-center",
+                                           "bSortable"  : false,
+                                           "bSearchable": false,
+                                           "mData"      : "agent",
+                                           "mRender"    : function (data, type, row) {
+                                               var lengthAgntCount = 0;
+                                               var agentAr = jQuery.parseJSON(data);
+                                               linkAgnt = " <span>" + agentAr.join("<br/>") + "</span>";
+                                               lengthAgntCount = agentAr.length;
+                                               var html = lengthAgntCount +
+                                                          ' <i title="View list of user agents" class="xagio-icon xagio-icon-list toggleAgnt tgl-btn-csr" agnt-list="' +
+                                                          linkAgnt + '" log404s-toggle-id-agnt="log404s-' + row.id +
+                                                          '-agnts"></i>';
 
-                            $.each(referenceAr, function (index, value) {
-                                linkRes += ' <a href="' + value + '" target="_blank" >' + value + '</a><br/>';
-                            });
+                                               return html;
+                                           }
+                                       },
+                                       {
+                                           "sClass"     : "column-action xagio-text-center",
+                                           "bSortable"  : false,
+                                           "bSearchable": false,
+                                           "mData"      : "id",
+                                           "mRender"    : function (data, type, row) {
+                                               var html =
+                                                       '<div class="xagio-cell-actions-row xagio-flex-align-center"><a class="xagio-button xagio-button-primary xagio-button-mini add-new-404-redirect" data-current-url="' +
+                                                       row.slug +
+                                                       '" data-xagio-tooltip data-xagio-title="Add 301 Redirect"><i class="xagio-icon xagio-icon-plus"></i></a>' +
+                                                       '<a class="xagio-button xagio-button-primary xagio-button-mini open-404-redirect" target="_blank" href="' +
+                                                       row.url +
+                                                       '" data-xagio-tooltip data-xagio-title="Open URL in new window"><i class="xagio-icon xagio-icon-external-link"></i></a>' +
+                                                       '<button type="button" class="xagio-button xagio-button-danger xagio-button-mini delete-log404" data-id="' +
+                                                       row.id +
+                                                       '" data-xagio-tooltip data-xagio-title="Trash this log"><i class="xagio-icon xagio-icon-delete"></i></button></div>';
 
-                            var html = lengthResCount + " <i title='View list of referring URLs' class='xagio-icon xagio-icon-list toggleRefer tgl-btn-csr' res-list=\'" + linkRes + "\' log404s-toggle-id-ref='log404s-" + row.id + "-referers'></i>";
-
-                            return html;
-                        }
-                    },
-                    {
-                        "sClass"     : "column-agent xagio-text-center",
-                        "bSortable"  : false,
-                        "bSearchable": false,
-                        "mData"      : "agent",
-                        "mRender"    : function (data, type, row) {
-                            var lengthAgntCount = 0;
-                            var agentAr         = jQuery.parseJSON(data);
-                            linkAgnt            = " <span>" + agentAr.join("<br/>") + "</span>";
-                            lengthAgntCount     = agentAr.length;
-                            var html            = lengthAgntCount + ' <i title="View list of user agents" class="xagio-icon xagio-icon-list toggleAgnt tgl-btn-csr" agnt-list="' + linkAgnt + '" log404s-toggle-id-agnt="log404s-' + row.id + '-agnts"></i>';
-
-                            return html;
-                        }
-                    },
-                    {
-                        "sClass"     : "column-action xagio-text-center",
-                        "bSortable"  : false,
-                        "bSearchable": false,
-                        "mData"      : "id",
-                        "mRender"    : function (data, type, row) {
-                            var html =
-                                    '<div class="xagio-cell-actions-row xagio-flex-align-center"><a class="xagio-button xagio-button-primary xagio-button-mini add-new-404-redirect" data-current-url="' + row.slug + '" data-xagio-tooltip data-xagio-title="Add 301 Redirect"><i class="xagio-icon xagio-icon-plus"></i></a>' +
-                                    '<a class="xagio-button xagio-button-primary xagio-button-mini open-404-redirect" target="_blank" href="' + row.url + '" data-xagio-tooltip data-xagio-title="Open URL in new window"><i class="xagio-icon xagio-icon-external-link"></i></a>' +
-                                    '<button type="button" class="xagio-button xagio-button-danger xagio-button-mini delete-log404" data-id="' + row.id + '" data-xagio-tooltip data-xagio-title="Trash this log"><i class="xagio-icon xagio-icon-delete"></i></button></div>';
-
-                            return html;
-                        }
-                    }
-                ],
-                "fnServerParams": function (aoData) {
-                    aoData.push({
-                        name : 'action',
-                        value: 'xagio_get_log404s'
-                    });
-                },
-                "fnCreatedRow"  : function (row, data, index) {
-                },
-                "fnInitComplete"  : function (settings, json) {
-                    $('.total-number-of-logs').html(json.iTotalRecords);
-                }
-            });
+                                               return html;
+                                           }
+                                       }
+                                   ],
+                                   "fnServerParams": function (aoData) {
+                                       aoData.push({
+                                                       name : 'action',
+                                                       value: 'xagio_get_log404s'
+                                                   });
+                                   },
+                                   "fnCreatedRow"  : function (row, data, index) {
+                                   },
+                                   "fnInitComplete": function (settings, json) {
+                                       $('.total-number-of-logs').html(json.iTotalRecords);
+                                   }
+                               });
 
         },
         toggleIp         : function () {
             /*$(document).on('click', '.toggleIp', function (e) {
-                e.preventDefault();
-                var toggleId = $(this).attr('log404s-toggle-id-ip');
-                $('#'+toggleId).toggle(500);
-            });*/
+             e.preventDefault();
+             var toggleId = $(this).attr('log404s-toggle-id-ip');
+             $('#'+toggleId).toggle(500);
+             });*/
 
             $(document).on('click', '.toggleIp', function (e) {
-                var tr       = $(this).closest('tr');
+                var tr = $(this).closest('tr');
                 var toggleId = $(this).attr('log404s-toggle-id-ip');
-                var ipList   = $(this).attr('ip-list');
+                var ipList = $(this).attr('ip-list');
                 var chkClsIp = $('.logTable tbody tr').hasClass('add-' + toggleId + '-list');
                 let td = $(this).parents('td');
-                if(td.hasClass('xagio-tr-opened')) {
+                if (td.hasClass('xagio-tr-opened')) {
                     td.removeClass('xagio-tr-opened');
                 } else {
                     td.addClass('xagio-tr-opened');
@@ -568,24 +751,32 @@ let selected_logs = [];
         toggleReference  : function () {
 
             $(document).on('click', '.toggleRefer', function (e) {
-                var tr        = $(this).closest('tr');
-                var toggleId  = $(this).attr('log404s-toggle-id-ref');
-                var resList   = $(this).attr('res-list');
+                var tr = $(this).closest('tr');
+                var toggleId = $(this).attr('log404s-toggle-id-ref');
+                var resList = atob($(this).attr('res-list'));
+                var refList = jQuery.parseJSON(resList);
                 var chkClsRef = $('.logTable tbody tr').hasClass('add-' + toggleId + '-list');
                 let td = $(this).parents('td');
-                if(td.hasClass('xagio-tr-opened')) {
+                if (td.hasClass('xagio-tr-opened')) {
                     td.removeClass('xagio-tr-opened');
                 } else {
                     td.addClass('xagio-tr-opened');
                 }
 
+                let list = '';
+                $.each(refList, function (index, value) {
+                    let dr = value.DR == null ? '' : value.DR;
+                    let ur = value.UR == null ? '': value.UR;
+                    list += '<tr><td>' + $('<a>', { target: '_blank', rel: 'noopener', href: value.reference }).text(value.reference)[0].outerHTML + '</td>' + '<td>' + dr + '</td>' + '<td>' + ur + '</td></tr>';
+                });
+                
                 if (chkClsRef === false) {
 
                     var html =
                             '<tr id="' + toggleId + '" class="add-' + toggleId + '-list"><td colspan="8">' +
                             '<div class="xagio-toogle-tr-row">' +
                             '<div><strong>Referring URLs</strong></div>' +
-                            '<ul><li>' + resList + '</li></ul>' +
+                            '<table class="xagio-toggle-ref-table"><tr><td>URL</td><td>DR</td><td>UR</td></tr>' + list +'</table>'
                             '</div>' +
                             '</td></tr>';
 
@@ -598,12 +789,12 @@ let selected_logs = [];
         },
         toggleAgent      : function () {
             $(document).on('click', '.toggleAgnt', function (e) {
-                var tr         = $(this).closest('tr');
-                var toggleId   = $(this).attr('log404s-toggle-id-agnt');
-                var agntList   = $(this).attr('agnt-list');
+                var tr = $(this).closest('tr');
+                var toggleId = $(this).attr('log404s-toggle-id-agnt');
+                var agntList = $(this).attr('agnt-list');
                 var chkClsAgnt = $('.logTable tbody tr').hasClass('add-' + toggleId + '-list');
                 let td = $(this).parents('td');
-                if(td.hasClass('xagio-tr-opened')) {
+                if (td.hasClass('xagio-tr-opened')) {
                     td.removeClass('xagio-tr-opened');
                 } else {
                     td.addClass('xagio-tr-opened');
@@ -633,19 +824,30 @@ let selected_logs = [];
                     if (checked == true) {
                         $(this).prop("checked", false);
                         selected_logs = $.grep(selected_logs, (value) => value != $(this).data('id'));
+                        selected_refs -= $(this).data('ref');
                     } else {
                         selected_logs.push($(this).data('id'));
+                        selected_refs += $(this).data('ref');
                         $(this).prop("checked", true);
                     }
 
                     selected_logs = $.unique(selected_logs);
-                    if(selected_logs.length > 0) {
+                    if (selected_logs.length > 0) {
                         $('.selected-logs-count').html(selected_logs.length);
                         $('.remove-selected-log404').show();
                     } else {
                         $('.selected-logs-count').html('');
                         $('.remove-selected-log404').hide();
                     }
+
+                    if (selected_refs > 0) {
+                        $('.selected-refs-count').html(selected_refs);
+                        $('.retrieve-metrics').show();
+                    } else {
+                        $('.selected-refs-count').html('');
+                        $('.retrieve-metrics').hide();
+                    }
+                    
                 });
             })
         },
@@ -653,7 +855,7 @@ let selected_logs = [];
             $(document).on('click', '.delete-log404', function (e) {
                 e.preventDefault();
                 var button = $(this);
-                var id     = $(this).data('id');
+                var id = $(this).data('id');
 
                 xagioModal("Are you sure?", "Are you sure that you want to delete this log?", function (yes) {
                     if (yes) {
@@ -709,7 +911,7 @@ let selected_logs = [];
             $(document).on('click', '.add-new-404-redirect', function (e) {
                 e.preventDefault();
 
-                var button    = $(this);
+                var button = $(this);
                 var old404URL = button.attr('data-current-url');
 
                 xagioPromptModal("Redirect to URL", "Redirect to URL (use the /newurl/ format) (DANGER: Creating invalid redirects may result in breaking of your website):", function (result) {
@@ -719,7 +921,8 @@ let selected_logs = [];
 
                         button.disable();
 
-                        $.post(xagio_data.wp_post, 'action=xagio_add_log404_redirect&old404URL=' + old404URL + '&newURL=' + newURL, function (d) {
+                        $.post(xagio_data.wp_post, 'action=xagio_add_log404_redirect&old404URL=' + old404URL +
+                                                   '&newURL=' + newURL, function (d) {
 
                             button.disable();
                             link.loadRedirects();
@@ -736,7 +939,8 @@ let selected_logs = [];
         },
         export404Log     : function () {
             $(document).on('click', '.export_404s_log', function () {
-                window.location = xagio_data.wp_post + '?action=xagio_export_404s_log';
+                let exportUrl = xagio_data.wp_post + '?action=xagio_export_404s_log' + '&_xagio_nonce=' + xagio_data.nonce;
+                window.location = exportUrl;
             })
         },
         LogSettings      : function () {
@@ -760,6 +964,7 @@ let selected_logs = [];
                     button.disable();
 
                     if (d.status === 'success') {
+                        link.loadLog404();
                         xagioNotify("success", "Operation completed.");
                     } else {
                         xagioNotify("danger", d.message);
@@ -767,6 +972,54 @@ let selected_logs = [];
 
                 });
             });
+        },
+
+        refreshXags: function () {
+            $.post(xagio_data.wp_post, 'action=xagio_refreshXags', function (d) {
+                if (d.status == 'success') {
+                    link.allowances.cost = d.data.xags_cost;
+                    link.allowances.xags_total = d.data.xags_total;
+                    link.allowances.xags_sum = d.data.xags + d.data.xags_allowance;
+                }
+            });
+        },
+
+        retrieveMetrics   : function () {
+            $(document).on('click', '.retrieve-metrics', function(e) {
+                e.preventDefault();
+                var button = $(this);
+
+                var ids = [];
+
+                $('.remove-selected-log-ids').each(function () {
+                    if (this.checked) {
+                        ids.push($(this).data('id'));
+                    }
+                });
+
+                let balance = link.allowances.xags_sum;
+                let xag_price = link.allowances.cost.metrics * selected_refs * 2;
+                
+                if(xag_price > balance) {
+                    xagioNotify("warning", "You do not have enough XAGS to perform this operation!");
+                    return;
+                }
+                
+                xagioModal("Are you sure?", `This action will consume ${xag_price} XAGS`, function (yes) {
+                    if (yes) {
+                        button.disable();
+                        $.post(xagio_data.wp_post, 'action=xagio_retrieve_metrics&ids=' + ids, function (d) {
+                            button.disable();
+                            link.loadLog404();
+                            selected_logs = [];
+                            selected_refs = 0;
+                            $('.retrieve-metrics').hide();
+                            $('.remove-selected-log404').hide();
+                        });
+                    }
+                });
+            })
+
         }
 
     };

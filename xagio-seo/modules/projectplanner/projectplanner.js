@@ -1,3 +1,4 @@
+let requestsRemaining = 0;
 let currentSiloGroups = [];
 let siloInitialized = false;
 let currentProjectID = 0;
@@ -26,6 +27,9 @@ let aiStatusTimeout = null
 let ai_keywords = [];
 let isOriginalOrder = true;
 var average_prices = null;
+var lastSeedGroupId = null;
+let selected_seed_keywords = [];
+let domainProjectId = false;
 
 Array.prototype.remove = function (data) {
     const dataIdx = this.indexOf(data)
@@ -203,17 +207,17 @@ let cf_template = cf_templates[cf_default_template].data;
 
         // init Masonry
         $grid = $('.data').masonry({
-            itemSelector: '.xagio-group',
-            horizontalOrder: true,
-            percentPosition: true,
-            // fitWidth: true,
-            gutter: 40
-        });
+                                       itemSelector   : '.xagio-group',
+                                       horizontalOrder: true,
+                                       percentPosition: true,
+                                       // fitWidth: true,
+                                       gutter: 40
+                                   });
 
         actions.allowances = {
-            xags_allowance        : $('#xags-allowance'),
-            xags                  : $('#xags'),
-            cost                  : []
+            xags_allowance: $('#xags-allowance'),
+            xags          : $('#xags'),
+            cost          : []
         };
 
         $(document).on('mouseenter', '[data-xagio-option-show]', function () {
@@ -224,6 +228,7 @@ let cf_template = cf_templates[cf_default_template].data;
 
         });
 
+        actions.manageProjects();
         actions.loadCfTemplates();
         actions.changeCfTemplate();
         actions.saveCfTemplate();
@@ -246,14 +251,17 @@ let cf_template = cf_templates[cf_default_template].data;
         actions.renameProject();
         actions.loadProjects();
         actions.loadProject();
+        actions.runAgent();
         actions.duplicateProject();
         actions.removeAlertProjectID();
         actions.backToProjects();
         actions.editGroupSettings();
         actions.initSliders();
         actions.selectAllKeywords();
+        actions.closeVolumeAndCPCModal();
         actions.retrieveVolumeAndCPC();
         actions.getAi();
+        actions.closeGetCompetitionModal();
         actions.retrieveKeywordData();
         actions.copyKeywords();
         actions.refreshXags();
@@ -284,6 +292,9 @@ let cf_template = cf_templates[cf_default_template].data;
         actions.changeTaxonomyTypes();
 
         actions.auditWebsite();
+        actions.importPages();
+
+        actions.moveKeywords();
         actions.phraseMatch();
         actions.previewCluster();
         actions.seedKeyword();
@@ -355,16 +366,6 @@ let cf_template = cf_templates[cf_default_template].data;
                 }
             }
         });
-        $.post(xagio_data.wp_post, 'action=xagio_get_default_country', function (d) {
-            if (d.status == 'success') {
-
-                let id = d.data;
-                if ($('#search_location').find("option[value='" + id + "']").length) {
-                    $("#search_location").find("option[value=" + id + "]").attr('selected', true);
-                }
-
-            }
-        });
 
         /* Get Alert Project ID*/
         $.post(xagio_data.wp_post, 'action=xagio_get_alert_project_id', function (d) {
@@ -412,11 +413,13 @@ let cf_template = cf_templates[cf_default_template].data;
             init                      : function () {
                 actions.ai.helper.modalAccordion();
                 actions.ai.helper.disableDefaultOnLableClick();
+                actions.ai.helper.aiPriceClose();
                 actions.ai.openAiModal();
                 actions.ai.openAiWizardModal();
                 actions.ai.useSelectedSuggestionEvent();
                 actions.ai.modifyAiSuggestion();
                 actions.ai.viewSEOSuggestions();
+                actions.ai.aiClustering();
             },
             openAiWizardModal         : function () {
                 $(document).on('click', '.aiWizardBtn', function () {
@@ -594,7 +597,6 @@ let cf_template = cf_templates[cf_default_template].data;
                         btn.disable();
 
                         if (d.status == 'error') {
-                            xagioNotify('danger', 'There was a problem establishing connection, please contact Support.');
                             return;
                         }
 
@@ -643,12 +645,10 @@ let cf_template = cf_templates[cf_default_template].data;
 
                 });
 
-
                 $(document).on('change', 'input[name="suggestion_keyword"]', function () {
                     $('#ai-suggestion-main-keyword').val($(this).next('label').html());
                     $('.ai-main-keyword-holder').slideDown();
                 });
-
 
                 $('#aiSuggestionOptions')[0].addEventListener("close", (event) => {
                     let modal = $(event.target);
@@ -754,168 +754,233 @@ let cf_template = cf_templates[cf_default_template].data;
 
                 });
 
-
                 $(document).on('click', '.makeAiRequest', function (e) {
                     let btn = $(this);
-                    let group_id = btn.attr('data-group');
-                    let regenerate = btn.attr('data-regenerate');
-                    let current_group = $(`input[name="group_id"][value="${group_id}"]`).parents('.xagio-group');
-                    let modal = btn.parents('#aiPrice');
-                    let main_keyword = modal.find('#suggestion-main-keyword').val();
-                    let group_tr = current_group.find('.updateKeywords').find('.keywords').find('.keywords-data tr');
 
-                    btn.disable();
-                    let tbody_keywords = current_group.find('.updateKeywords').find('.keywords').find('.keywords-data tr').find('div.keywordInput[data-target="keyword"]');
+                    let ai_input = btn.attr('data-input');
 
-                    let table_keywords = [];
-                    group_tr.each(function () {
-                        let tmp = {
-                            'keyword': {
-                                'value': $(this).find('div.keywordInput[data-target="keyword"]').text(),
-                            },
-                            'volume' : {
-                                'class': $(this).find('div.keywordInput[data-target="volume"]').parents('td').attr('class'),
-                                'value': parseFloat(actions.cleanComma($(this).find('div.keywordInput[data-target="volume"]').html())),
-                            },
-                            'intitle': {
-                                'class': $(this).find('div.keywordInput[data-target="intitle"]').parents('td').attr('class'),
-                                'value': $(this).find('div.keywordInput[data-target="intitle"]').html() ??
-                                         parseFloat(actions.cleanComma($(this).find('div.keywordInput[data-target="intitle"]').html())),
-                            },
-                            'inurl'  : {
-                                'class': $(this).find('div.keywordInput[data-target="inurl"]').parents('td').attr('class'),
-                                'value': $(this).find('div.keywordInput[data-target="inurl"]').html() ??
-                                         parseFloat(actions.cleanComma($(this).find('div.keywordInput[data-target="inurl"]').html()))
-                            }
-                        };
-                        if (typeof $(this).find('div.keywordInput[data-target="keyword"]').html() !== 'undefined') {
-                            table_keywords.push(tmp);
+                    if (ai_input === "CLUSTER") {
+                        e.preventDefault();
+
+                        let price = parseInt($('#aiPrice').find('.average-price').html());
+                        let credits = parseInt($('#aiPrice').find('.ai-credits').html());
+
+                        if (credits < price) {
+                            xagioNotify("danger", "You do not have enough AI Credits, please top up and try again!");
+                            return;
                         }
-                    });
 
-                    let keywords = [];
-                    tbody_keywords.each(function () {
-                        keywords.push($(this).text());
-                    });
 
-                    //send only top 50 keywords
-                    keywords.splice(50);
+                        $('#aiPrice')[0].close();
+                        $('.ai-clustering').disable();
+                        $('.loading').toggleClass('hidden');
 
-                    let words_table = actions.ai.helper.calculateWordWeight(keywords);
+                        let all_groups = $('.project-groups .groupSelect:checked');
 
-                    let mini_table = '<div class="xagio-alert xagio-alert-primary xagio-margin-top-medium xagio-margin-bottom-medium"><i class="xagio-icon xagio-icon-info"></i> ' +
-                                     'In table below you can click on any keyword to highlight entire keyword used by AI suggestions ' +
-                                     'to help you visually see optimization results</div>';
-                    mini_table += '<table class="uk-table ai-keyword-cloud-table">';
-                    mini_table += '<thead>';
-                    mini_table += '<tr>';
-                    mini_table += '<td width="55%">Keyword</td>' +
-                                  '<td class="text-center" width="15%">Volume</td>' +
-                                  '<td class="text-center" width="15%">inTitle</td>' +
-                                  '<td class="text-center" width="15%">inURL</td>';
-                    mini_table += '</tr>';
-                    mini_table += '</thead>';
-                    mini_table += '<tbody>';
-                    for (let i = 0; i < table_keywords.length; i++) {
-                        let k = table_keywords[i];
-                        mini_table += '<tr>';
-                        mini_table += `<td class="table_hightligh_also"><span class="ai-cluster-word">${k.keyword.value}</span></td>`;
-                        mini_table += `<td class="text-center ${k.volume.class}">${k.volume.value}</td>`;
-                        mini_table += `<td class="text-center ${k.intitle.class}">${k.intitle.value}</td>`;
-                        mini_table += `<td class="text-center ${k.inurl.class}">${k.inurl.value}</td>`;
-                        mini_table += '</tr>';
-                    }
-                    mini_table += '</tbody>';
-                    mini_table += '</table>';
+                        let data = [
+                            {
+                                name : 'action',
+                                value: 'xagio_ai_clustering'
+                            },
+                            {
+                                name : 'project_id',
+                                value: currentProjectID
+                            }
+                        ];
 
-                    mini_table += '<div class="xagio-alert xagio-alert-primary xagio-margin-top-medium xagio-margin-bottom-medium"><i class="xagio-icon xagio-icon-info"></i> Below you can see separated keywords by words and their weights (<b>word (weight)</b>). You can click on any word to highlight words used by AI suggestions ' +
-                                  'to help you visually see optimization results</div>';
-
-                    mini_table += '<div class="ai-keyword-cloud">';
-                    for (let i = 0; i < words_table.length; i++) {
-                        let word = words_table[i];
-                        mini_table += '<div class="word-highlight">';
-                        mini_table += `<span class="ai-cluster-word">${word.text}</span> <span>(${word.weight})</span>`;
-                        mini_table += '</div>';
-                    }
-                    mini_table += '</div>';
-                    let aiModal = $('#ai-suggest-modal');
-
-                    let input = 'SEO_SUGGESTIONS';
-                    let target_id = group_id;
-                    let prompt_id = $("#prompt_id").val();
-
-                    if (ai_keywords.length > 0) {
-                        input = 'SEO_SUGGESTIONS_MAIN_KW';
-                        words_table = actions.ai.helper.generateAiKeywordCluster(ai_keywords);
-                    } else {
-                        words_table = JSON.stringify(words_table);
-                    }
-
-                    aiModal.find('.mini-table').html(mini_table);
-                    aiModal.find('.ai-keyword-cloud-table').DataTable(
-                        {
-                            "dom"       : 't<"xagio-table-bottom"lp><"clear">',
-                            "responsive": true,
-                            "bDestroy"  : true,
-                            "bAutoWidth": false,
-                            "aaSorting" : [
-                                [
-                                    1,
-                                    'desc'
-                                ]
-                            ],
+                        // Push each keyword as a separate field named "keywords[]"
+                        all_groups.each(function () {
+                            let all_keywords = $(this).parents('.xagio-group').find('.keywordInput[data-target="keyword"]');
+                            all_keywords.each(function () {
+                                let val = jQuery(this).text().trim();
+                                if (val.length > 0) {
+                                    data.push({
+                                        name : 'keywords[]',
+                                        value: val
+                                    });
+                                }
+                            });
                         });
-                    aiModal.find('.use-ai-suggested').attr('data-group-id', group_id);
-                    aiModal.find('.use-ai-suggested').attr('data-ai-input', input);
-                    aiModal.find('.ai-block').addClass('grad');
 
-
-                    modal[0].close();
-                    aiModal[0].showModal();
-
-
-                    btn.disable();
-                    let r = "";
-                    if (regenerate === 'yes') {
-                        r = "&regenerate=yes";
-                        $.post(xagio_data.wp_post, `action=xagio_ai_suggest&prompt_id=${prompt_id}&keyword_group=${words_table}&group_id=${target_id}&main_keyword=${main_keyword}&input=${input}${r}`, (d) => {
+                        $.post(xagio_data.wp_post, data, function (d) {
 
                             if (d.status == 'upgrade') {
-                                // show aiUpgrade modal
                                 $('#aiUpgrade')[0].showModal();
                                 return;
                             }
 
-                            if (d.status === 'success') {
-                                actions.ai.checkAiStatus(input, target_id, aiModal, words_table);
-                            }
-                            xagioNotify(d.status, d.message);
-                        });
-                        return false;
-                    }
+                            xagioNotify(d.status, d.message, true);
 
-                    $.post(xagio_data.wp_post, `action=xagio_ai_output&input=${input}&target_id=${target_id}`, (d) => {
-                        let status = d.status;
-                        if (status === 'running') {
-                            setTimeout(function () {
-                                aiModal.find('.ai-alert-info').slideDown();
-                            }, 12000);
-                            actions.ai.checkAiStatus(input, target_id, aiModal, words_table);
-                        } else if (status === 'completed') {
-                            clearTimeout(aiStatusTimeout);
-                            let suggestions = d.data;
-                            actions.ai.helper.displaySeoSuggestionsInModal(aiModal, suggestions, d.id);
+                            if (d.status == 'error') {
+                                btn.disable();
+                                return;
+                            }
+
+                            actions.ai.pollClusterStatus( currentProjectID );
+                        });
+
+                    } else {
+
+                        let group_id = btn.attr('data-group');
+                        let regenerate = btn.attr('data-regenerate');
+                        let current_group = $(`input[name="group_id"][value="${group_id}"]`).parents('.xagio-group');
+                        let modal = btn.parents('#aiPrice');
+                        let main_keyword = modal.find('#suggestion-main-keyword').val();
+                        let group_tr = current_group.find('.updateKeywords').find('.keywords').find('.keywords-data tr');
+
+                        btn.disable();
+                        let tbody_keywords = current_group.find('.updateKeywords').find('.keywords').find('.keywords-data tr').find('div.keywordInput[data-target="keyword"]');
+
+                        let table_keywords = [];
+                        group_tr.each(function () {
+                            let tmp = {
+                                'keyword': {
+                                    'value': $(this).find('div.keywordInput[data-target="keyword"]').text(),
+                                },
+                                'volume' : {
+                                    'class': $(this).find('div.keywordInput[data-target="volume"]').parents('td').attr('class'),
+                                    'value': parseFloat(actions.cleanComma($(this).find('div.keywordInput[data-target="volume"]').html())),
+                                },
+                                'intitle': {
+                                    'class': $(this).find('div.keywordInput[data-target="intitle"]').parents('td').attr('class'),
+                                    'value': $(this).find('div.keywordInput[data-target="intitle"]').html() ??
+                                        parseFloat(actions.cleanComma($(this).find('div.keywordInput[data-target="intitle"]').html())),
+                                },
+                                'inurl'  : {
+                                    'class': $(this).find('div.keywordInput[data-target="inurl"]').parents('td').attr('class'),
+                                    'value': $(this).find('div.keywordInput[data-target="inurl"]').html() ??
+                                        parseFloat(actions.cleanComma($(this).find('div.keywordInput[data-target="inurl"]').html()))
+                                }
+                            };
+                            if (typeof $(this).find('div.keywordInput[data-target="keyword"]').html() !== 'undefined') {
+                                table_keywords.push(tmp);
+                            }
+                        });
+
+                        let keywords = [];
+                        tbody_keywords.each(function () {
+                            keywords.push($(this).text());
+                        });
+
+                        //send only top 50 keywords
+                        keywords.splice(50);
+
+                        let words_table = actions.ai.helper.calculateWordWeight(keywords);
+
+                        let mini_table = '<div class="xagio-alert xagio-alert-primary xagio-margin-top-medium xagio-margin-bottom-medium"><i class="xagio-icon xagio-icon-info"></i> ' +
+                            'In table below you can click on any keyword to highlight entire keyword used by AI suggestions ' +
+                            'to help you visually see optimization results</div>';
+                        mini_table += '<table class="uk-table ai-keyword-cloud-table">';
+                        mini_table += '<thead>';
+                        mini_table += '<tr>';
+                        mini_table += '<td width="55%">Keyword</td>' +
+                            '<td class="text-center" width="15%">Volume</td>' +
+                            '<td class="text-center" width="15%">inTitle</td>' +
+                            '<td class="text-center" width="15%">inURL</td>';
+                        mini_table += '</tr>';
+                        mini_table += '</thead>';
+                        mini_table += '<tbody>';
+                        for (let i = 0; i < table_keywords.length; i++) {
+                            let k = table_keywords[i];
+                            mini_table += '<tr>';
+                            mini_table += `<td class="table_hightligh_also"><span class="ai-cluster-word">${k.keyword.value}</span></td>`;
+                            mini_table += `<td class="text-center ${k.volume.class}">${k.volume.value}</td>`;
+                            mini_table += `<td class="text-center ${k.intitle.class}">${k.intitle.value}</td>`;
+                            mini_table += `<td class="text-center ${k.inurl.class}">${k.inurl.value}</td>`;
+                            mini_table += '</tr>';
+                        }
+                        mini_table += '</tbody>';
+                        mini_table += '</table>';
+
+                        mini_table += '<div class="xagio-alert xagio-alert-primary xagio-margin-top-medium xagio-margin-bottom-medium"><i class="xagio-icon xagio-icon-info"></i> Below you can see separated keywords by words and their weights (<b>word (weight)</b>). You can click on any word to highlight words used by AI suggestions ' +
+                            'to help you visually see optimization results</div>';
+
+                        mini_table += '<div class="ai-keyword-cloud">';
+                        for (let i = 0; i < words_table.length; i++) {
+                            let word = words_table[i];
+                            mini_table += '<div class="word-highlight">';
+                            mini_table += `<span class="ai-cluster-word">${word.text}</span> <span>(${word.weight})</span>`;
+                            mini_table += '</div>';
+                        }
+                        mini_table += '</div>';
+                        let aiModal = $('#ai-suggest-modal');
+
+                        let input = 'SEO_SUGGESTIONS';
+                        let target_id = group_id;
+                        let prompt_id = $("#prompt_id").val();
+
+                        if (ai_keywords.length > 0) {
+                            input = 'SEO_SUGGESTIONS_MAIN_KW';
+                            words_table = actions.ai.helper.generateAiKeywordCluster(ai_keywords);
                         } else {
-                            // If status is none, send request for AI
-                            $.post(xagio_data.wp_post, `action=xagio_ai_suggest&prompt_id=${prompt_id}&keyword_group=${JSON.stringify(words_table)}&group_id=${target_id}&main_keyword=${main_keyword}&input=${input}`, (d) => {
+                            words_table = JSON.stringify(words_table);
+                        }
+
+                        aiModal.find('.mini-table').html(mini_table);
+                        aiModal.find('.ai-keyword-cloud-table').DataTable(
+                            {
+                                "dom"       : 't<"xagio-table-bottom"lp><"clear">',
+                                "responsive": true,
+                                "bDestroy"  : true,
+                                "bAutoWidth": false,
+                                "aaSorting" : [
+                                    [
+                                        1,
+                                        'desc'
+                                    ]
+                                ],
+                            });
+                        aiModal.find('.use-ai-suggested').attr('data-group-id', group_id);
+                        aiModal.find('.use-ai-suggested').attr('data-ai-input', input);
+                        aiModal.find('.ai-block').addClass('grad');
+
+
+                        modal[0].close();
+                        aiModal[0].showModal();
+
+
+                        btn.disable();
+                        let r = "";
+                        if (regenerate === 'yes') {
+                            r = "&regenerate=yes";
+                            $.post(xagio_data.wp_post, `action=xagio_ai_suggest&prompt_id=${prompt_id}&keyword_group=${words_table}&group_id=${target_id}&main_keyword=${main_keyword}&input=${input}${r}`, (d) => {
+
+                                if (d.status == 'upgrade') {
+                                    // show aiUpgrade modal
+                                    $('#aiUpgrade')[0].showModal();
+                                    return;
+                                }
+
                                 if (d.status === 'success') {
                                     actions.ai.checkAiStatus(input, target_id, aiModal, words_table);
                                 }
                                 xagioNotify(d.status, d.message);
                             });
+                            return false;
                         }
-                    });
+
+                        $.post(xagio_data.wp_post, `action=xagio_ai_output&input=${input}&target_id=${target_id}`, (d) => {
+                            let status = d.status;
+                            if (status === 'running') {
+                                setTimeout(function () {
+                                    aiModal.find('.ai-alert-info').slideDown();
+                                }, 12000);
+                                actions.ai.checkAiStatus(input, target_id, aiModal, words_table);
+                            } else if (status === 'completed') {
+                                clearTimeout(aiStatusTimeout);
+                                let suggestions = d.data;
+                                actions.ai.helper.displaySeoSuggestionsInModal(aiModal, suggestions, d.id);
+                            } else {
+                                // If status is none, send request for AI
+                                $.post(xagio_data.wp_post, `action=xagio_ai_suggest&prompt_id=${prompt_id}&keyword_group=${JSON.stringify(words_table)}&group_id=${target_id}&main_keyword=${main_keyword}&input=${input}`, (d) => {
+                                    if (d.status === 'success') {
+                                        actions.ai.checkAiStatus(input, target_id, aiModal, words_table);
+                                    }
+                                    xagioNotify(d.status, d.message);
+                                });
+                            }
+                        });
+                    }
                 });
             },
             viewSEOSuggestions        : function () {
@@ -1172,8 +1237,9 @@ let cf_template = cf_templates[cf_default_template].data;
 
                     for (let i = 0; i < keywords.length; i++) {
                         let row = keywords[i];
+                        let keyword = encodeURIComponent(row[0]);
 
-                        table += `${row[0]}, ${row[1]}, ${row[2]}, ${row[3]} \n`;
+                        table += `${keyword}, ${row[1]}, ${row[2]}, ${row[3]} \n `;
                     }
 
                     return table;
@@ -1229,13 +1295,118 @@ let cf_template = cf_templates[cf_default_template].data;
                             $('.mini-table').slideDown();
                         }
                     });
+                },
+                aiPriceClose                 : function () {
+                    $('#aiPrice').on('close', function () {
+                        $('.ai-clustering-explanation').hide();
+                    })
                 }
-            }
+            },
+            aiClustering              : function () {
+                $(document).on('click', '.ai-clustering', function (e) {
+                    e.preventDefault();
+                    let btn = $(this);
+
+                    if ($('.project-groups .groupSelect:checked').length < 1) {
+                        xagioNotify('danger', 'Please select some groups!');
+                        return;
+                    }
+
+                    actions.ai.openAveragePrices(btn, 'AI Clustering', "CLUSTER", "generateAiContent");
+                });
+            },
+            openAveragePrices         : function (btn, title, input) {
+                btn.disable();
+
+                $.post(xagio_data.wp_post, `action=xagio_ai_get_average_prices`, function (d) {
+                    btn.disable();
+                    let modal = $('#aiPrice');
+
+                    if (d.status == 'error') {
+                        return;
+                    }
+
+                    let defaultPrompt = null;
+                    let prompt_id = modal.find('#prompt_id');
+                    prompt_id.empty();
+
+                    if (average_prices == null) {
+                        average_prices = d.data.average_prices;
+                    }
+
+                    for (let i = 0; i < average_prices[input].length; i++) {
+                        const pagecontentElement = average_prices[input][i];
+                        prompt_id.append(`<option value="${pagecontentElement.id}">${pagecontentElement.title}</option>`)
+                        if (pagecontentElement.default) {
+                            defaultPrompt = pagecontentElement;
+                            prompt_id.val(pagecontentElement.id);
+                        }
+                    }
+
+                    modal.find('.input-name').html(title);
+                    modal.find('.average-price').html(parseFloat(defaultPrompt.price.toFixed(3)));
+                    modal.find('.ai-credits').html(parseFloat(d.data.credits.toFixed(3)));
+                    modal.find('.ai-clustering-explanation').show();
+                    modal.find('.makeAiRequest').attr('data-input', input);
+
+                    modal[0].showModal();
+
+                    actions.refreshXags();
+
+                });
+            },
+            pollClusterStatus         : function (projectId) {
+                const MAX_ATTEMPTS  = 60;   // 60 × 5 s = 5 min timeout
+                const INTERVAL_MS   = 5000; // 5 s
+                let   attempts      = 0;
+
+                const timer = setInterval( () => {
+
+                    $.post( xagio_data.wp_post, {
+                        action       : 'xagio_ai_check_status_cluster',
+                        project_id   : projectId
+                    }, function ( resp ) {
+
+                        // resp example: {status:"success", message:"Image Status retrieved!", data:"completed"}
+                        if ( resp.status === 'success' ) {
+
+                            const status = resp.data; // "running" | "queued" | "completed" | false
+
+                            if ( status === 'completed' || status === false ) {
+                                clearInterval( timer );
+                                $('.loading').addClass('hidden');
+                                $('.ai-clustering').disable();
+                                xagioNotify( 'success', 'AI clustering finished – reloading…', true );
+
+                                actions.loadProjectManually();
+                                actions.loadProjects();
+                            }
+
+                        } else if ( resp.status === 'error' ) {
+                            clearInterval( timer );
+                            $('.loading').addClass('hidden');
+                            $('.ai-clustering').disable();
+                            xagioNotify( 'danger', resp.message || 'Error checking AI-cluster status', true );
+                        }
+                    }, 'json' );
+
+                    if ( ++attempts >= MAX_ATTEMPTS ) {
+                        clearInterval( timer );
+                        $('.loading').addClass('hidden');
+                        $('.ai-clustering').disable();
+                        xagioNotify( 'warning', 'AI clustering is still running; please try again later.', true );
+                    }
+
+                }, INTERVAL_MS );
+            },
         },
         allowances          : null,
+        escapeRegExp        : function (string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        },
         getXagioLinks       : function () {
             $.post(xagio_data.wp_post, 'action=xagio_get_links', function (d) {
-                if(d !== false) {
+                if (d !== false) {
                     let projectplanner_btn = $('.xagio-button-dashboard-link');
                     projectplanner_btn.html(`<i class="xagio-icon xagio-icon-store"></i> ${d.projectplanner.text}`);
                     projectplanner_btn.attr('href', d.projectplanner.url);
@@ -1395,10 +1566,12 @@ let cf_template = cf_templates[cf_default_template].data;
                 let keyword_contain_text = top_ten_options.find('.main_keyword_contain').val();
                 let is_relative = top_ten_options.find('#is_relative').val();
 
-                let requestsRemaining = domains.length; // Counter for remaining requests
+                requestsRemaining = domains.length * 2; // Counter for remaining requests
                 domains_length = domains.length;
 
                 generating_el.html(`Finding & Clustering Your Keywords...`);
+
+                let completed = 0;
 
                 domains.forEach(function (domain) {
 
@@ -1414,28 +1587,44 @@ let cf_template = cf_templates[cf_default_template].data;
                                 $.ajaxq.clear('ProjectQueue');
                                 generating_el.html(d.message);
                                 xagioNotify("warning", d.message, false, 15);
-                                setTimeout(function(){
+                                setTimeout(function () {
                                     document.location.reload();
                                 }, 5000);
                             } else {
                                 if (d.hasOwnProperty('project_id')) {
+                                    if (!domainProjectId) {
+                                        domainProjectId = true;
+                                    }
                                     generating_el.html(`Processing... ${domain}...`);
                                     processProject(d.project_id);
                                 }
                             }
                         },
                         complete: function () {
-                            requestsRemaining--; // Decrement the counter on each completion
-                            if (requestsRemaining === 0) {
-                                console.log('finished all');
-                                // If all requests are completed, redirect
-                                setTimeout(function () {
-                                    finalProcessing();
-                                }, 15000);
+                            completed++;
+                            completeRequests();
+
+                            // Check if all requests are done
+                            if (completed === domains_length) {
+                                if (!domainProjectId) {
+                                    $('.lds-facebook').hide();
+                                    generating_el.html('No ranking keywords found for selected websites. Credits are not deducted. Please try again.');
+                                }
                             }
                         }
                     });
                 });
+            }
+
+            function completeRequests() {
+                requestsRemaining--; // Decrement the counter on each completion
+                if (requestsRemaining === 0) {
+                    console.log('finished all');
+                    // If all requests are completed, redirect
+                    setTimeout(function () {
+                        finalProcessing();
+                    }, 15000);
+                }
             }
 
             function processProject(project_id) {
@@ -1446,7 +1635,8 @@ let cf_template = cf_templates[cf_default_template].data;
                     success: function (dd) {
                         project_id = dd.project_id;
                         project_ids.push(project_id);
-                    }
+                    },
+                    complete: completeRequests
                 });
             }
 
@@ -1494,18 +1684,45 @@ let cf_template = cf_templates[cf_default_template].data;
                 $(document).on('click', '.sort-groups-asc', function (e) {
                     $(this).hide();
                     $('.sort-groups-desc').show();
+
+                    let groups = $('.project-groups .xagio-group');
+
+                    let sortedGroups = groups.toArray().sort(function (a, b) {
+                        let valueA = $(a).find('input[name="group_name"]').val().toLowerCase().trim();
+                        let valueB = $(b).find('input[name="group_name"]').val().toLowerCase().trim();
+
+                        return valueA.localeCompare(valueB);
+                    });
+
+                    $('.project-groups .data').empty().append(sortedGroups);
+
+                    actions.updateGrid();
+                    actions.updateElements();
                 });
 
                 $(document).on('click', '.sort-groups-desc', function (e) {
                     $(this).hide();
                     $('.sort-groups-asc').show();
+
+                    let groups = $('.project-groups .xagio-group');
+
+                    let sortedGroups = groups.toArray().sort(function (a, b) {
+                        let valueA = $(a).find('input[name="group_name"]').val().toLowerCase().trim();
+                        let valueB = $(b).find('input[name="group_name"]').val().toLowerCase().trim();
+                        return valueB.localeCompare(valueA);
+                    });
+
+                    $('.project-groups .data').empty().append(sortedGroups);
+
+                    actions.updateGrid();
+                    actions.updateElements();
                 });
 
                 $(document).on('click', '.select-all-recommended-websites', function () {
                     let current_page_view = $('.show-page.active').data('page');
 
-                    if($(`.top-ten-result.recommended.page-${current_page_view}`).length > 0) {
-                        $(`.top-ten-result.recommended.page-${current_page_view}`).each(function() {
+                    if ($(`.top-ten-result.recommended.page-${current_page_view}`).length > 0) {
+                        $(`.top-ten-result.recommended.page-${current_page_view}`).each(function () {
                             $(this).find('.select-website').prop('checked', true).trigger('change');
                         });
                     }
@@ -1515,14 +1732,17 @@ let cf_template = cf_templates[cf_default_template].data;
                 $(document).on('change', '.select-website', function () {
 
                     let count_checked = 0;
-                    $('.top-ten-results .select-website').each(function(){
+                    $('.top-ten-results .select-website').each(function () {
                         let checkbox = $(this);
-                        if(checkbox.prop('checked')){
+                        if (checkbox.prop('checked')) {
                             count_checked++;
                         }
                     });
 
-                    $('.ai-wizard-cost-value').html(count_checked * actions.allowances.cost.wizards);
+                    let aiWizardCost = count_checked * actions.allowances.cost.wizards;
+
+                    let output = actions.xagsCostOutput(aiWizardCost);
+                    $('.ai-wizard-cost-label').find('#xagsCost').html(`This action will cost you ${output}`);
 
                     let parsed = actions.parseUrl($(this).val());
                     let path = parsed.prop('pathname');
@@ -1539,22 +1759,22 @@ let cf_template = cf_templates[cf_default_template].data;
                 let aiwizard = $('#aiwizard');
 
                 $('#top-ten-language-select').select2({
-                    dropdownParent    : aiwizard,
-                    matcher: matcher,
-                    placeholder: "Select a Search Engine"
-                });
+                                                          dropdownParent: aiwizard,
+                                                          matcher       : matcher,
+                                                          placeholder   : "Select a Search Engine"
+                                                      });
 
                 $('#top_ten_search_engine').select2({
-                    dropdownParent    : aiwizard,
-                    matcher: matcher,
-                    placeholder: "Select a Search Engine"
-                });
+                                                        dropdownParent: aiwizard,
+                                                        matcher       : matcher,
+                                                        placeholder   : "Select a Search Engine"
+                                                    });
 
                 $('#top_ten_search_location').select2({
-                    dropdownParent    : aiwizard,
-                    matcher: matcher,
-                    placeholder: "Select a Search Location"
-                });
+                                                          dropdownParent: aiwizard,
+                                                          matcher       : matcher,
+                                                          placeholder   : "Select a Search Location"
+                                                      });
 
                 $(document).on('select2:open', () => {
                     let el = $('.select2-search__field:visible');
@@ -1578,8 +1798,8 @@ let cf_template = cf_templates[cf_default_template].data;
 
                 $(document).on('keyup paste', '#top-ten-location-text, #top-ten-keyword', function () {
 
-                    let location = $('#top-ten-location-text').val().trim();
-                    let keyword = $('#top-ten-keyword').val().trim();
+                    let location = $('#top-ten-location-text').val().toLowerCase().trim();
+                    let keyword = $('#top-ten-keyword').val().toLowerCase().trim();
 
                     // if (keyword.indexOf("$") >= 0) {
                     //     keyword = keyword.replace("$", location);
@@ -1599,8 +1819,8 @@ let cf_template = cf_templates[cf_default_template].data;
 
                 $(document).on('click', '#swap-words', function () {
 
-                    let location = $('#top-ten-location-text').val().trim();
-                    let keyword = $('#top-ten-keyword').val().trim();
+                    let location = $('#top-ten-location-text').val().toLowerCase().trim();
+                    let keyword = $('#top-ten-keyword').val().toLowerCase().trim();
                     let mainKeyword;
 
                     if (isOriginalOrder) {
@@ -1627,7 +1847,8 @@ let cf_template = cf_templates[cf_default_template].data;
                         return;
                     }
 
-                    let balance = parseInt(actions.allowances.xags_allowance.find('.value').html()) + parseInt(actions.allowances.xags.find('.value').html());
+                    let balance = parseInt(actions.allowances.xags_allowance.find('.value').html()) +
+                                  parseInt(actions.allowances.xags.find('.value').html());
 
                     if (balance < selected_websites.length) {
                         xagioNotify("warning", "You do not have enough XAGS to perform this operation!");
@@ -1660,7 +1881,7 @@ let cf_template = cf_templates[cf_default_template].data;
                     let btn = $(this);
                     let main_keyword = $('.main-keyword').val();
                     let keyword = $('.top-websites-keyword').val();
-                    let location = $('#top-ten-location-text').val();
+                    let location = $('#top-ten-location-text').val().toLowerCase().trim();
                     let search_engine = $('#top_ten_search_engine').val();
                     let search_engine_text = $('#top_ten_search_engine option:selected').text();
                     let search_location = $('#top_ten_search_location').val();
@@ -1690,7 +1911,7 @@ let cf_template = cf_templates[cf_default_template].data;
 
                     $('.main_keyword_contain').val(location);
 
-                    $('#top-ten-language-select option').each(function() {
+                    $('#top-ten-language-select option').each(function () {
                         $(this).attr('selected', false);
 
                         if ($(this).text().includes(search_location_text)) {
@@ -1868,7 +2089,7 @@ let cf_template = cf_templates[cf_default_template].data;
                     e.stopPropagation();
 
                     let input = $(this);
-                    let keyword = input.val();
+                    let keyword = input.val().toLowerCase().trim();
                     if (e.keyCode === 13) {
                         e.preventDefault();
                         if (keyword.length < 1) {
@@ -1902,7 +2123,7 @@ let cf_template = cf_templates[cf_default_template].data;
                         input = parent.find('#top-ten-keyword');
                     }
 
-                    let keyword = input.val();
+                    let keyword = input.val().toLowerCase().trim();
 
                     if (keyword.length < 1) {
 
@@ -1929,7 +2150,6 @@ let cf_template = cf_templates[cf_default_template].data;
             });
 
         },
-
         showShortcodes: function () {
             $(document).on('click', '.groupInput[name="h1"]', function (e) {
                 e.preventDefault();
@@ -1993,7 +2213,6 @@ let cf_template = cf_templates[cf_default_template].data;
             });
 
         },
-
         runBatchCron: function () {
             clearTimeout(batchCron);
             batchCron = setTimeout(function () {
@@ -2030,7 +2249,118 @@ let cf_template = cf_templates[cf_default_template].data;
             }, 5000);
         },
 
+        initGlobalCloud: function () {
+            let btn = $('.global-wordCloud');
+            $('.xagio-keyword-cloud-global').removeClass('generated').empty();
+            $('.seed-keywords-global').hide();
+            btn.removeClass('open');
+            btn.attr('data-xagio-title', 'Open Global Word Cloud');
+            btn.find('i').removeClass().addClass('xagio-icon xagio-icon-cloud');
+            $('.xagio-tooltip').remove();
+
+            $('.keywords-action-button').html('Keywords <i class="xagio-icon xagio-icon-arrow-down"></i>');
+            $('.seedKeyword').html('Seed Keywords');
+            selected_seed_keywords = [];
+            $('.seed-keywords-inputs').empty();
+            $('.seed-keywords-panel-start').show();
+            $('.seed-keywords-panel-select').hide();
+        },
+
         wordCountCloud         : function () {
+
+            $(document).on('click', '.global-wordCloud', function (e) {
+                e.preventDefault();
+
+                let cloudBoxTemplate = $('.cloud.template.hide').clone();
+                cloudBoxTemplate.removeClass('hide').show().addClass('seen');
+
+                let btn = $(this);
+                let cloudKeyword = $('.xagio-keyword-cloud-global');
+
+                if (btn.hasClass('open')) {
+                    $('.seed-keywords-global').hide();
+                    if (cloudKeyword.hasClass('generated')) {
+                        btn.removeClass('open');
+                        btn.attr('data-xagio-title', 'Open Global Word Cloud');
+                        btn.find('i').removeClass().addClass('xagio-icon xagio-icon-cloud');
+                        $('.xagio-tooltip').remove();
+
+                        $('.keywords-action-button').html('Keywords <i class="xagio-icon xagio-icon-arrow-down"></i>');
+                        $('.seedKeyword').html('Seed Keywords');
+                        // Remove b tag from keywords
+                        $('.xagio-group').find('.updateKeywords').find('.keywordInput[data-target="keyword"]').each(function () {
+                            $(this).html($(this).html().replace(/<b class="highlightCloud">(.+)<\/b>/gi, "$1"));
+                        });
+                        // remove selected from the table
+                        $('.xagio-group').find('tr.selected').each(function () {
+                            $(this).removeClass('selected');
+                            $(this).find("input.keyword-selection").prop('checked', false);
+                        });
+                        $('.seed-keywords-inputs').empty();
+                        selected_seed_keywords = [];
+
+                        $('.seed-keywords-panel-start').show();
+                        $('.seed-keywords-panel-select').hide();
+                        cloudKeyword.toggle();
+
+                        setTimeout(function () {
+                            $(".jqcloud").css("display", "block").resize();
+                        }, 500);
+                    }
+
+                } else {
+
+                    $('.seed-keywords-global').show();
+                    if (!cloudKeyword.hasClass("generated")) {
+                        let tbody_keywords = $('.xagio-group').find('.updateKeywords').find('.keywords').find('.keywords-data tr').find('div.keywordInput[data-target="keyword"]');
+                        let keywords = [];
+                        tbody_keywords.each(function () {
+                            keywords.push($(this).text());
+                        });
+
+                        if (keywords.length > 0) {
+                            cloudKeyword.html(cloudBoxTemplate);
+                            cloudBoxTemplate.jQCloud(actions.calculateAndTrim(keywords), {
+                                colors    : [
+                                    "#ffffff",
+                                    "#FAF9F6",
+                                    "#F1F0ED",
+                                    "#E5E4E2",
+                                    "#D9D8D6"
+                                ],
+                                autoResize: true,
+                                height    : 300,
+                                fontSize  : {
+                                    from: 0.07,
+                                    to  : 0.02
+                                }
+                            });
+
+                            setTimeout(function () {
+                                $(".jqcloud").css("display", "block").resize();
+                            }, 500);
+
+                            cloudKeyword.addClass('generated');
+                            btn.addClass('open');
+                            btn.attr('data-xagio-title', 'Close Word Cloud');
+                            btn.find('i').removeClass().addClass('xagio-icon xagio-icon-cloud-o');
+                            $('.xagio-tooltip').remove();
+                        } else {
+                            btn.removeClass('open');
+                            xagioNotify("warning", "No keywords for this group");
+                        }
+                    } else {
+                        btn.addClass('open');
+                        btn.attr('data-xagio-title', 'Close Word Cloud');
+                        btn.find('i').removeClass().addClass('xagio-icon xagio-icon-cloud-o');
+                        $('.xagio-tooltip').remove();
+                        cloudKeyword.toggle();
+                        $(".jqcloud").css("display", "block").resize();
+                    }
+                }
+                actions.updateGrid();
+
+            });
 
             $(document).on('click', '.wordCloud', function () {
 
@@ -2041,7 +2371,7 @@ let cf_template = cf_templates[cf_default_template].data;
                 let cloudKeyword = btn.parents('.xagio-group').find('.xagio-keyword-cloud');
 
                 if (btn.hasClass('open')) {
-                    if(cloudKeyword.hasClass('generated')) {
+                    if (cloudKeyword.hasClass('generated')) {
                         btn.removeClass('open');
                         btn.attr('data-xagio-title', 'Open Word Cloud');
                         btn.find('i').removeClass().addClass('xagio-icon xagio-icon-cloud');
@@ -2203,7 +2533,7 @@ let cf_template = cf_templates[cf_default_template].data;
 
                 let cloudKeyword = btn.parents('.xagio-group').find('.xagio-keyword-cloud');
 
-                if(!cloudKeyword.hasClass("generated")) {
+                if (!cloudKeyword.hasClass("generated")) {
                     cloudKeyword.addClass('generated');
 
                     btn.addClass('open');
@@ -2307,7 +2637,7 @@ let cf_template = cf_templates[cf_default_template].data;
             });
         },
 
-        addGroupFromExistingTaxonomy : function () {
+        addGroupFromExistingTaxonomy: function () {
 
             $(document).on('click', '.addGroupFromExistingTaxonomy', function (e) {
                 e.preventDefault();
@@ -2374,7 +2704,7 @@ let cf_template = cf_templates[cf_default_template].data;
             });
 
         },
-        addGroupFromExisting         : function () {
+        addGroupFromExisting        : function () {
 
             $(document).on('click', '.addGroupFromExisting', function (e) {
                 e.preventDefault();
@@ -2439,7 +2769,7 @@ let cf_template = cf_templates[cf_default_template].data;
             });
 
         },
-        selectAllPagePosts           : function () {
+        selectAllPagePosts          : function () {
             $(document).on('click', '.select-all-page-posts', function () {
 
                 let btn = $(this);
@@ -2456,7 +2786,7 @@ let cf_template = cf_templates[cf_default_template].data;
 
             });
         },
-        deleteRedirect               : function () {
+        deleteRedirect              : function () {
             $(document).on('click', '.delete-redirect', function (e) {
                 e.preventDefault();
                 let button = $(this);
@@ -2475,7 +2805,7 @@ let cf_template = cf_templates[cf_default_template].data;
                 });
             });
         },
-        addNewRedirect               : function () {
+        addNewRedirect              : function () {
             $(document).on('click', '.add-new-redirect', function (e) {
                 e.preventDefault();
 
@@ -2501,45 +2831,75 @@ let cf_template = cf_templates[cf_default_template].data;
 
             });
         },
-        loadRedirects                : function () {
-            let messages = {
-                empty  : '<tr><td colspan="4">Can\'t find any active redirects.</td></tr>',
-                loading: '<tr><td colspan="4"><i class="xagio-icon xagio-icon-sync xagio-icon-spin"></i> Loading ...</td></tr>'
-            };
+        loadRedirects               : function () {
             let table = $('.table-redirects');
-            let tbody = table.find('tbody');
+            table.show();
 
-            tbody.empty().append(messages.loading);
-
-            $.post(xagio_data.wp_post, 'action=xagio_get_redirects', function (d) {
-                if (d.status == 'success') {
-
-                    if (d.data.length == 0) {
-                        tbody.empty().append(messages.empty);
-                    } else {
-                        tbody.empty();
-
-                        for (let i = 0; i < d.data.length; i++) {
-                            let data = d.data[i];
-                            let html = '<tr>' + '<td><a target="_blank" href="/' + data.old + '">/' + data.old +
-                                       '</a></td>' + '<td><a target="_blank" href="/' + data.new + '">/' + data.new +
-                                       '</a></td>' +
-                                       '<td><button type="button" class="xagio-button xagio-button-danger xagio-button-mini delete-redirect" data-id="' +
-                                       data.id +
-                                       '" title="Delete this redirect"><i class="xagio-icon xagio-icon-delete"></i></button></td>' +
-                                       '</tr>';
-                            tbody.append(html);
+            table.dataTable({
+                language: {
+                    search: "_INPUT_",
+                    searchPlaceholder: "Search redirects...",
+                    processing: "Loading redirects...",
+                    emptyTable: "Can't find any active redirects."
+                },
+                dom: '<"clear">rt<"xagio-table-bottom"lp><"clear">',
+                bDestroy: true,
+                bPaginate: true,
+                bAutoWidth: false,
+                bFilter: true,
+                bProcessing: true,
+                sServerMethod: "POST",
+                bServerSide: true,
+                sAjaxSource: xagio_data.wp_post,
+                iDisplayLength: 10,
+                aLengthMenu: [
+                    [5, 10, 50, 100, -1],
+                    [5, 10, 50, 100, "All"]
+                ],
+                aaSorting: [[0, 'desc']],
+                aoColumns: [
+                    {
+                        sClass: "column-old-url",
+                        mData: "old",
+                        bSortable: false,
+                        bSearchable: true,
+                        mRender: function (data, type, row) {
+                            let label = row.old ? '/' + row.old : 'Homepage';
+                            return '<a target="_blank" href="/' + row.old + '">' + label + '</a>';
                         }
-
+                    },
+                    {
+                        sClass: "column-new-url",
+                        mData: "new",
+                        bSortable: false,
+                        bSearchable: true,
+                        mRender: function (data, type, row) {
+                            let url = row.new.match(/^http/) ? row.new : '/' + row.new;
+                            return '<a target="_blank" href="' + url + '">' + url + '</a>';
+                        }
+                    },
+                    {
+                        sClass: "column-action xagio-text-center",
+                        mData: "id",
+                        bSortable: false,
+                        bSearchable: false,
+                        mRender: function (data, type, row) {
+                            return '<div class="xagio-cell-actions-row xagio-flex-align-center">' +
+                                '<button type="button" class="xagio-button xagio-button-danger xagio-button-mini delete-redirect" data-id="' +
+                                row.id + '" data-xagio-tooltip data-xagio-title="Trash this redirect"><i class="xagio-icon xagio-icon-delete"></i></button>' +
+                                '</div>';
+                        }
                     }
-
-                } else {
-                    xagioNotify("danger", "An unknown error has occurred.");
+                ],
+                fnServerParams: function (aoData) {
+                    aoData.push({
+                        name: 'action',
+                        value: 'xagio_get_redirects'
+                    });
                 }
             });
-
         },
-        minimizeGroup                : function () {
+        minimizeGroup               : function () {
             $(document).on('click', '.minimizeGroup', function () {
                 let i = $(this).find('i');
                 let kw = $(this).parents('.xagio-group').find('.updateKeywords');
@@ -2560,7 +2920,7 @@ let cf_template = cf_templates[cf_default_template].data;
                 // btn.parents('.xagio-group').trigger('display.uk.check');
             });
         },
-        selectKeyword                : function () {
+        selectKeyword               : function () {
             $(document).on('change', '.keyword-selection', function () {
                 let tr = $(this).parents('tr');
                 if (!tr.hasClass('selected')) {
@@ -2568,36 +2928,47 @@ let cf_template = cf_templates[cf_default_template].data;
                 }
             });
         },
-        submitKeywordsForRanking     : function () {
+        submitKeywordsForRanking    : function () {
             $(document).on('submit', '#rankTrackingForm', function (e) {
                 e.preventDefault();
 
                 let btn = $(this).find('.submitKeywords');
-                btn.attr('disabled', true);
-
+                btn.disable();
 
                 let ranking_modal = $('#rankTrackingModal');
 
                 let form_data = $(this).serialize();
-
-                $.post(xagio_data.wp_post, 'action=xagio_track_keywords_add&' + form_data, function (d) {
-                    btn.attr('disabled', false);
-                    ranking_modal[0].close();
-                    actions.loadProjectManually();
-                    actions.refreshXags();
+                // add location name
+                let loc_name = $('#search_location').val() == null ? $('#search_country option:selected').text() : $('#search_location option:selected').text();
+                
+                let loc_name_query = '&locname=' + loc_name;
+                
+                $.post(xagio_data.wp_post, 'action=xagio_track_keywords_add&' + form_data +
+                                           loc_name_query, function (d) {
+                    btn.disable();
 
                     if (d.status == 'error') {
                         xagioNotify("danger", d.message);
+                        return false;
                     } else {
                         xagioNotify("success", d.message);
                     }
+
+                    ranking_modal[0].close();
+                    actions.loadProjectManually();
+                    actions.refreshXags();
                 });
 
             });
         },
-        trackRankings                : function () {
+        trackRankings               : function () {
             $(document).on('click', '.track_rankings', function (e) {
                 e.preventDefault();
+
+                if (!xagio_data.connected) {
+                    xagioConnectModal();
+                    return;
+                }
 
                 let group = $(this).parents('.xagio-group');
                 let ids = [];
@@ -2606,7 +2977,13 @@ let cf_template = cf_templates[cf_default_template].data;
                 let type = btn.data('type');
 
                 if (type === "all") {
-                    $('.keyword-selection').each(function () {
+                    let checked = $('.keyword-selection:checked');
+
+                    let checkboxesToUse = checked.length > 0
+                        ? checked
+                        : $('.keyword-selection');
+
+                    checkboxesToUse.each(function () {
                         let tr = $(this).parents('tr');
                         $(this).removeAttr('checked');
                         let kw = tr.find('.keywordInput[data-target="keyword"]').text().trim();
@@ -2618,50 +2995,83 @@ let cf_template = cf_templates[cf_default_template].data;
                         }
                     });
                 } else {
-                    group.find('.keyword-selection').each(function () {
+                    let selectedCheckboxes = group.find('.keyword-selection:checked');
+                    let checkboxesToUse = selectedCheckboxes.length >
+                                          0 ? selectedCheckboxes : group.find('.keyword-selection');
+
+                    checkboxesToUse.each(function () {
                         let tr = $(this).parents('tr');
-                        if ($(this).is(':checked')) {
-                            $(this).removeAttr('checked');
-                            let kw = tr.find('.keywordInput[data-target="keyword"]').text().trim();
-                            let id = tr.data('id');
-                            if (kw != '') {
-                                ids.push(id);
-                                keywords.push(kw);
-                            }
+                        let kw = tr.find('.keywordInput[data-target="keyword"]').text().trim();
+                        let id = tr.data('id');
+                        if (kw !== '') {
+                            ids.push(id);
+                            keywords.push(kw);
                         }
                     });
+
+                    selectedCheckboxes.prop('checked', false);
                 }
 
                 if (keywords.length < 1) {
-                    xagioNotify("danger", "Please select some keywords!");
+                    xagioNotify("danger", "No keywords found!");
                     return false;
                 }
 
+                let rank_insert_cost = parseFloat(keywords.length * actions.allowances.cost.rank_insert).toFixed(2);
+                let output = actions.xagsCostOutput(rank_insert_cost);
+
                 let ranking_modal = $('#rankTrackingModal');
+
+                ranking_modal.find('#xagsCost').html(`This action will cost you ${output}`);
 
                 ranking_modal[0].showModal();
 
-                // ranking_modal.find('input[name="keywords"]').tagsInput({
-                //     'interactive': false
-                // }).importTags(keywords.join(','));
-
-                // vol_cpc_modal.find('input[name="keywords"]').tagsInput({
-                //     'interactive': false
-                // }).importTags(keywords.join(','));
-
                 ranking_modal.find('input[name="keywords"]').val(keywords.join(','));
-
-
                 ranking_modal.find('#search_engine').select2({
-                    matcher           : matcher,
-                    dropdownParent    : ranking_modal,
-                    placeholder       : "Select a Search Engine"
+                    matcher: matcher,
+                    dropdownParent: ranking_modal,
+                    placeholder: "Select a Search Engine",
+                    width: '100%'
                 });
 
+                ranking_modal.find('#search_country').select2({
+                    dropdownParent: ranking_modal,
+                    placeholder: "Select a Country",
+                    allowClear: true,
+                    width: '100%'
+                });
                 ranking_modal.find('#search_location').select2({
-                    dropdownParent    : ranking_modal,
-                    placeholder       : "Select a Country"
-                })
+                    dropdownParent: ranking_modal,
+                    width: "100%",
+                    placeholder: "Select a Location",
+                    allowClear: true,
+                    ajax: {
+                        url: xagio_data.wp_post,
+                        type: 'POST',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) {
+                            return {
+                                action: 'xagio_get_cities',
+                                q: params.term,
+                                countryCode: $('#search_country').find('option:selected').data('countrycode'),
+                                page: params.page || 1,
+                                _xagio_nonce: xagio_data.nonce
+                            };
+                        },
+                        processResults: function (data, params) {
+                            params.page = params.page || 1;
+                            return {
+                                results: data.data.items,
+                                pagination: {
+                                    more: data.data.more
+                                }
+                            }
+                        },
+                        cache: true
+                    },
+                    minimumInputLength: 3,
+                });
 
             });
 
@@ -2700,6 +3110,10 @@ let cf_template = cf_templates[cf_default_template].data;
 
                 btn.disable("Saving...");
                 let country = form.find('#search_country_data').val();
+
+                if (country === '') {
+                    country = "0"
+                }
 
                 let params = new FormData();
                 params.append('action', 'xagio_set_default_country');
@@ -2765,21 +3179,13 @@ let cf_template = cf_templates[cf_default_template].data;
                        });
             });
 
-            $(document).on('change', '#search_location', function (e) {
-                let select = $(this);
+            $(document).on('change', '#search_country', function (e) {
                 let changeDefaultCountryModal = $('#rankTrackingDefaultCountry');
-                let data = select.select2('data');
+                let country = $(this).val();
 
-                if (data.length > 0) {
-                    data = data[0].id;
-                } else {
-                    data = 0;
-                }
-
-                if (data.length >= 1) {
-                    changeDefaultCountryModal.find('#search_country_data').val(data);
-                    changeDefaultCountryModal[0].showModal();
-                }
+                changeDefaultCountryModal.find('#search_country_data').val(country);
+                $("#search_location").empty().trigger('change');
+                changeDefaultCountryModal[0].showModal();
             });
 
             $(document).on('change', '#search_engine', function () {
@@ -2851,13 +3257,13 @@ let cf_template = cf_templates[cf_default_template].data;
 
             });
         },
-        selectAllGroups              : function () {
+        selectAllGroups             : function () {
             $(document).on('click', '.selectAllGroups', function (e) {
                 e.preventDefault();
                 $('.project-groups .groupSelect').prop('checked', !$('.project-groups .groupSelect').prop('checked'));
             });
         },
-        moveSelectedGroups           : function () {
+        moveSelectedGroups          : function () {
             $(document).on('click', '.moveSelectedGroups', function (e) {
                 e.preventDefault();
                 let input = $('#moveToProjectInput');
@@ -2868,7 +3274,12 @@ let cf_template = cf_templates[cf_default_template].data;
                     ids.push(group.find('[name="group_id"]').val());
                 });
 
-                if (ids.length > 0) input.data('group-id', ids.join(','));
+                if (ids.length > 0) {
+                    input.data('group-id', ids.join(','));
+                } else {
+                    xagioNotify('error', 'Please select at least one group.');
+                    return;
+                }
 
                 moveToProject = $('#moveToProjectGroup');
 
@@ -2893,8 +3304,13 @@ let cf_template = cf_templates[cf_default_template].data;
                 });
 
             });
+
+            $('#moveToProjectGroup').on('close', function () {
+                $('#moveToProjectForm #keep_copy').val('0');
+                $('#moveToProjectForm .xagio-slider-button').removeClass('on');
+            });
         },
-        moveToProject                : function () {
+        moveToProject               : function () {
             $(document).on('click', '.moveToProject', function (e) {
                 e.preventDefault();
                 let input = $('#moveToProjectInput');
@@ -2981,7 +3397,7 @@ let cf_template = cf_templates[cf_default_template].data;
                 modal[0].showModal();
             });
         },
-        consolidateKeywords          : function () {
+        consolidateKeywords         : function () {
             $('#phraseMatchModal')[0].addEventListener("close", (event) => {
                 let modal = $(event.target);
                 modal.find('#group_name_phr').val('');
@@ -3000,7 +3416,8 @@ let cf_template = cf_templates[cf_default_template].data;
                 let consolidateModal = $('#consolidateModal');
                 btn.disable();
 
-                $.post(xagio_data.wp_post, 'action=xagio_consolidateKeywords&' + form.serialize() + '&project_id=' + currentProjectID, function (d) {
+                $.post(xagio_data.wp_post, 'action=xagio_consolidateKeywords&' + form.serialize() + '&project_id=' +
+                                           currentProjectID, function (d) {
                     btn.disable();
                     consolidateModal[0].close();
 
@@ -3010,7 +3427,8 @@ let cf_template = cf_templates[cf_default_template].data;
                         xagioNotify("success", d.message);
 
                         if ($('#XAGIO_REMOVE_EMPTY_GROUPS').val() == 1) {
-                            $.post(xagio_data.wp_post, 'action=xagio_deleteEmptyGroups&project_id=' + currentProjectID, function (d) {
+                            $.post(xagio_data.wp_post, 'action=xagio_deleteEmptyGroups&project_id=' +
+                                                       currentProjectID, function (d) {
                                 xagioNotify("success", "Successfully deleted Empty groups.");
                                 actions.loadProjectManually();
                             });
@@ -3022,7 +3440,36 @@ let cf_template = cf_templates[cf_default_template].data;
             })
 
         },
-        seedKeyword                  : function () {
+        clearSeedKeywordModal       : function () {
+            let modal = $('#seedKeywordsModal');
+
+            modal.find('.seed-word-match').val(0);
+            modal.find('.seed-word-match').parents('.xagio-slider-container').find('.xagio-slider-button').removeClass('on');
+            modal.find('.seed-word-match').parents('.xagio-slider-container').find('.word_match_label').html(`Broad Match ( <span class="phrase-match-underline">cat</span>, <span class="phrase-match-underline">cat</span>s, <span class="phrase-match-underline">cat</span>apult, wild<span class="phrase-match-underline">cat</span> )`);
+            modal.find(".seed_group_container_template").remove();
+            modal.find("input[type='text']").val("");
+            $('.seedKeyword').html('Seed Keywords');
+            $('.keywords-action-button').html('Keywords <i class="xagio-icon xagio-icon-arrow-down"></i>');
+
+            $('.jqcloud-word').removeClass('highlightWordInCloud');
+
+            $('.seed-keywords-inputs').empty();
+            $('.seed-keywords-panel-select').hide();
+            $('.seed-keywords-panel-start').show();
+
+            $('.xagio-keyword-cloud-global').hide();
+            $('.seed-keywords-global').hide();
+            let global_could_btn = $('.global-wordCloud');
+
+            global_could_btn.removeClass('open');
+            global_could_btn.attr('data-xagio-title', 'Open Global Word Cloud');
+            global_could_btn.find('i').removeClass().addClass('xagio-icon xagio-icon-cloud');
+            $('.xagio-tooltip').remove();
+
+            selected_seed_keywords = [];
+
+        },
+        seedKeyword                 : function () {
             let phrase_match_labels = [
                 `Broad Match ( <span class="phrase-match-underline">cat</span>, <span class="phrase-match-underline">cat</span>s, <span class="phrase-match-underline">cat</span>apult, wild<span class="phrase-match-underline">cat</span> )`,
                 `Phrase Match ( <span class="phrase-match-underline">cat</span> )`
@@ -3038,14 +3485,44 @@ let cf_template = cf_templates[cf_default_template].data;
                 }
             });
 
+            $(document).on('click', '.seed-keywords-panel-global', function () {
+                let btn = $(this);
+                let form = $('#seedPanelForm');
+
+                btn.disable();
+
+                $.post(xagio_data.wp_post, 'action=xagio_seedKeywords&' + form.serialize() + '&project_id=' +
+                                           currentProjectID +
+                                           '&delete_empty_groups=true&word_match=0&group_id=0', function (d) {
+
+                    btn.disable();
+
+                    if (d.status === 'error') {
+                        xagioNotify("danger", d.message);
+                    } else {
+
+                        actions.clearSeedKeywordModal();
+
+                        xagioNotify("success", d.message);
+                        actions.loadProjectManually();
+                    }
+
+                });
+
+            });
+
             $(document).on('click', '.seedKeyword', function (e) {
                 e.preventDefault();
-                let group_id         = $(this).data('group-id');
+                let group_id = $(this).data('group-id');
                 let seedKeywordModal = $('#seedKeywordsModal');
 
                 seedKeywordModal.find('input[name="group_id"]').val(group_id);
-                seedKeywordModal.find(".seed_group_container_template").remove();
-                seedKeywordModal.find("input[type='text']").val("");
+                if (group_id != lastSeedGroupId) {
+                    lastSeedGroupId = group_id;
+                    seedKeywordModal.find(".seed_group_container_template").remove();
+                    seedKeywordModal.find("input[type='text']").val("");
+                }
+
                 seedKeywordModal[0].showModal();
             });
 
@@ -3082,7 +3559,7 @@ let cf_template = cf_templates[cf_default_template].data;
                 });
             });
         },
-        previewCluster               : function () {
+        previewCluster              : function () {
             $(document).on('click', '.previewCluster', function (e) {
                 e.preventDefault();
 
@@ -3097,28 +3574,117 @@ let cf_template = cf_templates[cf_default_template].data;
 
                 $.post(xagio_data.wp_post, 'action=xagio_preview_phrasematch&' + form.serialize(), function (d) {
                     btn.disable();
-                    let groups = d.data;
-                    let groups_html = '';
-                    for (const group_name in groups) {
-                        let template_groups = $('.cluster_preview_template.template.hide').clone().removeClass('template').removeClass('hide');
+                    if (d.status == 'error') {
+                        xagioNotify("danger", d.message);
+                        preview_panel.removeClass('loading-cluster').html('');
+                        return false;
+                    } else {
+                        let groups = d.data;
+                        let groups_html = '';
+                        for (const group_name in groups) {
+                            let template_groups = $('.cluster_preview_template.template.hide').clone().removeClass('template').removeClass('hide');
 
-                        template_groups.find('.cluster_group_name').html(group_name);
-                        let keywords = '';
-                        for (let i = 0; i < groups[group_name].length; i++) {
-                            let keyword = groups[group_name][i];
-                            keywords += `<div>${keyword}</div>`;
+                            template_groups.find('.cluster_group_name').html(group_name);
+                            let keywords = '';
+                            for (let i = 0; i < groups[group_name].length; i++) {
+                                let keyword = groups[group_name][i];
+                                keywords += `<li>${keyword}</li>`;
+                            }
+                            template_groups.find('.cluster_group_keywords').html(keywords);
+                            groups_html += $.trim(template_groups.html());
                         }
-                        template_groups.find('.cluster_group_keywords').html(keywords);
-                        groups_html += $.trim(template_groups.html());
+
+                        preview_panel.removeClass('loading-cluster').html(groups_html);
+
+                        $('.cluster_group_keywords').multisortable({
+                                                                       items        : "li",
+                                                                       selectedClass: "selected",
+                                                                       click        : function (event, elem) {
+                                                                           let parent = elem.parent();
+                                                                           if (elem.hasClass('prev-selected')) {
+                                                                               elem.removeClass('prev-selected').removeClass('selected').removeClass('multiselectable-previous');
+                                                                           } else {
+                                                                               parent.find('.prev-selected').removeClass('prev-selected');
+                                                                               elem.addClass('prev-selected');
+                                                                           }
+                                                                       }
+                                                                   });
+
+                        $('.cluster_group_keywords').sortable({
+                                                                  connectWith: ".uk-sortable",
+                                                                  placeholder: "drop-placeholder",
+                                                                  scrollSpeed: 100,
+                                                                  cursorAt   : {left: 20},
+                                                                  opacity    : 0.8
+                                                              });
                     }
-
-                    preview_panel.removeClass('loading-cluster').html(groups_html);
-
                 });
 
             });
         },
-        phraseMatch                  : function () {
+        moveKeywords: function () {
+            $(document).on('click', '.moveKeywords', function (e) {
+                e.preventDefault();
+
+                let modal = $('#moveKeywordsModal');
+                let group = $(this).parents('.xagio-group');
+                let ids = [];
+                let btn = $(this);
+                let type = btn.data('type');
+
+                if (type === "all") {
+                    $('.keyword-selection:checked').each(function () {
+                        let tr = $(this).parents('tr');
+                        $(this).removeAttr('checked');
+                        let id = tr.data('id');
+
+                        if (id != '') {
+                            ids.push(id);
+                        }
+                    });
+                } else {
+                    let selectedCheckboxes = group.find('.keyword-selection:checked');
+
+                    selectedCheckboxes.each(function () {
+                        $(this).removeAttr('checked');
+                        let tr = $(this).parents('tr');
+                        let id = tr.data('id');
+                        if (id != '') {
+                            ids.push(id);
+                        }
+                    });
+                }
+
+                if (ids.length < 1) {
+                    xagioNotify("error", "No selected keywords!");
+                    return false;
+                }
+
+                modal.find('input.ids').val(ids);
+                modal[0].showModal();
+            });
+
+            $(document).on('click', '#submitMoveKeywords', function (e) {
+                let modal = $('#moveKeywordsModal');
+                let ids = modal.find("input.ids").val();
+                let group = modal.find("#moveKeywordGroupSelect").val();
+
+                if (group == "") {
+                    xagioNotify("error", "Please select a group, or create new group!");
+                    return false;
+                }
+
+                $.post(xagio_data.wp_post, `action=xagio_move_keywords_to_group&group=${group}&ids=${ids}&project_id=${currentProjectID}` , function (d) {
+                    if (d.status === "success") {
+                        modal[0].close();
+
+                        xagioNotify(d.status, d.message);
+                        actions.loadProjectManually();
+                    }
+                });
+            })
+        },
+        phraseMatch                 : function () {
             $(document).on('change', '#cluster_in_new_project', function () {
                 if ($(this).prop('checked')) {
                     $('.pm-project-name').slideDown();
@@ -3236,13 +3802,35 @@ let cf_template = cf_templates[cf_default_template].data;
                         let keywords = '';
                         for (let i = 0; i < groups[group_name].length; i++) {
                             let keyword = groups[group_name][i];
-                            keywords += `<div>${keyword}</div>`;
+                            keywords += `<li>${keyword}</li>`;
                         }
                         template_groups.find('.cluster_group_keywords').html(keywords);
                         groups_html += $.trim(template_groups.html());
                     }
 
                     preview_panel.removeClass('loading-cluster').html(groups_html);
+
+                    $('.cluster_group_keywords').multisortable({
+                                                                   items        : "li",
+                                                                   selectedClass: "selected",
+                                                                   click        : function (event, elem) {
+                                                                       let parent = elem.parent();
+                                                                       if (elem.hasClass('prev-selected')) {
+                                                                           elem.removeClass('prev-selected').removeClass('selected').removeClass('multiselectable-previous');
+                                                                       } else {
+                                                                           parent.find('.prev-selected').removeClass('prev-selected');
+                                                                           elem.addClass('prev-selected');
+                                                                       }
+                                                                   }
+                                                               });
+
+                    $('.cluster_group_keywords').sortable({
+                                                              connectWith: ".uk-sortable",
+                                                              placeholder: "drop-placeholder",
+                                                              scrollSpeed: 100,
+                                                              cursorAt   : {left: 20},
+                                                              opacity    : 0.8
+                                                          });
 
                 });
 
@@ -3266,10 +3854,29 @@ let cf_template = cf_templates[cf_default_template].data;
                 let phraseMatch = $('#phraseMatchModal');
                 let form = $(this);
                 let btn = form.find('.autoGenerateGroupsBtn');
+
+                let groupedKeywords = {};
+                $('.cluster-preview').find('.cluster_group').each(function () {
+                    let groupName = $(this).find('.cluster_group_name').text().trim();
+                    let keywords = [];
+
+                    $(this).find('.cluster_group_keywords li').each(function () {
+                        keywords.push($(this).text().trim());
+                    });
+
+                    if (groupName !== '') {
+                        groupedKeywords[groupName] = keywords;
+                    }
+                });
+
+                let formData = form.serialize();
+                formData += '&action=xagio_phraseMatch';
+                formData += '&project_id=' + currentProjectID;
+                formData += '&groupedKeywords=' + encodeURIComponent(JSON.stringify(groupedKeywords));
+
                 btn.disable();
 
-                $.post(xagio_data.wp_post, 'action=xagio_phraseMatch&' + form.serialize() + '&project_id=' +
-                                           currentProjectID, function (d) {
+                $.post(xagio_data.wp_post, formData, function (d) {
 
                     phraseMatch[0].close();
 
@@ -3297,7 +3904,7 @@ let cf_template = cf_templates[cf_default_template].data;
 
             });
         },
-        auditWebsite                 : function () {
+        auditWebsite                : function () {
             $(document).on('change keyup paste', '#auditWebsite_domain', function () {
                 let domain = $(this);
                 let currentDomain = domain.data('host');
@@ -3322,9 +3929,9 @@ let cf_template = cf_templates[cf_default_template].data;
             });
 
             $('#auditWebsite_searchEngine').select2({
-                matcher           : matcher,
-                placeholder       : "Select a Search Engine"
-            });
+                                                        matcher    : matcher,
+                                                        placeholder: "Select a Search Engine"
+                                                    });
 
             /**
              *  Migrate Yoast
@@ -3369,16 +3976,16 @@ let cf_template = cf_templates[cf_default_template].data;
             let auditModalInternal = $('#auditWebsiteModalInternal');
 
             $('#auditWebsite_limit').select2({
-                dropdownParent: auditModal,
-                width: '100%',
-                placeholder   : "Select Limit"
-            });
+                                                 dropdownParent: auditModal,
+                                                 width         : '100%',
+                                                 placeholder   : "Select Limit"
+                                             });
 
             $('#auditWebsite_limit-internal').select2({
-                dropdownParent: auditModalInternal,
-                width: '100%',
-                placeholder   : "Select Limit"
-            });
+                                                          dropdownParent: auditModalInternal,
+                                                          width         : '100%',
+                                                          placeholder   : "Select Limit"
+                                                      });
 
             $(document).on('click', '.auditWebsiteMigration', function (e) {
                 e.preventDefault();
@@ -3452,11 +4059,12 @@ let cf_template = cf_templates[cf_default_template].data;
                 let btn = $(this).find('.auditWebsiteBtn');
                 btn.disable();
 
-                let balance = parseInt(actions.allowances.xags_allowance.find('.value').html()) + parseInt(actions.allowances.xags.find('.value').html());
+                let balance = parseInt(actions.allowances.xags_allowance.find('.value').html()) +
+                              parseInt(actions.allowances.xags.find('.value').html());
 
                 if (balance < 1) {
 
-                    xagioNotify("danger", "You do not have enough XAGS to continue this operation. Get more by vising Shop on Xagio.net");
+                    xagioNotify("danger", "You do not have enough XAGS to perform this operation. You can either upgrade your account or buy some XAGS at the Xagio store");
 
                     btn.disable();
                     return;
@@ -3491,11 +4099,12 @@ let cf_template = cf_templates[cf_default_template].data;
                 let btn = $(this).find('.auditWebsiteBtn');
                 btn.disable();
 
-                let balance = parseInt(actions.allowances.xags_allowance.find('.value').html()) + parseInt(actions.allowances.xags.find('.value').html());
+                let balance = parseInt(actions.allowances.xags_allowance.find('.value').html()) +
+                              parseInt(actions.allowances.xags.find('.value').html());
 
                 if (balance < 1) {
 
-                    xagioNotify("danger", "You do not have enough XAGS to continue this operation. Get more by vising Shop on Xagio.net");
+                    xagioNotify("danger", "You do not have enough Xags to perform this operation. You can either upgrade your account or buy some Xags at the Xagio store");
 
                     btn.disable();
                     return;
@@ -3524,7 +4133,55 @@ let cf_template = cf_templates[cf_default_template].data;
             });
 
         },
-        refreshXags                  : function () {
+
+        importPages                 : function () {
+            $(document).on('click', '.importPages', function (e) {
+                e.preventDefault();
+                let importPagesModal = $('#importPagesModal');
+                importPagesModal[0].showModal();
+            });
+
+            $(document).on('click', '.importPagesBtn', function (e) {
+                let btn = $(this);
+                let importPagesModal = $('#importPagesModal');
+
+                btn.disable();
+
+                $.post(xagio_data.wp_post, 'action=xagio_importPages', function (d) {
+                    btn.disable();
+                    importPagesModal[0].close();
+
+                    if (d.status == 'success') {
+                        currentProjectID = d.data;
+                        actions.loadProjectManually();
+
+                        actions.loadProjects();
+                    }
+
+                    xagioNotify(d.status, d.message);
+                });
+            })
+        },
+
+        xagsCostOutput: function (cost) {
+            let xReview = parseFloat(actions.allowances.xags_allowance.find('.value').html().trim());
+            let xBank = parseFloat(actions.allowances.xags.find('.value').html().trim());
+
+            let output = "";
+            if (cost <= xReview) {
+                output = `<div><img class="xags" src="${siteUrl}/assets/img/logos/xRenew.png" alt="xRenew"/><span>${cost}</span></div>`;
+            } else if (xReview == 0) {
+                output = `<div><img class="xags" src="${siteUrl}/assets/img/logos/xBanks.png" alt="xBanks"/><span>${cost}</span></div>`;
+            } else if (xBank > cost) {
+                let remaining_cost = parseFloat(cost - xReview).toFixed(2);
+
+                output = `<div><img class="xags" src="${siteUrl}/assets/img/logos/xRenew.png" alt="xRenew"/><span>${xReview}</span></div> and <div><img class="xags" src="${siteUrl}/assets/img/logos/xBanks.png" alt="xBanks"/><span>${remaining_cost}</span></div>`;
+            }
+
+            return output;
+        },
+
+        refreshXags                 : function () {
             $.post(xagio_data.wp_post, 'action=xagio_refreshXags', function (d) {
                 if (d.status == 'error') {
 
@@ -3535,28 +4192,38 @@ let cf_template = cf_templates[cf_default_template].data;
 
                     actions.allowances.xags_allowance.find('.value').html(parseFloat(d.data.xags_allowance).toFixed(2));
 
-                    if(d.data['xags'] > 0) {
+                    if (d.data['xags'] > 0) {
                         actions.allowances.xags.find('.value').html(parseFloat(d.data.xags).toFixed(2));
                     } else {
                         actions.allowances.xags.find('.value').html(0);
                         actions.allowances.xags.hide();
+                        $('.xags-divider').hide();
+
                     }
                     actions.allowances.cost = d.data.xags_cost;
                     actions.allowances.xags_total = d.data.xags_total;
 
-                    $("#auditWebsiteInternalForm").find("#auditCostImport").text(actions.allowances.cost.audits);
-                    $("#auditWebsiteForm").find("#auditCost").text(actions.allowances.cost.audits);
+                    let output = actions.xagsCostOutput(actions.allowances.cost.audits);
+
+                    $("#auditWebsiteInternalForm").find("#xagsCost").html(`This action will cost you ${output}`);
+                    $("#auditWebsiteForm").find("#xagsCost").html(`This action will cost you ${output}`);
                 }
             });
         },
-        getAi                        : function () {
+        getAi                       : function () {
             $(document).on('click', '.get-ai', function (e) {
                 e.preventDefault();
                 // open a new tab to https://xagio.net/ai
                 window.open('https://xagio.net/ai', '_blank');
             });
         },
-        retrieveVolumeAndCPC         : function () {
+        closeVolumeAndCPCModal: function () {
+            $('#VolumeAndCPCModal').on('close', function() {
+                $('#XAGIO_REFRESH_VOL_CPC_VALUES').val('0');
+                $('.xagio-refresh-vol-cpc-values .xagio-slider-button').removeClass('on')
+            });
+        },
+        retrieveVolumeAndCPC        : function () {
 
             $(document).on('click', '.getVolumeAndCPC', function (e) {
                 e.preventDefault();
@@ -3569,81 +4236,82 @@ let cf_template = cf_templates[cf_default_template].data;
                 let group = $(this).parents('.xagio-group');
                 let ids = [];
                 let keywords = [];
+                let hasValue = [];
                 let btn = $(this);
                 let type = btn.data('type');
-                let icon = '<i class="xagio-icon xagio-icon-sync xagio-icon-spin" title="This value is currently under analysis. Please wait until results are gathered."></i>';
+                let allKw = $('.keyword-selection');
 
+                if (allKw.length < 1) {
+                    xagioNotify("danger", "No keywords found!");
+                    return false;
+                }
 
                 if (type === 'all') {
-                    if ($('.xagio-refresh-vol-cpc-values').hasClass('hide')) {
-                        $('.xagio-refresh-vol-cpc-values').removeClass('hide');
-                    }
-                    if ($('#XAGIO_REFRESH_VOL_CPC_VALUES').val() === '0') {
-                        $('.keyword-selection').each(function () {
-                            let tr = $(this).parents('tr');
-                            $(this).removeAttr('checked');
-                            let kw = tr.find('.keywordInput[data-target="keyword"]').text().trim();
-                            let volume = tr.find('.keywordInput[data-target="volume"]').text().trim();
-                            let cpc = tr.find('.keywordInput[data-target="cpc"]').text().trim();
-                            let id = tr.data('id');
-
-                            if (kw != '') {
-                                if(volume == "" || cpc == "") {
-                                    ids.push(id);
-                                    keywords.push(kw);
-                                }
-                            }
-                        });
-                    } else  {
-                        $('.keyword-selection').each(function () {
-                            let tr = $(this).parents('tr');
-                            $(this).removeAttr('checked');
-                            let kw = tr.find('.keywordInput[data-target="keyword"]').text().trim();
-                            let id = tr.data('id');
-
-                            if (kw != '') {
-                                ids.push(id);
-                                keywords.push(kw);
-                            }
-                        });
-                    }
-                } else {
-                    $('.xagio-refresh-vol-cpc-values').addClass('hide');
-                    group.find('.keyword-selection').each(function () {
+                    allKw.each(function () {
                         let tr = $(this).parents('tr');
-                        if ($(this).is(':checked')) {
-                            $(this).removeAttr('checked');
-                            let kw = tr.find('.keywordInput[data-target="keyword"]').text().trim();
-                            let id = tr.data('id');
-                            if (kw != '') {
+                        $(this).removeAttr('checked');
+                        let kw = tr.find('.keywordInput[data-target="keyword"]').text().trim().replace(/,/g, '');
+                        let volume = tr.find('.keywordInput[data-target="volume"]').text().trim();
+                        let cpc = tr.find('.keywordInput[data-target="cpc"]').text().trim();
+                        let id = tr.data('id');
+
+                        if (kw != '') {
+                            if (volume == "" || cpc == "") {
                                 ids.push(id);
                                 keywords.push(kw);
+                            } else {
+                                hasValue.push(id);
                             }
                         }
                     });
+
+                    if (keywords.length === allKw.length) {
+                        $('.xagio-refresh-vol-cpc-values').addClass('hide');
+                    } else {
+                        $('.xagio-refresh-vol-cpc-values').removeClass('hide');
+                    }
+                } else {
+                    $('.xagio-refresh-vol-cpc-values').addClass('hide');
+
+                    let selectedCheckboxes = group.find('.keyword-selection:checked');
+                    let checkboxesToUse = selectedCheckboxes.length >
+                                          0 ? selectedCheckboxes : group.find('.keyword-selection');
+
+                    checkboxesToUse.each(function () {
+                        let tr = $(this).parents('tr');
+                        let kw = tr.find('.keywordInput[data-target="keyword"]').text().trim().replace(/,/g, '');
+                        let id = tr.data('id');
+                        if (kw !== '') {
+                            ids.push(id);
+                            keywords.push(kw);
+                        }
+                    });
+
+                    selectedCheckboxes.prop('checked', false);
+
                     if (keywords.length < 1) {
-                        xagioNotify("danger", "Please select some keywords!");
+                        xagioNotify("danger", "No keywords found!");
                         return false;
                     }
                 }
 
-                actions.volAndCpcProgressBar(keywords);
+                actions.volAndCpcProgressBar(keywords, hasValue);
 
                 let vol_cpc_modal = $('#VolumeAndCPCModal');
                 vol_cpc_modal.find('input[name="ids"]').val(ids.join(','));
                 vol_cpc_modal.find('input[name="keywords"]').val(keywords.join(','));
 
                 $('#getVolAndCpc_languageCode').select2({
-                    matcher       : matcher,
-                    dropdownParent: vol_cpc_modal,
-                    placeholder   : "Select Language"
-                });
+                                                            matcher       : matcher,
+                                                            dropdownParent: vol_cpc_modal,
+                                                            placeholder   : "Select Language"
+                                                        });
 
                 $('#getVolAndCpc_locationCode').select2({
-                    matcher       : matcher,
-                    dropdownParent: vol_cpc_modal,
-                    placeholder   : "Select Country"
-                });
+                                                            matcher       : matcher,
+                                                            dropdownParent: vol_cpc_modal,
+                                                            placeholder   : "Select Country"
+                                                        });
 
             });
 
@@ -3682,43 +4350,53 @@ let cf_template = cf_templates[cf_default_template].data;
 
 
             $('#VolumeAndCPCModal').on({
-                'hide.uk.modal': function () {
-                    let vol_cpc_modal = $('#VolumeAndCPCModal');
-                    vol_cpc_modal.find('.tagsinput').remove();
-                }
-            });
+                                           'hide.uk.modal': function () {
+                                               let vol_cpc_modal = $('#VolumeAndCPCModal');
+                                               vol_cpc_modal.find('.tagsinput').remove();
+                                           }
+                                       });
 
         },
 
         refreshVolAndCpcValues: function () {
-            $(document).on('change', "#XAGIO_REFRESH_VOL_CPC_VALUES", function() {
+            $(document).on('change', "#XAGIO_REFRESH_VOL_CPC_VALUES", function () {
                 let ids = [];
                 let keywords = [];
+                let hasValue = [];
                 let btn = $('.getVolumeAndCPC');
                 let type = btn.data('type');
+                let allKw = $('.keyword-selection');
 
                 if (type === 'all') {
                     if ($('#XAGIO_REFRESH_VOL_CPC_VALUES').val() === '0') {
-                        $('.keyword-selection').each(function () {
+                        allKw.each(function () {
                             let tr = $(this).parents('tr');
                             $(this).removeAttr('checked');
-                            let kw = tr.find('.keywordInput[data-target="keyword"]').text().trim();
+                            let kw = tr.find('.keywordInput[data-target="keyword"]').text().trim().replace(/,/g, '');
                             let volume = tr.find('.keywordInput[data-target="volume"]').text().trim();
                             let cpc = tr.find('.keywordInput[data-target="cpc"]').text().trim();
                             let id = tr.data('id');
 
                             if (kw != '') {
-                                if(volume == "" || cpc == "") {
+                                if (volume == "" || cpc == "") {
                                     ids.push(id);
                                     keywords.push(kw);
+                                } else {
+                                    hasValue.push(id);
                                 }
                             }
                         });
-                    } else  {
+
+                        if (keywords.length === allKw.length) {
+                            $('.xagio-refresh-vol-cpc-values').addClass('hide');
+                        } else {
+                            $('.xagio-refresh-vol-cpc-values').removeClass('hide');
+                        }
+                    } else {
                         $('.keyword-selection').each(function () {
                             let tr = $(this).parents('tr');
                             $(this).removeAttr('checked');
-                            let kw = tr.find('.keywordInput[data-target="keyword"]').text().trim();
+                            let kw = tr.find('.keywordInput[data-target="keyword"]').text().trim().replace(/,/g, '');
                             let id = tr.data('id');
 
                             if (kw != '') {
@@ -3729,7 +4407,7 @@ let cf_template = cf_templates[cf_default_template].data;
                     }
                 }
 
-                actions.volAndCpcProgressBar(keywords);
+                actions.volAndCpcProgressBar(keywords, hasValue);
 
                 let vol_cpc_modal = $('#VolumeAndCPCModal');
                 vol_cpc_modal.find('input[name="ids"]').val(ids.join(','));
@@ -3737,45 +4415,24 @@ let cf_template = cf_templates[cf_default_template].data;
             })
         },
 
-        volAndCpcProgressBar: function (keywords) {
+        volAndCpcProgressBar: function (keywords, hasValue) {
             let vol_cpc_modal = $('#VolumeAndCPCModal');
+
             let vol_cpc_cost = keywords.length * actions.allowances.cost.vol_cpc;
             vol_cpc_cost = vol_cpc_cost.toFixed(2);
-            vol_cpc_modal.find('.keyword_competition_cost_text').hide();
-            vol_cpc_modal.find('.keyword_volume_cost').html(vol_cpc_cost);
 
-            let current_volume_credits = parseFloat(actions.allowances.xags_allowance.find('.value').html()) + parseFloat(actions.allowances.xags.find('.value').html());
+            let output = actions.xagsCostOutput(vol_cpc_cost);
 
-            let credits_left = (current_volume_credits - vol_cpc_cost).toFixed(2);
-            let total_percent = current_volume_credits * 100 / current_volume_credits;
-            let deduct_percent = (actions.allowances.xags_total - (current_volume_credits - vol_cpc_cost)) * 100 / actions.allowances.xags_total;
-            let diff = (total_percent - deduct_percent) * 100 / total_percent;
-
-            if (total_percent < 23) total_percent = 23;
-
-            let max = 74;
-            if (vol_cpc_cost < 10) {
-                max = 88;
-            } else if (vol_cpc_cost < 100) {
-                max = 85;
+            // Apply price on Modal
+            if (hasValue.length > 0) {
+                if (keywords.length > 0) {
+                    vol_cpc_modal.find('#xagsCost').html(`You have ${hasValue.length} keywords with Volume/CPC values and ${keywords.length} without. This action will cost you ${output}`);
+                } else {
+                    vol_cpc_modal.find('#xagsCost').html(`All keywords have Volume and CPC values. Click on refresh button to refresh values.`);
+                }
+            } else {
+                vol_cpc_modal.find('#xagsCost').html(`This action will cost you ${output}`);
             }
-
-            if (diff < 22) diff = 22;
-            if (diff > max) diff = max;
-
-            if (credits_left <= 0) {
-                credits_left = '< 0';
-                diff = 0;
-            }
-
-            let vol_left_per = credits_left * 100 / current_volume_credits;
-            let progress_color = '#1dbf6a';
-            if (vol_left_per < 50) progress_color = '#fcb963';
-            if (vol_left_per < 25) progress_color = '#fb1f36';
-
-            vol_cpc_modal.find('.progress-keywords-volume').css('width', total_percent + '%').html(`<span>${credits_left}</span><span>-${vol_cpc_cost}</span>`);
-            vol_cpc_modal.find('.progress-keywords-volume').css('background', `linear-gradient(to right, ${progress_color} ${diff}%, #fb1f36 0%)`);
-            vol_cpc_modal.find('.progress-keywords-volume').next().find('span').html(current_volume_credits);
 
             vol_cpc_modal[0].showModal();
         },
@@ -3863,7 +4520,7 @@ let cf_template = cf_templates[cf_default_template].data;
                             tr.find('.keywordInput[data-target="cpc"]').attr('title', 'This value is currently under analysis. Please check back later to see the results.').html('<i class="xagio-icon xagio-icon-sync xagio-icon-spin"></i>');
                         }
 
-                        xagio_notify("success","You have successfully queued selected keywords for analysis. You will receive an e-mail when the analysis is completed, or you can simply just check back later for results.");
+                        xagio_notify("success", "You have successfully queued selected keywords for analysis. You will receive an e-mail when the analysis is completed, or you can simply just check back later for results.");
 
                     } else if (d.status == 'results') {
 
@@ -3948,6 +4605,12 @@ let cf_template = cf_templates[cf_default_template].data;
                 $("#copyKeywords")[0].showModal();
             });
         },
+        closeGetCompetitionModal: function () {
+            $('#getCompetitionModal').on('close', function() {
+                $('#XAGIO_REFRESH_COMPETITION_VALUES').val('0');
+                $('.xagio-refresh-competition-values .xagio-slider-button').removeClass('on')
+            });
+        },
         retrieveKeywordData          : function () {
             $(document).on('click', '.getKeywordData', function (e) {
                 e.preventDefault();
@@ -3955,96 +4618,102 @@ let cf_template = cf_templates[cf_default_template].data;
                 let group = $(this).parents('.xagio-group');
                 let ids = [];
                 let keywords = [];
+                let hasValue = [];
                 let btn = $(this);
                 let type = btn.data('type');
                 let competition_modal = $('#getCompetitionModal');
+                let allKw = $('.keyword-selection');
 
                 if (!xagio_data.connected) {
                     xagioConnectModal();
                     return;
                 }
 
+                if (allKw.length < 1) {
+                    xagioNotify("danger", "No keywords found!");
+                    return false;
+                }
+
                 if (type === 'all') {
-                    if ($('.xagio-refresh-competition-values').hasClass('hide')) {
-                        $('.xagio-refresh-competition-values').removeClass('hide');
-                    }
-
-                    if ($('#XAGIO_REFRESH_COMPETITION_VALUES').val() === '0') {
-                        $('.keyword-selection').each(function () {
-                            let tr = $(this).parents('tr');
-                            if (tr.data('queued') != 1) {
-                                $(this).removeAttr('checked');
-                                let kw = tr.find('.keywordInput[data-target="keyword"]').html().trim();
-                                let inTitle = tr.find('.keywordInput[data-target="intitle"]').html().trim();
-                                let inUrl = tr.find('.keywordInput[data-target="inurl"]').html().trim();
-                                let id = tr.data('id');
-                                if (kw != '') {
-                                    if(inTitle == "" || inUrl == "") {
-                                        ids.push(id);
-                                        keywords.push(kw);
-                                    }
-                                }
-                            }
-                        });
-                    } else  {
-                        $('.keyword-selection').each(function () {
-                            let tr = $(this).parents('tr');
-                            if (tr.data('queued') != 1) {
-                                $(this).removeAttr('checked');
-                                let kw = tr.find('.keywordInput[data-target="keyword"]').html().trim();
-                                let id = tr.data('id');
-                                if (kw != '') {
-                                    ids.push(id);
-                                    keywords.push(kw);
-                                }
-                            }
-                        });
-                    }
-                } else {
-                    $('.xagio-refresh-competition-values').addClass('hide');
-
-                    group.find('.keyword-selection').each(function () {
+                    allKw.each(function () {
                         let tr = $(this).parents('tr');
-                        if ($(this).is(':checked') && tr.data('queued') != 1) {
+                        if (tr.data('queued') != 1) {
                             $(this).removeAttr('checked');
                             let kw = tr.find('.keywordInput[data-target="keyword"]').html().trim();
+                            let inTitle = tr.find('.keywordInput[data-target="intitle"]').html().trim();
+                            let inUrl = tr.find('.keywordInput[data-target="inurl"]').html().trim();
                             let id = tr.data('id');
                             if (kw != '') {
-                                ids.push(id);
-                                keywords.push(kw);
+                                if (inTitle == "" || inUrl == "") {
+                                    ids.push(id);
+                                    keywords.push(kw);
+                                } else {
+                                    hasValue.push(id);
+                                }
                             }
                         }
                     });
 
+                    if (keywords.length === allKw.length) {
+                        $('.xagio-refresh-competition-values').addClass('hide');
+                    } else {
+                        $('.xagio-refresh-competition-values').removeClass('hide');
+                    }
+                } else {
+                    $('.xagio-refresh-competition-values').addClass('hide');
+
+                    let selectedCheckboxes = group.find('.keyword-selection:checked').filter(function () {
+                        return $(this).parents('tr').data('queued') != 1;
+                    });
+
+                    let checkboxesToUse = selectedCheckboxes.length > 0
+                                          ? selectedCheckboxes
+                                          : group.find('.keyword-selection').filter(function () {
+                            return $(this).parents('tr').data('queued') != 1;
+                        });
+
+                    checkboxesToUse.each(function () {
+                        let tr = $(this).parents('tr');
+                        let kw = tr.find('.keywordInput[data-target="keyword"]').html().trim();
+                        let id = tr.data('id');
+                        if (kw !== '') {
+                            ids.push(id);
+                            keywords.push(kw);
+                        }
+                    });
+
+                    selectedCheckboxes.prop('checked', false);
+
                     if (keywords.length < 1) {
-                        xagioNotify("danger", "Please select some keywords");
+                        xagioNotify("danger", "No keywords found!");
                         return false;
                     }
                 }
 
-                actions.competitionProgressBar(keywords);
+                actions.competitionProgressBar(keywords, hasValue);
 
                 competition_modal.find('#keywords_cmp').val(keywords.join(','));
                 competition_modal.find('#ids_cmp').val(ids.join(','));
 
                 $('#getCompetition_languageCode').select2({
-                    matcher       : matcher,
-                    dropdownParent: competition_modal,
-                    placeholder   : "Select Language"
-                });
+                                                              matcher       : matcher,
+                                                              dropdownParent: competition_modal,
+                                                              placeholder   : "Select Language"
+                                                          });
 
                 $('#getCompetition_locationCode').select2({
-                    matcher       : matcher,
-                    dropdownParent: competition_modal,
-                    placeholder   : "Select Country"
-                });
+                                                              matcher       : matcher,
+                                                              dropdownParent: competition_modal,
+                                                              placeholder   : "Select Country"
+                                                          });
 
             });
 
             $(document).on('submit', '#getCompetitionForm', function (e) {
                 e.preventDefault();
 
-                let kwallow = parseInt(actions.allowances.xags_allowance.find('.value').html().trim()) + parseInt(actions.allowances.xags.find('.value').html().trim());
+                let kwallow = parseInt(actions.allowances.xags_allowance.find('.value').html().trim()) +
+                              parseInt(actions.allowances.xags.find('.value').html().trim());
                 let form = $(this);
                 let btn = form.find('.submitCompetitionKeywords');
                 btn.disable();
@@ -4132,15 +4801,17 @@ let cf_template = cf_templates[cf_default_template].data;
         },
 
         refreshCompetitionValues: function () {
-            $(document).on('change', "#XAGIO_REFRESH_COMPETITION_VALUES", function() {
+            $(document).on('change', "#XAGIO_REFRESH_COMPETITION_VALUES", function () {
                 let ids = [];
                 let keywords = [];
                 let btn = $('.getKeywordData');
                 let type = btn.data('type');
+                let hasValue = [];
+                let allKw = $('.keyword-selection');
 
                 if (type === 'all') {
                     if ($('#XAGIO_REFRESH_COMPETITION_VALUES').val() === '0') {
-                        $('.keyword-selection').each(function () {
+                        allKw.each(function () {
                             let tr = $(this).parents('tr');
                             if (tr.data('queued') != 1) {
                                 $(this).removeAttr('checked');
@@ -4149,14 +4820,22 @@ let cf_template = cf_templates[cf_default_template].data;
                                 let inUrl = tr.find('.keywordInput[data-target="inurl"]').html().trim();
                                 let id = tr.data('id');
                                 if (kw != '') {
-                                    if(inTitle == "" || inUrl == "") {
+                                    if (inTitle == "" || inUrl == "") {
                                         ids.push(id);
                                         keywords.push(kw);
+                                    } else {
+                                        hasValue.push(id);
                                     }
                                 }
                             }
                         });
-                    } else  {
+
+                        if (keywords.length === allKw.length) {
+                            $('.xagio-refresh-competition-values').addClass('hide');
+                        } else {
+                            $('.xagio-refresh-competition-values').removeClass('hide');
+                        }
+                    } else {
                         $('.keyword-selection').each(function () {
                             let tr = $(this).parents('tr');
                             if (tr.data('queued') != 1) {
@@ -4172,7 +4851,7 @@ let cf_template = cf_templates[cf_default_template].data;
                     }
                 }
 
-                actions.competitionProgressBar(keywords);
+                actions.competitionProgressBar(keywords, hasValue);
 
                 let competition_modal = $('#getCompetitionModal');
                 competition_modal.find('#keywords_cmp').val(keywords.join(','));
@@ -4180,52 +4859,30 @@ let cf_template = cf_templates[cf_default_template].data;
             })
         },
 
-        competitionProgressBar: function (keywords) {
+        competitionProgressBar: function (keywords, hasValue) {
             let competition_modal = $('#getCompetitionModal');
 
             let competition_cost = keywords.length * actions.allowances.cost.comp;
             competition_cost = competition_cost.toFixed(2);
 
-            let current_scraping_credits = parseFloat(actions.allowances.xags_allowance.find('.value').html()) + parseFloat(actions.allowances.xags.find('.value').html());
-            current_scraping_credits = current_scraping_credits.toFixed(2);
-            let credits_left = current_scraping_credits - competition_cost;
-            credits_left = credits_left.toFixed(2);
-            let total_percent = current_scraping_credits * 100 / current_scraping_credits;
-            let deduct_percent = (actions.allowances.xags_total - (current_scraping_credits - competition_cost)) * 100 / actions.allowances.xags_total;
-            let diff = (total_percent - deduct_percent) * 100 / total_percent;
+            let output = actions.xagsCostOutput(competition_cost);
 
-            if (total_percent < 15) total_percent = 15;
-
-            let max = 92;
-            if (competition_cost < 10) {
-                max = 95;
-            } else if (competition_cost < 100) {
-                max = 94;
+            // Apply price on Modal
+            if (hasValue.length > 0) {
+                if (keywords.length > 0) {
+                    competition_modal.find('#xagsCost').html(`You have ${hasValue.length} keywords with InTitle/InURL values and ${keywords.length} without. This action will cost you ${output}`);
+                } else {
+                    competition_modal.find('#xagsCost').html(`All keywords have InTitle and InURL values. Click on refresh button to refresh values.`);
+                }
+            } else {
+                competition_modal.find('#xagsCost').html(`This action will cost you ${output}`);
             }
-
-            if (diff < 6) diff = 6;
-            if (diff > max) diff = max;
-
-            if (credits_left <= 0) {
-                credits_left = '< 0';
-                diff = 0;
-            }
-
-            let vol_left_per = credits_left * 100 / actions.allowances.xags_total;
-            let progress_color = '#1acb87';
-            if (vol_left_per < 50) progress_color = '#f28e36';
-            if (vol_left_per < 25) progress_color = '#fd1f36';
-
-            competition_modal.find('.keyword_competition_cost').html(competition_cost);
-            competition_modal.find('.progress-keywords-scrape').css('width', total_percent + '%').html(`<span>${credits_left}</span><span>-${competition_cost}</span>`);
-            competition_modal.find('.progress-keywords-scrape').css('background', `linear-gradient(to right, ${progress_color} ${diff}%, #fd1f36 0%)`);
-            competition_modal.find('.progress-keywords-scrape').next().find('span').html(current_scraping_credits);
 
             competition_modal[0].showModal();
         },
 
         /*CF Templates*/
-        loadCfTemplates              : function () {
+        loadCfTemplates : function () {
             $.post(xagio_data.wp_post, 'action=xagio_getCfTemplates', function (d) {
                 if (d.status == 'success') {
                     cf_templates = $.extend(cf_templates, d.data)
@@ -4256,7 +4913,7 @@ let cf_template = cf_templates[cf_default_template].data;
             }, 'json');
 
         },
-        changeCfTemplate             : function () {
+        changeCfTemplate: function () {
             $("#cf-templates").change(function () {
                 let templateName = $(this).val();
 
@@ -4267,7 +4924,7 @@ let cf_template = cf_templates[cf_default_template].data;
 
             });
         },
-        saveCfTemplate               : function () {
+        saveCfTemplate  : function () {
             $(document).on('click', '#saveCfTemplate', function (e) {
                 // Disable button to prevent multiple sending
                 let btn = $(this);
@@ -4290,7 +4947,7 @@ let cf_template = cf_templates[cf_default_template].data;
 
             });
         },
-        addCfTemplate: function() {
+        addCfTemplate   : function () {
             $(document).on('click', '#addCfTemplate', function (e) {
                 let btn = $(this);
                 btn.attr('disabled', true);
@@ -4310,7 +4967,7 @@ let cf_template = cf_templates[cf_default_template].data;
                         }
 
                         $.post(xagio_data.wp_post, 'action=xagio_createCfTemplate&' + data + '&name=' +
-                            new_name, function (d) {
+                                                   new_name, function (d) {
 
                             btn.attr('disabled', false);
                             $('#applyCfTemplate').attr('disabled', false);
@@ -4330,7 +4987,7 @@ let cf_template = cf_templates[cf_default_template].data;
                 });
             })
         },
-        applyCfTemplate              : function () {
+        applyCfTemplate : function () {
             $(document).on('click', '#applyCfTemplate', function (e) {
 
                 e.preventDefault();
@@ -4349,7 +5006,7 @@ let cf_template = cf_templates[cf_default_template].data;
                 }, 'json');
             })
         },
-        deleteCfTemplate             : function () {
+        deleteCfTemplate: function () {
             $(document).on('click', '#deleteCfTemplate', function (e) {
                 e.preventDefault();
                 let btn = $(this);
@@ -4365,7 +5022,7 @@ let cf_template = cf_templates[cf_default_template].data;
                 xagioModal("Are you sure?", "Are you sure that you want to delete selected template?", function (yes) {
                     if (yes) {
                         $.post(xagio_data.wp_post, 'action=xagio_deleteCfTemplate&templateName=' +
-                            template_name, function (d) {
+                                                   template_name, function (d) {
                             xagioNotify(d.status, d.message);
                             // When saving is done, enable button again
                             btn.disable();
@@ -4378,7 +5035,7 @@ let cf_template = cf_templates[cf_default_template].data;
             })
 
         },
-        cfValidation                 : function () {
+        cfValidation    : function () {
             let inputs = [
                 'volume',
                 'cpc'
@@ -4469,13 +5126,16 @@ let cf_template = cf_templates[cf_default_template].data;
                 e.preventDefault();
 
                 let keywords = $('#keywords-input').val();
+                // remove commas
+                keywords = keywords.replace(/,/g, '');
 
                 if (keywords == '') {
                     xagioNotify("danger", "You must insert some keywords first.");
                     return;
                 }
 
-                $.post(xagio_data.wp_post, 'action=xagio_addKeyword&group_id=' + keywordGroupID + '&keywords=' + encodeURIComponent(keywords), function (d) {
+                $.post(xagio_data.wp_post, 'action=xagio_addKeyword&group_id=' + keywordGroupID + '&keywords=' +
+                                           encodeURIComponent(keywords), function (d) {
 
                     $("#addKeywords")[0].close();
                     xagioNotify("success", "Successfully added keywords.");
@@ -4520,8 +5180,8 @@ let cf_template = cf_templates[cf_default_template].data;
 
                 $.post(xagio_data.wp_post, 'action=xagio_deleteKeywords&' + keyword_ids + '&deleteRanks=' +
                                            deleteRanks, function (d) {
-                    xagioNotify("success", "Keywords successfully deleted.");
                     modal[0].close();
+                    xagioNotify("success", "Keywords successfully deleted.");
                     actions.loadProjectManually();
                 })
             });
@@ -4919,7 +5579,7 @@ let cf_template = cf_templates[cf_default_template].data;
                         if (!allNull) keywords.push(keyword);
                     });
 
-                    if(keywords.length > 1) {
+                    if (keywords.length > 1) {
                         let data = [
                             {
                                 name : 'action',
@@ -4934,9 +5594,9 @@ let cf_template = cf_templates[cf_default_template].data;
                         keywords.forEach((keyword, index) => {
                             Object.keys(keyword).forEach(key => {
                                 data.push({
-                                    name : `keywords[${index}][${key}]`,
-                                    value: keyword[key]
-                                });
+                                              name : `keywords[${index}][${key}]`,
+                                              value: keyword[key]
+                                          });
                             });
                         });
 
@@ -4980,7 +5640,7 @@ let cf_template = cf_templates[cf_default_template].data;
                 $(this).removeClass('on');
             });
         },
-        initSliders: function () {
+        initSliders      : function () {
             const rangeContainers = document.querySelectorAll(".hunter-range-container");
             rangeContainers.forEach(container => {
 
@@ -5084,6 +5744,37 @@ let cf_template = cf_templates[cf_default_template].data;
                 modal.find('input').val('');
                 modal.find('.xagio-modal-title').text('Name Your New Project');
                 modal.find('.editProjectName').val(0);
+            });
+        },
+        manageProjects   : function () {
+            $(document).on('change', '.select-all-projects', function (e) {
+                e.preventDefault();
+                let checked = $(this).prop('checked');
+                $('.select-project').prop('checked', checked).trigger('change');
+            });
+            $(document).on('change', '.select-project', function (e) {
+                e.preventDefault();
+                let any_checked = $('.select-project:checked').length > 0;
+                if (any_checked) {
+                    $('.delete-projects').removeClass('xagio-hidden');
+                } else {
+                    $('.delete-projects').addClass('xagio-hidden');
+                }
+            });
+            $(document).on('click', '.delete-projects', function (e) {
+                e.preventDefault();
+                let ids = [];
+                $('.select-project:checked').each(function () {
+                    ids.push($(this).attr('data-id'));
+                });
+                ids = ids.join(',');
+                xagioModal("Are you sure?", "You are about to delete selected Projects. Continue?", function (yes) {
+                    if (yes) {
+                        $.post(xagio_data.wp_post, `action=xagio_remove_projects&project_ids=${ids}`, function (d) {
+                            actions.loadProjects();
+                        });
+                    }
+                })
             });
         },
         newProject       : function () {
@@ -5197,38 +5888,42 @@ let cf_template = cf_templates[cf_default_template].data;
             });
 
             kw_data.multisortable({
-                items: "tr",
-                selectedClass: "selected",
-                stop: function (e) {
-                    if ($(e.target).find('tr').length < 1) {
-                        $(e.target).html('<tr><td colspan="11"><div class="empty-keywords"><i class="xagio-icon xagio-icon-warning"></i> No added keywords yet... <button type="button" class="xagio-button xagio-button-primary addKeyword"><i class="xagio-icon xagio-icon-plus"></i>Add Keyword(s)</button></div></td></tr>');
-                    }
+                                      items        : "tr",
+                                      selectedClass: "selected",
+                                      stop         : function (e) {
+                                          if ($(e.target).find('tr').length < 1) {
+                                              $(e.target).html('<tr><td colspan="11"><div class="empty-keywords"><i class="xagio-icon xagio-icon-warning"></i> No added keywords yet... <button type="button" class="xagio-button xagio-button-primary addKeyword"><i class="xagio-icon xagio-icon-plus"></i>Add Keyword(s)</button></div></td></tr>');
+                                          }
 
-                    $('.xagio-group .jqcloud').each(function (index) {
-                        let jscloud = $(this);
+                                          $('.xagio-group .jqcloud').each(function (index) {
+                                              let jscloud = $(this);
 
-                        let current_cloud_keywords = jscloud.parents('.xagio-group').find('.keywords-data tr').find('div.keywordInput[data-target="keyword"]');
+                                              let current_cloud_keywords = jscloud.parents('.xagio-group').find('.keywords-data tr').find('div.keywordInput[data-target="keyword"]');
 
-                        let keywords = [];
-                        current_cloud_keywords.each(function () {
-                            keywords.push($(this).text());
-                        });
-                        jscloud.jQCloud('update', actions.calculateAndTrim(keywords));
-                        jscloud.css("display", "block").resize();
+                                              let keywords = [];
+                                              current_cloud_keywords.each(function () {
+                                                  keywords.push($(this).text());
+                                              });
+                                              jscloud.jQCloud('update', actions.calculateAndTrim(keywords));
+                                              jscloud.css("display", "block").resize();
 
 
-                    });
-                }
-            });
+                                          });
+                                      }
+                                  });
 
             // Drag and Drop
             kw_data.sortable({
-                connectWith: ".uk-sortable",
-                cancel     : "input,textarea,button,select,option,[contenteditable]",
-                placeholder: "drop-placeholder",
-                cursorAt   : {left: 20},
-                opacity    : 0.8,
-            }).on("sortreceive", function (event, ui) {
+                                 connectWith: ".uk-sortable",
+                                 cancel     : "input,textarea,button,select,option,[contenteditable]",
+                                 placeholder: "drop-placeholder",
+                                 cursorAt   : {left: 20},
+                                 opacity    : 0.8,
+                                 stop       : function () {
+                                     // Update tablesorter on both source and target tables
+                                     $(".keywords").trigger("update");
+                                 }
+                             }).on("sortreceive", function (event, ui) {
 
                 let target = $(this);
                 let original_group = $(ui.sender).parents('.xagio-group').find('[name="group_id"]').val();
@@ -6144,7 +6839,8 @@ let cf_template = cf_templates[cf_default_template].data;
             let project_dashboard = $('.project-dashboard');
 
             $.post(xagio_data.wp_post, 'action=xagio_get_project_info&project_id=' + currentProjectID, function (d) {
-                project_dashboard.find('.project-name').html("<i class='xagio-icon xagio-icon-file'></i> #" + d.data.id +
+                project_dashboard.find('.project-name').html("<i class='xagio-icon xagio-icon-file'></i> #" +
+                                                             d.data.id +
                                                              ": " + d.data.name);
             });
 
@@ -6195,12 +6891,32 @@ let cf_template = cf_templates[cf_default_template].data;
                     // Remove old loaded groups
                     data.empty();
 
+                    // for move keywords select
+                    let select = $("#moveKeywordsModal").find("#moveKeywordGroupSelect");
+                    select.empty();
+                    select.append($('<option>'));
+
                     // Render new groups
                     for (let i = 0; i < d.length; i++) {
 
                         let row = d[i];
                         let template = $('.xagio-group.template').clone();
                         template.removeClass('template');
+
+                        // add options for moveKeywords dropdown
+                        select.append(
+                            $('<option>', {
+                                value: row.id,
+                                text: row.group_name
+                            })
+                        );
+
+                        select.select2({
+                            dropdownParent: $("#moveKeywordsModal"),
+                            placeholder: "Select a Group / Create a Group",
+                            width: "100%",
+                            tags: true
+                        })
 
                         //html entity decode
                         row.title = actions.decodeHtml(row.title);
@@ -6342,29 +7058,30 @@ let cf_template = cf_templates[cf_default_template].data;
                         template.find('[data-target="h1tag"]').text(row.h1 != null ? row.h1 : '');
 
                         // Calculate Counting
-                        let count_seo_title, count_seo_title_mobile, count_seo_description, count_seo_description_mobile = 0;
+                        let count_seo_title, count_seo_title_mobile, count_seo_description,
+                            count_seo_description_mobile = 0;
 
-                        if(row.title != null) {
+                        if (row.title != null) {
                             count_seo_title = row.title.length;
                             count_seo_title_mobile = row.title.length;
                         }
 
-                        if(count_seo_title > 70) {
+                        if (count_seo_title > 70) {
                             count_seo_title = `<span class="xagio-seo-count-danger">${count_seo_title}</span>`;
                         }
-                        if(count_seo_title_mobile > 78) {
+                        if (count_seo_title_mobile > 78) {
                             count_seo_title_mobile = `<span class="xagio-seo-count-danger">${count_seo_title_mobile}</span>`;
                         }
 
-                        if(row.description != null) {
+                        if (row.description != null) {
                             count_seo_description = row.description.length;
                             count_seo_description_mobile = row.description.length;
                         }
 
-                        if(count_seo_description > 300) {
+                        if (count_seo_description > 300) {
                             count_seo_description = `<span class="xagio-seo-count-danger">${count_seo_description}</span>`;
                         }
-                        if(count_seo_description_mobile > 120) {
+                        if (count_seo_description_mobile > 120) {
                             count_seo_description_mobile = `<span class="xagio-seo-count-danger">${count_seo_description_mobile}</span>`;
                         }
 
@@ -6395,10 +7112,13 @@ let cf_template = cf_templates[cf_default_template].data;
 
                                 // Is queued
                                 let alsoQueued = false;
-                                if (keyword.inurl == -1 && keyword.intitle == -1) {
-                                    alsoQueued = true;
-                                    keyword.inurl = null;
-                                    keyword.intitle = null;
+                                if (
+                                    (keyword.inurl == -1 && keyword.intitle == -1) ||
+                                    (isNaN(keyword.intitle) && isNaN(keyword.inurl))
+                                ) {
+                                    alsoQueued       = true;
+                                    keyword.inurl    = null;
+                                    keyword.intitle  = null;
                                 }
 
                                 /**
@@ -6420,14 +7140,18 @@ let cf_template = cf_templates[cf_default_template].data;
                                 keyword.inurl = actions.cleanComma(keyword.inurl);
 
                                 let title_ratio = "";
-                                if (keyword.volume != "" && keyword.intitle != "") {
+                                if (keyword.intitle == 0 && keyword.intitle !== "") {
+                                    title_ratio = "0";
+                                } else if (keyword.volume != "" && keyword.intitle != "") {
                                     if (keyword.volume != 0) {
                                         title_ratio = keyword.intitle / keyword.volume;
                                     }
                                 }
 
                                 let url_ratio = "";
-                                if (keyword.volume !== "" && keyword.inurl !== "") {
+                                if (keyword.inurl == 0 && keyword.inurl !== "") {
+                                    url_ratio = "0";
+                                } else if (keyword.volume !== "" && keyword.inurl !== "") {
                                     if (keyword.volume != 0) {
                                         url_ratio = keyword.inurl / keyword.volume;
                                     }
@@ -6595,23 +7319,20 @@ let cf_template = cf_templates[cf_default_template].data;
 
                                     for (let j = 0; j < rank.length; j++) {
                                         let obj = rank[j];
-
-                                        if (obj.rank != 'NTH' || obj.rank == null) {
+                                        if (obj.rank === null || obj.rank === 'NTH' || typeof obj.rank === 'undefined') {
+                                            rank_title += obj.engine + " : <i class='xagio-icon xagio-icon-ban'></i><br>";
+                                        } else {
                                             if (max > obj.rank) {
                                                 max = obj.rank;
                                             }
-                                            if (typeof obj.rank == 'undefined') {
-                                                obj.rank = "<i class='xagio-icon xagio-icon-ban'></i>";
-                                            }
                                             rank_title += obj.engine + ' : ' + obj.rank + '<br>';
-                                        } else {
-                                            rank_title += obj.engine + ' : <i class=\'xagio-icon xagio-icon-ban\'></i><br>';
                                         }
 
                                     }
 
                                     if (max == 501) {
-                                        rank_cell = '<a href="https://app.xagio.net/rank_tracker?domain=' + xagio_data.domain +
+                                        rank_cell = '<a href="https://app.xagio.net/rank_tracker?domain=' +
+                                                    xagio_data.domain +
                                                     '&keyword=' + encodeURIComponent(keyword.keyword) +
                                                     '" target="_blank" data-xagio-tooltip data-xagio-title="' +
                                                     rank_title +
@@ -6620,7 +7341,8 @@ let cf_template = cf_templates[cf_default_template].data;
                                         if ($.isNumeric(rank)) {
                                             rank_cell = max;
                                         } else {
-                                            rank_cell = '<a href="https://app.xagio.net/rank_tracker?domain=' + xagio_data.domain +
+                                            rank_cell = '<a href="https://app.xagio.net/rank_tracker?domain=' +
+                                                        xagio_data.domain +
                                                         '&keyword=' + encodeURIComponent(keyword.keyword) +
                                                         '" target="_blank" data-xagio-tooltip data-xagio-title="' +
                                                         rank_title + '">' + max + '</a>';
@@ -6656,13 +7378,32 @@ let cf_template = cf_templates[cf_default_template].data;
                         if (actions.getUrlParameters('gid')) {
                             let view_group_id = actions.getUrlParameters('gid');
                             var target = $(`input[name="group_id"][value="${view_group_id}"]`).parents('.xagio-group');
-                            if (target.length)
-                            {
+                            if (target.length) {
                                 var top = target.offset().top - 120;
                                 $('html,body').animate({scrollTop: top}, 1000);
                             }
                         }
                     }, 500);
+                });
+
+            });
+        },
+        runAgent            : function () {
+            $(document).on('click', '.run_agent', function (e) {
+                e.preventDefault();
+
+                let ProjectID = $(this).data('id');
+
+                xagioModal('Agent X', 'This will redirect you to Agent X and preselect this project for Agent X to process. Continue?', function (yes) {
+
+                    if (yes) {
+
+                        $.post(xagio_data.wp_post, 'action=xagio_ocw_save_project_id&project_id=' + ProjectID, function (d) {
+                            document.location.href = xagio_data.wp_admin + `admin.php?page=xagio-ocw`;
+                        });
+
+                    }
+
                 });
 
             });
@@ -6682,6 +7423,7 @@ let cf_template = cf_templates[cf_default_template].data;
                 $('.logo-paragraph.uk-block-xagio').slideUp();
                 actions.importKeywordPlanner();
                 actions.loadProjectManually(button);
+                actions.initGlobalCloud();
             });
         },
         duplicateProject    : function () {
@@ -6707,7 +7449,7 @@ let cf_template = cf_templates[cf_default_template].data;
             $(document).on('click', '.closeProject', function (e) {
 
                 let currentUrl = window.location.href;
-                let newUrl = currentUrl.replace(/(\?|&)(pid=\d+|gid=\d+)(&|$)/g, function(match, p1, p2, p3) {
+                let newUrl = currentUrl.replace(/(\?|&)(pid=\d+|gid=\d+)(&|$)/g, function (match, p1, p2, p3) {
                     if (p1 === '?' && p3 === '&') {
                         return '?';
                     } else if (p1 === '&' && p3 === '&') {
@@ -6820,7 +7562,8 @@ let cf_template = cf_templates[cf_default_template].data;
                                                                    "bSortable": true,
                                                                    "mData"    : "id",
                                                                    "mRender"  : function (data, type, row) {
-                                                                       return data;
+                                                                       return '<input data-id="' + data +
+                                                                              '" type="checkbox" class="select-project"/>';
                                                                    }
                                                                },
                                                                {
@@ -6913,6 +7656,10 @@ let cf_template = cf_templates[cf_default_template].data;
                                                                                       row.project_name +
                                                                                       '" data-id="' + row.id +
                                                                                       '" data-xagio-tooltip data-xagio-title="Load this project" type="button" class="xagio-button xagio-button-primary xagio-button-mini load_project"><i class="xagio-icon xagio-icon-folder-open"></i></button> ';
+                                                                           buttons += '<button data-name="' +
+                                                                                      row.project_name +
+                                                                                      '" data-id="' + row.id +
+                                                                                      '" data-xagio-tooltip data-xagio-title="Run Agent X for this project" type="button" class="xagio-button xagio-button-primary xagio-button-mini run_agent"><i class="xagio-icon xagio-icon-ai"></i></button> ';
                                                                            buttons += `<button data-name="${row.project_name}" data-id="${row.id}" data-xagio-tooltip data-xagio-title="Duplicate this project" type="button" class="xagio-button xagio-button-primary xagio-button-mini duplicate_project"><i class="xagio-icon xagio-icon-copy"></i></button> `;
                                                                            buttons += '<button data-id="' + row.id +
                                                                                       '" data-xagio-tooltip data-xagio-title="Export this project" type="button" class="xagio-button xagio-button-primary xagio-button-mini export_project"><i class="xagio-icon xagio-icon-download"></i></button> ';
@@ -6946,7 +7693,8 @@ let cf_template = cf_templates[cf_default_template].data;
         exportAllProjects: function () {
             $(document).on('click', '.export-all-projects', function (e) {
                 e.preventDefault();
-                window.location = xagio_data.wp_post + '?action=xagio_export_projects' + '&_xagio_nonce=' + xagio_data.nonce;
+                window.location = xagio_data.wp_post + '?action=xagio_export_projects' + '&_xagio_nonce=' +
+                                  xagio_data.nonce;
             })
         },
         /*Export Selected Groups*/
@@ -6965,19 +7713,30 @@ let cf_template = cf_templates[cf_default_template].data;
 
                 ids = ids.join(",");
 
-                window.location = xagio_data.wp_post + '?action=xagio_export_groups&group_ids=' + ids + '&_xagio_nonce=' + xagio_data.nonce;
+                window.location = xagio_data.wp_post + '?action=xagio_export_groups&group_ids=' + ids +
+                                  '&_xagio_nonce=' + xagio_data.nonce;
             })
         },
         /*Export Selected Keywords*/
         exportKeywords: function () {
             $(document).on('click', '.exportKeywords', function () {
                 let keywordIds = [];
+
+                // first check if there is selected keywords
                 $('.xagio-group:not(.template) .keyword-selection:checked').each(function () {
                     keywordIds.push($(this).val());
                 });
 
+                // if no keywords selected then export all keywords
                 if (keywordIds.length < 1) {
-                    xagioNotify("warning", "Please select at least one keyword");
+                    $('.xagio-group:not(.template) .keyword-selection').each(function () {
+                        keywordIds.push($(this).val());
+                    });
+                }
+
+                // check again if keywords are selected
+                if (keywordIds.length < 1) {
+                    xagioNotify("error", "No keywords for export in this project");
                     return false;
                 }
 
@@ -6990,7 +7749,8 @@ let cf_template = cf_templates[cf_default_template].data;
         exportProject         : function () {
             $(document).on('click', '.export_project', function () {
                 let project_id = $(this).attr('data-id');
-                window.location = xagio_data.wp_post + '?action=xagio_export_project&project_id=' + project_id + '&_xagio_nonce=' + xagio_data.nonce;
+                window.location = xagio_data.wp_post + '?action=xagio_export_project&project_id=' + project_id +
+                                  '&_xagio_nonce=' + xagio_data.nonce;
             })
         },
         importProject         : function () {
@@ -7010,7 +7770,8 @@ let cf_template = cf_templates[cf_default_template].data;
             });
         },
         importKeywordPlanner  : function () {
-            $('#importKeywordPlanner').xagio_uploader('xagio_import_keyword_planner&project=' + currentProjectID, actions.loadProjectManually);
+            $('#importKeywordPlanner').xagio_uploader('xagio_import_keyword_planner&project=' +
+                                                      currentProjectID, actions.loadProjectManually);
         },
         createPagePostMulti   : function () {
             $(document).on('click', '.createPagesPosts', function (e) {
@@ -7125,109 +7886,194 @@ let cf_template = cf_templates[cf_default_template].data;
                     handlers: {
 
                         click: function (e) {
+                            e.preventDefault();
+                            const $clicked = $(e.currentTarget);
+                            const word = $clicked.text().trim();
+                            const isGlobal = $clicked.closest('.xagio-keyword-cloud-global').length > 0;
+                            let seed_panel = $('.seed-keywords-inputs');
 
-                            // Vars
-                            let p = $(this).parents('.xagio-group');
-                            let title = p.find('.prs-title');
-                            let desc = p.find('.prs-description');
-                            let url = p.find('.url-edit');
-                            let h1Tag = p.find('.prs-h1tag');
-
-                            if ($(e.currentTarget).hasClass('highlightWordInCloud')) {
-                                $(e.currentTarget).removeClass('highlightWordInCloud');
+                            // Toggle highlight class on the clicked element
+                            if ($clicked.hasClass('highlightWordInCloud')) {
+                                if (isGlobal) {
+                                    selected_seed_keywords = jQuery.grep(selected_seed_keywords, function (value) {
+                                        return value != word;
+                                    });
+                                }
+                                $clicked.removeClass('highlightWordInCloud');
                             } else {
-                                $(e.currentTarget).addClass('highlightWordInCloud');
+                                if (isGlobal) {
+                                    selected_seed_keywords.push(word);
+                                }
+                                $clicked.addClass('highlightWordInCloud');
                             }
 
-                            // Remove b tag from title, desciption, url, H1
-                            p.find('.updateGroup b').each(function () {
-                                title.html(title.html().replace(/<b class="highlightCloud">(.+)<\/b>/gi, "$1"));
-                                desc.html(desc.html().replace(/<b class="highlightCloud">(.+)<\/b>/gi, "$1"));
-                                url.html(url.html().replace(/<b class="highlightCloud">(.+)<\/b>/gi, "$1"));
-                                h1Tag.html(h1Tag.html().replace(/<b class="highlightCloud">(.+)<\/b>/gi, "$1"));
-                            });
+                            seed_panel.empty();
+                            for (let j = 0; j < selected_seed_keywords.length; j++) {
+                                let kw = selected_seed_keywords[j];
+                                let template_panel = $(".seed_panel_container_template.xagio-hidden").clone().removeClass('xagio-hidden');
+                                seed_panel.append(template_panel);
+                                seed_panel.find('[name="seed_group_name[]"]').eq(j).val(kw);
+                                seed_panel.find('[name="seed_keywords[]"]').eq(j).val(kw);
+                            }
 
-                            // Remove b tag from keywords
-                            for (let m = 0; m < 15; m++) {
-                                p.find('.keywordInput[data-target="keyword"]').each(function () {
-                                    let tr = $(this).parents(".ui-sortable-handle");
-                                    let checkbox = tr.find("input.keyword-selection");
+                            if (isGlobal && selected_seed_keywords.length > 0) {
+                                $('.seed-keywords-panel-start').hide();
+                                $('.seed-keywords-panel-select').show();
+                            } else {
+                                $('.seed-keywords-panel-start').show();
+                                $('.seed-keywords-panel-select').hide();
+                            }
 
-                                    checkbox.prop('checked', false);
-                                    tr.removeClass("selected");
-                                    $(this).html($(this).html().replace(/<b class="highlightCloud">(.+)<\/b>/gi, "$1"));
+
+                            // Determine groups: all groups for global, or just the current group
+                            let groups = isGlobal ? $('.project-groups').find('.xagio-group') : $clicked.closest('.xagio-group');
+
+                            groups.each(function () {
+                                const group = $(this);
+                                // Set last seed group id from this group
+                                lastSeedGroupId = group.find('[name="group_id"]').val();
+
+                                // Clear all seed group containers and reset inputs
+                                const seedKeywordModal = $('#seedKeywordsModal');
+                                seedKeywordModal.find(".seed_group_container_template").remove();
+                                seedKeywordModal.find("input[type='text']").val("");
+
+                                //Vars
+                                let title = group.find('.prs-title');
+                                let desc  = group.find('.prs-description');
+                                let url   = group.find('.url-edit');
+                                let h1Tag = group.find('.prs-h1tag');
+
+                                // Remove b tag from title, description, url, H1
+                                group.find('.updateGroup b').each(function () {
+                                    title.html(title.html().replace(/<b class="highlightCloud">(.+)<\/b>/gi, "$1"));
+                                    desc.html(desc.html().replace(/<b class="highlightCloud">(.+)<\/b>/gi, "$1"));
+                                    url.html(url.html().replace(/<b class="highlightCloud">(.+)<\/b>/gi, "$1"));
+                                    h1Tag.html(h1Tag.html().replace(/<b class="highlightCloud">(.+)<\/b>/gi, "$1"));
                                 });
-                            }
 
-                            // Add b tag in title, desciption, url, keywords, H1
-                            p.find('.cloud.template.seen.jqcloud').find('.highlightWordInCloud').each(function () {
-                                let t = $(this).text();
-                                let title_matches = title.html().match(new RegExp($(this).text(), 'gi'));
-                                let desc_matches = desc.html().match(new RegExp($(this).text(), 'gi'));
-                                let url_matches = url.html().match(new RegExp($(this).text(), 'gi'));
-                                let h1Tag_matches = h1Tag.html().match(new RegExp($(this).text(), 'gi'));
-
-                                if (title_matches !== null) {
-                                    for (let j = 0; j < title_matches.length; j++) {
-                                        const titleMatch = title_matches[j];
-                                        const titleReg = new RegExp(`\\b(${titleMatch})\\b`, "g");
-                                        title.html(title.html().replace(titleReg, '<b class="highlightCloud">' +
-                                                                                  titleMatch + '</b>'));
+                                // Remove any existing highlight for this word in the group's keywords
+                                group.find('.keywordInput[data-target="keyword"]').each(function () {
+                                    const $kwElem = $(this);
+                                    const newHtml = $kwElem.html().replace(
+                                        new RegExp(`<b\\s+class="highlightCloud">\\s*${actions.escapeRegExp(word)}\\s*<\\/b>`, "gi"),
+                                        word
+                                    );
+                                    $kwElem.html(newHtml);
+                                    const tr = $kwElem.closest(".ui-sortable-handle");
+                                    if($kwElem.find('b').length < 1) {
+                                        tr.find("input.keyword-selection").prop('checked', false);
+                                        tr.removeClass("selected");
                                     }
-                                }
+                                });
 
-                                if (desc_matches !== null) {
-                                    for (let j = 0; j < desc_matches.length; j++) {
-                                        const descMatch = desc_matches[j];
-                                        const descReg = new RegExp(`\\b(${descMatch})\\b`, "g");
-                                        desc.html(desc.html().replace(descReg, '<b class="highlightCloud">' +
-                                                                               descMatch + '</b>'));
-
+                                // If the clicked word is now highlighted, add highlighting and update seed form containers
+                                if ($clicked.hasClass('highlightWordInCloud')) {
+                                    let forms = $('#seedKeywordsForm');
+                                    // Get the cloud container that holds highlighted words
+                                    let cloud;
+                                    if (isGlobal) {
+                                        cloud = $('.xagio-keyword-cloud-global').find('.cloud.template.seen.jqcloud').find('.highlightWordInCloud');
+                                    } else {
+                                        cloud = group.find('.cloud.template.seen.jqcloud').find('.highlightWordInCloud');
                                     }
-                                }
 
-                                if (url_matches !== null) {
-                                    for (let j = 0; j < url_matches.length; j++) {
-                                        const urlMatch = url_matches[j];
-                                        const urlReg = new RegExp(`\\b(${urlMatch})\\b`, "g");
-                                        url.html(url.html().replace(urlReg, '<b class="highlightCloud">' + urlMatch +
-                                                                            '</b>'));
 
-                                    }
-                                }
+                                    // Loop through each highlighted word in the cloud to update the seed form
+                                    cloud.each(function (i) {
+                                        const t = $(this).text().trim();
 
-                                if (h1Tag_matches !== null) {
-                                    for (let j = 0; j < h1Tag_matches.length; j++) {
-                                        const h1TagMatch = h1Tag_matches[j];
-                                        const h1TagReg = new RegExp(`\\b(${h1TagMatch})\\b`, "g");
-                                        h1Tag.html(h1Tag.html().replace(h1TagReg, '<b class="highlightCloud">' +
-                                                                                  h1TagMatch + '</b>'));
 
-                                    }
-                                }
+                                        if (i > 0) {
+                                            let template = $(".seed_group_container_template.xagio-hidden").clone().removeClass('xagio-hidden');
+                                            $("#seed_group_container").append(template);
+                                        }
 
-                                p.find('.keywordInput[data-target="keyword"]').each(function () {
-                                    let tr = $(this).parents(".ui-sortable-handle");
-                                    let checkbox = tr.find("input.keyword-selection");
+                                        forms.find('[name="seed_group_name[]"]').eq(i).val(t);
+                                        forms.find('[name="seed_keywords[]"]').eq(i).val(t);
 
-                                    let keywordReg = new RegExp(`\\b${t}\\b`, 'gi');
 
-                                    let keyword_matches = $(this).html().match(keywordReg);
-                                    if (keyword_matches != null) {
-                                        for (let j = 0; j < keyword_matches.length; j++) {
-                                            const keywordMatch = keyword_matches[j];
+                                        // Add b tag in title, desciption, url, keywords, H1
+                                        let title_matches = title.html().match(new RegExp($(this).text(), 'gi'));
+                                        let desc_matches  = desc.html().match(new RegExp($(this).text(), 'gi'));
+                                        let url_matches   = url.html().match(new RegExp($(this).text(), 'gi'));
+                                        let h1Tag_matches = h1Tag.html().match(new RegExp($(this).text(), 'gi'));
 
-                                            $(this).html($(this).html().replace(new RegExp(`\\b${keywordMatch}\\b`, "g"), '<b class="highlightCloud">' + keywordMatch + '</b>'));
-
-                                            if (!checkbox.is(':checked')) {
-                                                checkbox.prop('checked', true);
-                                                tr.addClass("selected");
+                                        if (title_matches !== null) {
+                                            for (let j = 0; j < title_matches.length; j++) {
+                                                const titleMatch = title_matches[j];
+                                                const titleReg   = new RegExp(`\\b(${titleMatch})\\b`, "g");
+                                                title.html(title.html().replace(titleReg, '<b class="highlightCloud">' + titleMatch + '</b>'));
                                             }
                                         }
-                                    }
-                                });
+
+                                        if (desc_matches !== null) {
+                                            for (let j = 0; j < desc_matches.length; j++) {
+                                                const descMatch = desc_matches[j];
+                                                const descReg   = new RegExp(`\\b(${descMatch})\\b`, "g");
+                                                desc.html(desc.html().replace(descReg, '<b class="highlightCloud">' + descMatch + '</b>'));
+
+                                            }
+                                        }
+
+                                        if (url_matches !== null) {
+                                            for (let j = 0; j < url_matches.length; j++) {
+                                                const urlMatch = url_matches[j];
+                                                const urlReg   = new RegExp(`\\b(${urlMatch})\\b`, "g");
+                                                url.html(url.html().replace(urlReg, '<b class="highlightCloud">' + urlMatch + '</b>'));
+
+                                            }
+                                        }
+
+                                        if (h1Tag_matches !== null) {
+                                            for (let j = 0; j < h1Tag_matches.length; j++) {
+                                                const h1TagMatch = h1Tag_matches[j];
+                                                const h1TagReg   = new RegExp(`\\b(${h1TagMatch})\\b`, "g");
+                                                h1Tag.html(h1Tag.html().replace(h1TagReg, '<b class="highlightCloud">' + h1TagMatch + '</b>'));
+
+                                            }
+                                        }
+                                    });
+
+
+                                    // For each keyword in this group, wrap matching occurrences of the clicked word with <b>
+                                    group.find('.keywordInput[data-target="keyword"]').each(function () {
+                                        const $kwElem = $(this);
+                                        let html = $kwElem.html();
+                                        let newHtml = html.replace(
+                                            new RegExp(`\\b(${actions.escapeRegExp(word)})\\b`, "gi"),
+                                            '<b class="highlightCloud">$1</b>'
+                                        );
+                                        $kwElem.html(newHtml);
+                                        const tr = $kwElem.closest(".ui-sortable-handle");
+                                        if (newHtml.indexOf('<b class="highlightCloud">') !== -1) {
+                                            tr.find("input.keyword-selection").prop('checked', true);
+                                            tr.addClass("selected");
+                                        }
+                                    });
+                                }
                             });
+
+                            // Update the text of the keywords-action-button based on the count of highlighted keywords
+                            let cloud;
+                            if (isGlobal) {
+                                lastSeedGroupId = 0;
+                                cloud = $('.xagio-keyword-cloud-global').find('.cloud.template.seen.jqcloud').find('.highlightWordInCloud');
+                            } else {
+                                cloud = $clicked.parents('.cloud.template.seen.jqcloud').find('.highlightWordInCloud');
+                            }
+                            let selectedKeywordsCount = cloud.length;
+                            if (selectedKeywordsCount > 0) {
+                                $('.seedKeyword').html(`Seed Keywords <span class="seed_keywords_selected">(${selectedKeywordsCount})</span>`);
+                                $('.keywords-action-button').html(`Keywords<span class="seed_keywords_selected">Seed (${selectedKeywordsCount})</span> <i class="xagio-icon xagio-icon-arrow-down"></i>`);
+                            } else {
+                                $('.seedKeyword').html('Seed Keywords');
+                                $('.keywords-action-button').html('Keywords <i class="xagio-icon xagio-icon-arrow-down"></i>');
+                            }
+
+
                         }
+
                     }
                 };
                 for (let j = 0; j < words.length; j++) {
@@ -7285,7 +8131,8 @@ let cf_template = cf_templates[cf_default_template].data;
 
                 let wordCount = $(this).html().replace(/\&nbsp\;/g, ' ').replace(/\s+/g, ' ').trim().length;
                 if (wordCount > 70) {
-                    $(this).parents('.group-seo').find('.count-seo-title').html('<span class="xagio-seo-count-danger">' + wordCount +
+                    $(this).parents('.group-seo').find('.count-seo-title').html('<span class="xagio-seo-count-danger">' +
+                                                                                wordCount +
                                                                                 '</span>');
                 } else {
                     $(this).parents('.group-seo').find('.count-seo-title').html(wordCount);
@@ -7951,11 +8798,11 @@ let cf_template = cf_templates[cf_default_template].data;
                 let auditModal = $('#auditWebsiteModal');
 
                 $('#auditWebsite_lang').select2({
-                    matcher       : matcher,
-                    dropdownParent: auditModal,
-                    width: '100%',
-                    placeholder   : "Select Location"
-                });
+                                                    matcher       : matcher,
+                                                    dropdownParent: auditModal,
+                                                    width         : '100%',
+                                                    placeholder   : "Select Location"
+                                                });
 
                 // set also hidden input field value
                 $("#auditWebsite_langCode_internal").val(locationCode);
@@ -7966,11 +8813,11 @@ let cf_template = cf_templates[cf_default_template].data;
                 let auditModalInternal = $('#auditWebsiteModalInternal');
 
                 $('#auditWebsite_lang_internal').select2({
-                    matcher       : matcher,
-                    dropdownParent: auditModalInternal,
-                    width: '100%',
-                    placeholder   : "Select Location"
-                });
+                                                             matcher       : matcher,
+                                                             dropdownParent: auditModalInternal,
+                                                             width         : '100%',
+                                                             placeholder   : "Select Location"
+                                                         });
             }
         },
 
@@ -7992,7 +8839,7 @@ let cf_template = cf_templates[cf_default_template].data;
                 $('#top_ten_search_location option').removeAttr('selected');
                 $(`#top_ten_search_location option[value=${value}]`).attr('selected', true);
             }
-        }
+        },
 
     };
 

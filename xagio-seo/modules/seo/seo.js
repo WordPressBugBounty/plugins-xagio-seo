@@ -101,9 +101,11 @@ let aiSchemaStatusTimeout = null;
             ai_content.loadSchemaStatus();
             ai_content.generateSchema();
             ai_content.generateContent();
+            ai_content.generateTemplateContent();
             ai_content.changeContent();
             ai_content.insertContent();
             ai_content.makeRequest();
+            ai_content.nextStep();
             ai_content.changeAiPrompt();
         },
         makeRequest        : function () {
@@ -114,6 +116,16 @@ let aiSchemaStatusTimeout = null;
                 $('body').append(`<button class="${target}" type="button">...</b`);
                 $('.' + target).trigger('click').remove();
                 $('#aiPrice')[0].close();
+            });
+        },
+        nextStep : function () {
+            $(document).on("click", ".aiPrice-next-step", function () {
+
+                let btn = $(this);
+
+                ai_content.openAveragePrices(btn, "AI Generated JSON Schema", "SCHEMA","generateAiSchema", function () {
+                    $("#aiProfiles")[0].close();
+                });
             });
         },
         loadSchemaStatus   : function () {
@@ -206,7 +218,7 @@ let aiSchemaStatusTimeout = null;
 
                 // if guteberg
                 if (search_preview.isGuteberg()) {
-                    wp.data.dispatch('core/editor').resetBlocks(wp.blocks.parse(output));
+                    wp.data.dispatch('core/block-editor').resetBlocks(wp.blocks.parse(output));
                 } else {
                     tinymce.editors['content'].execCommand('mceInsertContent', false, output);
                 }
@@ -236,6 +248,7 @@ let aiSchemaStatusTimeout = null;
                         let output = history[0]['output'];
                         output = output.replace(/\n/ig, "");
                         output = output.replace(/\r/ig, "");
+
                         tinymce.editors['aiContentEditor'].setContent(output);
                     }
 
@@ -251,13 +264,22 @@ let aiSchemaStatusTimeout = null;
                     let status = d.status;
                     if (status === 'running') {
                         ai_content.checkAiStatus(input, target_id);
+                        $('.replaceAiTemplateContent').hide();
+
                     } else {
-                        // Load History
-                        let btn = $('.confirmGenerateAiContent');
-                        btn.attr('disabled', false);
-                        btn.html('<i class="xagio-icon xagio-icon-save"></i> Generate');
-                        $('.insertAiContent').show();
-                        ai_content.loadContentHistory();
+                        if(input === 'PAGE_CONTENT') {
+                            // Load History
+                            let btn = $('.confirmGenerateAiContent');
+                            btn.attr('disabled', false);
+                            btn.html('<i class="xagio-icon xagio-icon-save"></i> Generate');
+                            $('.insertAiContent').show();
+                            ai_content.loadContentHistory();
+                        }
+
+                        if(input === 'PAGE_CONTENT_TEMPLATE') {
+                            $('.replaceAiTemplateContent').show();
+                            $('.confirmGenerateAiTemplateContent').attr('disabled', false).find('i').removeClass().addClass('xagio-icon xagio-icon-check');
+                        }
                     }
                 });
             }, 4000);
@@ -284,10 +306,8 @@ let aiSchemaStatusTimeout = null;
         generateSchema     : function () {
             $(document).on('click', '.confirmGenerateAiSchema', function (e) {
                 e.preventDefault();
-                let btn = $(this);
 
-                ai_content.openAveragePrices(btn, "AI Generated JSON Schema", "SCHEMA", "generateAiSchema");
-
+                $('#aiProfiles')[0].showModal();
             });
             $(document).on('click', '.generateAiSchema', function (e) {
                 let btn = $('.confirmGenerateAiSchema');
@@ -298,18 +318,6 @@ let aiSchemaStatusTimeout = null;
                 let schema = 'creative';
 
                 let data = [
-                    {
-                        'name' : 'h1',
-                        'value': h1
-                    },
-                    {
-                        'name' : 'title',
-                        'value': title
-                    },
-                    {
-                        'name' : 'description',
-                        'value': description
-                    },
                     {
                         'name' : 'schema',
                         'value': schema
@@ -327,6 +335,13 @@ let aiSchemaStatusTimeout = null;
                         'value': $('#prompt_id').val()
                     }
                 ];
+
+                $('.ai-schema-input').each(function() {
+                    data.push({
+                        name: $(this).attr('name'),
+                        value: $(this).val()
+                    });
+                });
 
                 // if title/desc/h1 is empty, don't generate content, show error
                 if (title == '' || description == '') {
@@ -391,14 +406,13 @@ let aiSchemaStatusTimeout = null;
                 $('#aiPrice').find('.average-price').html(parseFloat(selected_prompt.price.toFixed(3)));
             });
         },
-        openAveragePrices  : function (btn, title, input, target) {
+        openAveragePrices  : function (btn, title, input, target, callback) {
             btn.disable();
 
             $.post(xagio_data.wp_post, `action=xagio_ai_get_average_prices`, function (d) {
                 btn.disable();
 
                 if (d.status == 'error') {
-                    xagioNotify('danger', 'There was a problem establishing connection, please contact Support.');
                     return;
                 }
 
@@ -428,7 +442,139 @@ let aiSchemaStatusTimeout = null;
                 $('#aiPrice')[0].showModal();
 
                 actions.refreshXags();
+
+                if (callback) {
+                    callback();
+                }
             });
+        },
+        generateTemplateContent    : function () {
+            $(document).on('click', '.copyTemplatePage', function (e) {
+                e.preventDefault();
+                let btn = $(this);
+                let page_id = btn.data('page-id');
+                let page_type = btn.data('page-type');
+
+                $.post(xagio_data.wp_post, `action=xagio_copy_template_page&page_id=${page_id}&page_type=${page_type}`, function (d) {
+
+                    xagioNotify(d.status, d.message);
+
+                });
+
+            });
+
+
+            $(document).on('click', '.confirmGenerateAiTemplateContent', function (e) {
+                e.preventDefault();
+                let btn = $(this);
+
+                ai_content.openAveragePrices(btn, 'AI Generated Elementor Template Content', "PAGE_CONTENT_TEMPLATE", "generateAiTemplateContent");
+
+            });
+
+            $(document).on('click', '.generateAiTemplateContent', function (e) {
+                let btn = $('.confirmGenerateAiTemplateContent');
+
+                let price = parseInt($('#aiPrice').find('.average-price').html());
+                let credits = parseInt($('#aiPrice').find('.ai-credits').html());
+
+
+                if (credits < price) {
+                    xagioNotify("danger", "You do not have enough AI Credits, please top up and try again!");
+                    return;
+                }
+
+                let style = $('#ai-writing-style option:selected').val();
+                let tone = $('#ai-writing-tone option:selected').val();
+
+                let data = [
+                    {
+                        'name' : 'action',
+                        'value': 'xagio_ai_template_content'
+                    },
+                    {
+                        'name' : 'content_style',
+                        'value': style
+                    },
+                    {
+                        'name' : 'content_tone',
+                        'value': tone
+                    },
+                    {
+                        'name' : 'post_id',
+                        'value': $('#xagio_post_id').val()
+                    },
+                    {
+                        'name' : 'prompt_id',
+                        'value': $('#prompt_id').val()
+                    }
+                ];
+
+                // disable button and add spinner
+                btn.disable();
+
+                $.post(xagio_data.wp_post, data, function (d) {
+
+                    if (d.status == 'upgrade') {
+                        // show aiUpgrade modal
+                        $('#aiUpgrade')[0].showModal();
+                        return;
+                    }
+
+                    xagioNotify(d.status, d.message, true);
+
+                    if (d.status == 'error') {
+                        btn.disable();
+                        return;
+                    }
+
+
+                    ai_content.checkAiStatus("PAGE_CONTENT_TEMPLATE", $('#xagio_post_id').val());
+                });
+
+            });
+
+            $(document).on('click', '.replaceAiTemplateContent', function () {
+
+
+                let data = [
+                    {
+                        'name' : 'action',
+                        'value': 'xagio_ai_use_template_content'
+                    },
+                    {
+                        'name' : 'post_id',
+                        'value': $('#xagio_post_id').val()
+                    }
+                ];
+
+
+                $.post(xagio_data.wp_post, data, function (d) {
+                    xagioNotify(d.status, d.message);
+                });
+            });
+
+
+            $(document).on('click', '.undoAiTemplateContent', function () {
+
+
+                let data = [
+                    {
+                        'name' : 'action',
+                        'value': 'xagio_ai_undo_template_content'
+                    },
+                    {
+                        'name' : 'post_id',
+                        'value': $('#xagio_post_id').val()
+                    }
+                ];
+
+
+                $.post(xagio_data.wp_post, data, function (d) {
+                    xagioNotify(d.status, d.message);
+                });
+            });
+
         },
         generateContent    : function () {
             $(document).on('click', '.confirmGenerateAiContent', function (e) {
@@ -999,7 +1145,7 @@ let aiSchemaStatusTimeout = null;
                 let schemas = d.data;
 
                 if (schemas.length > 0) {
-                    let schema_html = '<div class="assigned-schema-panel">';
+                    let schema_html = '<p class="xagio-text-info">Click the schema name to open the editor.</p><div class="assigned-schema-panel">';
                     let selected = '';
                     for (let i = 0; i < schemas.length; i++) {
                         let schema = schemas[i];
@@ -1198,12 +1344,14 @@ let aiSchemaStatusTimeout = null;
                     if (d.status == 'error') {
                         xagioNotify("danger", d.message);
                     } else {
+                        let container = $(".schemaValidationResult");
+                        container.empty();
+
+                        container.append('<pre id="renderedSchema"><code class="json"></code></pre>');
+
                         let renderedSchema = $('#renderedSchema').find('code');
                         renderedSchema.html('&lt;script type="application/ld+json"&gt;' + "\n" +
                                             JSON.stringify(d.data, null, 2) + "\n" + '&lt;/script&gt;');
-
-                        let modal = $("#renderSchemasModal");
-                        modal[0].showModal();
                     }
                 });
             });
@@ -1218,6 +1366,11 @@ let aiSchemaStatusTimeout = null;
                     if (d.status == 'error') {
                         xagioNotify("danger", d.message);
                     } else {
+                        let container = $(".schemaValidationResult");
+                        container.empty();
+
+                        container.append('<div class="schemaValidationOutput">');
+
                         let schemaOutput = $('.schemaValidationOutput');
                         schemaOutput.empty();
                         if (d.data.numObjects > 0) {
@@ -1921,10 +2074,12 @@ let aiSchemaStatusTimeout = null;
                                     obj.value + "' required/>";
                             break;
                         case "text":
+                            obj.value = obj.value.replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\s+/g, ' ').trim();
                             html += "<input class='xagio-input-text-mini' name='" + fieldName + "' id='" + property +
                                     "' value='" + obj.value + "' required/>";
                             break;
                         case "textarea":
+                            obj.value = obj.value.replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\s+/g, ' ').trim();
                             html += "<textarea class='xagio-input-textarea' name='" + fieldName + "' id='" + property +
                                     "' required>" + obj.value + "</textarea>";
                             break;
@@ -1989,7 +2144,9 @@ let aiSchemaStatusTimeout = null;
                     $('.swSelectedType').text(type);
 
                     // Set the final name
-                    $('#swName').val($('#title').length != 0 ? $('#title').val() : $('#post-title-0').val());
+                    let finalName = search_preview.getH1();
+                    finalName = finalName.replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\s+/g, ' ').trim();
+                    $('#swName').val(finalName);
 
                     // Render the fields
                     swFields.empty();
@@ -2107,7 +2264,7 @@ let aiSchemaStatusTimeout = null;
 
             $('fieldset.xagio-robots-optional input[name="XAGIO_SEO_META_ROBOTS_ADVANCED[]"]').each(function () {
                 let no_robots_val = $(this).val();
-                console.log(no_robots_val);
+
                 if (no_robots_val.length > 0) {
                     robots.push(no_robots_val);
                 }
@@ -2175,9 +2332,27 @@ let aiSchemaStatusTimeout = null;
         selectImages      : function () {
             $('.imageSelect').click(function () {
                 let target = $(this).data('target');
+                $(this).parents('.xagio-modal').append("<div id='TB_window'></div>");
                 tb_show('', 'media-upload.php?type=image&amp;TB_iframe=true');
+
+                $('#TB_iframeContent').on('load', function () {
+                    const iframe = this.contentWindow || this.contentDocument;
+                    const doc = iframe.document || iframe;
+
+                    const style = doc.createElement('style');
+                    style.textContent = `
+                        .media-item {
+                          display: inline-block;
+                        }
+                        form#filter {
+                          width: unset !important;
+                        }
+                      `;
+                    doc.head.appendChild(style);
+                });
+
                 window.send_to_editor = function (html) {
-                    var img = $(html).attr('src');
+                    let img = $(html).attr('src');
                     $('#' + target).val(img).trigger('change');
                     tb_remove();
                 }
@@ -2284,8 +2459,6 @@ let aiSchemaStatusTimeout = null;
 
             $(document).on('change', `#XAGIO_SEO_${bwhat}_IMAGE`, function (e) {
                 // if $(this).val() is an image url continue
-                console.log("CHANGE");
-                console.log($(this).val());
                 if ($(this).val().match(/\.(jpeg|jpg|gif|png)$/) != null) {
                     $(`.${swhat}-image-preview`).attr('src', $(this).val());
                 }
@@ -3403,6 +3576,11 @@ let aiSchemaStatusTimeout = null;
 
                                 let volume_color, cpc_color;
 
+                                keyword.volume = search_preview.cleanComma(keyword.volume);
+                                keyword.cpc = search_preview.cleanComma(keyword.cpc);
+                                keyword.intitle = search_preview.cleanComma(keyword.intitle);
+                                keyword.inurl = search_preview.cleanComma(keyword.inurl);
+
                                 if (keyword.volume == "") {
                                     volume_color = 'tr_red';
                                 } else if (parseFloat(search_preview.cf_template.volume_red) >= parseFloat(keyword.volume)) {
@@ -3651,7 +3829,7 @@ let aiSchemaStatusTimeout = null;
             $(document).on('click', '.to-keyword-group', function (e) {
                 e.preventDefault();
 
-                if ($('.xagio-detach-group.xagio-hidden').length > 0) {
+                if ($('.xagio-group-container.xagio-hidden').length > 0) {
                     notify('error', 'Please attach a group before adding keywords.');
                     return;
                 }
@@ -4002,7 +4180,7 @@ let aiSchemaStatusTimeout = null;
                 let position = 1;
                 $('.group-keywords').find('tr').each(function () {
                     let keyword = {};
-                    keyword['id'] = $(this).data('id');
+                    keyword['id'] = $(this).attr('data-id');
                     keyword['position'] = position;
                     position++;
                     let allNull = true;
@@ -4040,10 +4218,20 @@ let aiSchemaStatusTimeout = null;
                 btn.disable();
 
                 $.post(xagio_data.wp_post, data, function (d) {
+                    let data = d.data;
+
+                    if (data.length > 0) {
+                        let noIdRows = $('.keywords-data.group-keywords').find('tr[data-id="0"]');
+                        noIdRows.each(function(index) {
+                            if (data[index]) {
+                                $(this).attr('data-id', data[index]).addClass('ui-sortable-handle');
+                            }
+                        });
+                    }
                     // Give user a sense of success
                     setTimeout(function () {
                         btn.disable();
-                        notify('success', 'Changes saved successfully.');
+                        notify(d.status, d.message);
                     }, 1500);
                 });
 
@@ -4099,15 +4287,24 @@ let aiSchemaStatusTimeout = null;
 
                             let volume_color, cpc_color, intitle_color, inurl_color, tr_color, ur_color;
 
+                            keyword.volume = search_preview.cleanComma(keyword.volume);
+                            keyword.cpc = search_preview.cleanComma(keyword.cpc);
+                            keyword.intitle = search_preview.cleanComma(keyword.intitle);
+                            keyword.inurl = search_preview.cleanComma(keyword.inurl);
+
                             let title_ratio = "";
-                            if (keyword.volume != "" && keyword.intitle != "") {
+                            if (keyword.intitle == 0 && keyword.intitle !== "") {
+                                title_ratio = "0";
+                            } else if (keyword.volume != "" && keyword.intitle != "") {
                                 if (keyword.volume != 0) {
                                     title_ratio = keyword.intitle / keyword.volume;
                                 }
                             }
 
                             let url_ratio = "";
-                            if (keyword.volume !== "" && keyword.inurl !== "") {
+                            if (keyword.inurl == 0 && keyword.inurl !== "") {
+                                url_ratio = "0";
+                            } else if (keyword.volume !== "" && keyword.inurl !== "") {
                                 if (keyword.volume != 0) {
                                     url_ratio = keyword.inurl / keyword.volume;
                                 }
@@ -4441,6 +4638,13 @@ let aiSchemaStatusTimeout = null;
                 return parseInt(num).toLocaleString();
             }
         },
+        cleanComma          : function (num) {
+            if (typeof num === 'string') {
+                num = num.replaceAll(',', '');
+            }
+
+            return num;
+        },
         titleDescriptionCalculation : function () {
             search_preview.calculateProgressTitle();
             search_preview.calculateProgressDescription();
@@ -4574,7 +4778,7 @@ let aiSchemaStatusTimeout = null;
             } else {
                 title = $('#prs-title').val().trim();
             }
-            return title.toLowerCase();
+            return title;
         },
         getTitleLength              : () => {
             let title = $('#XAGIO_SEO_TITLE').html();
@@ -4606,10 +4810,26 @@ let aiSchemaStatusTimeout = null;
                 return $this;
             }).on('paste', '.xagio-editor[contenteditable="true"]', function (e) {
                 e.preventDefault();
-                // get text representation of clipboard
                 let text = (e.originalEvent || e).clipboardData.getData('text/plain');
-                // insert text manually
-                $(this).html($(this).html() + text).trigger('change');
+                let sel  = window.getSelection();
+                if (!sel.rangeCount) return;
+
+                // get the current range (where the caret is)
+                let range = sel.getRangeAt(0);
+                // remove any selected content
+                range.deleteContents();
+                // insert a plain text node
+                let node = document.createTextNode(text);
+                range.insertNode(node);
+
+                // move the caret to just after our inserted node
+                range.setStartAfter(node);
+                range.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(range);
+
+                // trigger your change event
+                $(this).trigger('change');
             });
             $('.xagio-editor').change(function (e) {
                 e.stopPropagation();

@@ -7,6 +7,8 @@ if (!class_exists('XAGIO_API')) {
     class XAGIO_API
     {
 
+        private static $captured_wp_die = null;
+
         public static function initialize()
         {
             // Fixes for plugins that disable App Passwords
@@ -143,101 +145,34 @@ if (!class_exists('XAGIO_API')) {
         {
             // General API request route
             register_rest_route(
-                'xagio-seo/v1',
-                '/api',
-                [
-                    'methods'  => 'POST',
-                    'callback' => ['XAGIO_API', 'handleRequest'],
+                'xagio-seo/v1', '/api', [
+                    'methods'             => 'POST',
+                    'callback'            => [
+                        'XAGIO_API',
+                        'handleRequest'
+                    ],
 
                     // Permission callback to verify either:
                     //  - The user is already logged in (and is super admin), OR
                     //  - Valid credentials are passed in the X-Xagio-Auth header.
-                    'permission_callback' => function ($request) {
-
-                        // 1. OLD LOGIC: Check if user is logged in and is super admin
-                        if (is_user_logged_in() && is_super_admin()) {
-                            return true;
-                        }
-
-                        // 2. NEW LOGIC: Otherwise, check for X-Xagio-Auth header
-                        $authHeader = $request->get_header('x-xagio-auth');
-                        if (empty($authHeader)) {
-                            return new WP_Error(
-                                'missing_auth_header',
-                                'X-Xagio-Auth header is missing.',
-                                ['status' => 401]
-                            );
-                        }
-
-                        // Decode the header from Base64 (using strict mode)
-                        $decoded = base64_decode($authHeader, true);
-                        if ($decoded === false) {
-                            return new WP_Error(
-                                'invalid_base64',
-                                'Invalid X-Xagio-Auth header (not valid Base64).',
-                                ['status' => 401]
-                            );
-                        }
-
-                        // Expect credentials in "username:password" format
-                        $parts = explode(':', $decoded, 2);
-                        if (count($parts) !== 2) {
-                            return new WP_Error(
-                                'invalid_credentials_format',
-                                'Could not parse username:password from X-Xagio-Auth header.',
-                                ['status' => 401]
-                            );
-                        }
-
-                        list($username, $password) = $parts;
-
-                        // 3. Attempt to authenticate the user with normal credentials
-                        $user = wp_authenticate($username, $password);
-
-                        // If normal credential check fails, try application passwords (if available)
-                        if (is_wp_error($user)) {
-                            // Check if WordPress Application Passwords are enabled (introduced in WP 5.6+)
-                            if (
-                                function_exists('wp_is_application_passwords_available') &&
-                                wp_is_application_passwords_available()
-                            ) {
-                                $app_user = wp_authenticate_application_password(null, $username, $password);
-                                if (is_wp_error($app_user)) {
-                                    return new WP_Error(
-                                        'authentication_failed',
-                                        'Invalid username or password (normal or app password).',
-                                        ['status' => 401]
-                                    );
-                                }
-                                // If we get here, the user is authenticated using an app password
-                                $user = $app_user;
-                            } else {
-                                // App passwords not available or also invalid
-                                return new WP_Error(
-                                    'authentication_failed',
-                                    'Invalid username or password (normal credentials).',
-                                    ['status' => 401]
-                                );
-                            }
-                        }
-
-                        // 4. At this point, $user is authenticated either via normal password or app password
-                        wp_set_current_user($user->ID);
-
-                        // 5. Check if the newly authenticated user is a super admin
-                        if (!is_super_admin($user->ID)) {
-                            return new WP_Error(
-                                'permission_denied',
-                                'You do not have the required privileges.',
-                                ['status' => 403]
-                            );
-                        }
-
-                        // If we reach this point, the user is valid and has super admin privileges
-                        return true;
-                    },
+                    'permission_callback' => [
+                        'XAGIO_API',
+                        'restPermissionCheck'
+                    ],
                 ]
             );
+
+            register_rest_route('xagio-seo/v1', '/templates/install', [
+                'methods'             => 'POST',
+                'callback'            => [
+                    'XAGIO_API',
+                    'installTemplateByKey'
+                ],
+                'permission_callback' => [
+                    'XAGIO_API',
+                    'restPermissionCheck'
+                ]
+            ]);
 
             // General API request route
             register_rest_route('xagio-seo/v1', '/ping', [
@@ -279,6 +214,68 @@ if (!class_exists('XAGIO_API')) {
 
         }
 
+        public static function restPermissionCheck($request)
+        {
+            if ($request === null) {
+                return new WP_Error('invalid_request', 'Invalid REST request context.', ['status' => 400]);
+            }
+
+            if (is_user_logged_in() && is_super_admin()) {
+                return true;
+            }
+
+            $authHeader = $request->get_header('x-xagio-auth');
+            if (empty($authHeader)) {
+                return new WP_Error(
+                    'missing_auth_header', 'X-Xagio-Auth header is missing.', ['status' => 401]
+                );
+            }
+
+            $decoded = base64_decode($authHeader, true);
+            if ($decoded === false) {
+                return new WP_Error(
+                    'invalid_base64', 'Invalid X-Xagio-Auth header (not valid Base64).', ['status' => 401]
+                );
+            }
+
+            $parts = explode(':', $decoded, 2);
+            if (count($parts) !== 2) {
+                return new WP_Error(
+                    'invalid_credentials_format', 'Could not parse username:password from X-Xagio-Auth header.', ['status' => 401]
+                );
+            }
+
+            list($username, $password) = $parts;
+
+            $user = wp_authenticate($username, $password);
+
+            if (is_wp_error($user)) {
+                if (function_exists('wp_is_application_passwords_available') && wp_is_application_passwords_available()) {
+                    $app_user = wp_authenticate_application_password(null, $username, $password);
+                    if (is_wp_error($app_user)) {
+                        return new WP_Error(
+                            'authentication_failed', 'Invalid username or password (normal or app password).', ['status' => 401]
+                        );
+                    }
+                    $user = $app_user;
+                } else {
+                    return new WP_Error(
+                        'authentication_failed', 'Invalid username or password (normal credentials).', ['status' => 401]
+                    );
+                }
+            }
+
+            wp_set_current_user($user->ID);
+
+            if (!is_super_admin($user->ID)) {
+                return new WP_Error(
+                    'permission_denied', 'You do not have the required privileges.', ['status' => 403]
+                );
+            }
+
+            return true;
+        }
+
         public static function ping($request = null)
         {
             xagio_json("success", "pong");
@@ -286,27 +283,27 @@ if (!class_exists('XAGIO_API')) {
 
         public static function syncWithPanel($request = null)
         {
-            if (!!empty($_SERVER['SERVER_NAME'])) {
+            if (!defined('XAGIO_DOMAIN') || XAGIO_DOMAIN === '') {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
             XAGIO_API::apiRequest(
                 $endpoint = 'sync', $method = 'GET', [
-                    'domain' => preg_replace('/^www\./', '', sanitize_text_field(wp_unslash($_SERVER['SERVER_NAME']))),
+                    'domain' => XAGIO_DOMAIN,
                 ]
             );
         }
 
         public static function themeSwitch($old_name)
         {
-            if (!!empty($_SERVER['SERVER_NAME'])) {
+            if (!defined('XAGIO_DOMAIN') || XAGIO_DOMAIN === '') {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
             $new_theme = wp_get_theme();
             XAGIO_API::apiRequest(
                 $endpoint = 'themes', $method = 'POST', [
-                    'domain' => preg_replace('/^www\./', '', sanitize_text_field(wp_unslash($_SERVER['SERVER_NAME']))),
+                    'domain' => XAGIO_DOMAIN,
                     'new'    => $new_theme->get('Name'),
                     'old'    => $old_name,
                     'event'  => 'switched',
@@ -316,7 +313,7 @@ if (!class_exists('XAGIO_API')) {
 
         public static function pluginDeleted($root_name, $success)
         {
-            if (!!empty($_SERVER['SERVER_NAME'])) {
+            if (!defined('XAGIO_DOMAIN') || XAGIO_DOMAIN === '') {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
@@ -325,7 +322,7 @@ if (!class_exists('XAGIO_API')) {
             }
             XAGIO_API::apiRequest(
                 $endpoint = 'plugins', $method = 'POST', [
-                    'domain'    => preg_replace('/^www\./', '', sanitize_text_field(wp_unslash($_SERVER['SERVER_NAME']))),
+                    'domain'    => XAGIO_DOMAIN,
                     'root_name' => $root_name,
                     'event'     => 'deleted',
                 ]
@@ -334,13 +331,13 @@ if (!class_exists('XAGIO_API')) {
 
         public static function pluginDeactivated($root_name, $network_activation)
         {
-            if (!!empty($_SERVER['SERVER_NAME'])) {
+            if (!defined('XAGIO_DOMAIN') || XAGIO_DOMAIN === '') {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
             XAGIO_API::apiRequest(
                 $endpoint = 'plugins', $method = 'POST', [
-                    'domain'    => preg_replace('/^www\./', '', sanitize_text_field(wp_unslash($_SERVER['SERVER_NAME']))),
+                    'domain'    => XAGIO_DOMAIN,
                     'root_name' => $root_name,
                     'event'     => 'deactivated',
                 ]
@@ -349,13 +346,13 @@ if (!class_exists('XAGIO_API')) {
 
         public static function pluginActivated($root_name, $network_activation)
         {
-            if (!!empty($_SERVER['SERVER_NAME'])) {
+            if (!defined('XAGIO_DOMAIN') || XAGIO_DOMAIN === '') {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
             XAGIO_API::apiRequest(
                 $endpoint = 'plugins', $method = 'POST', [
-                    'domain'    => preg_replace('/^www\./', '', sanitize_text_field(wp_unslash($_SERVER['SERVER_NAME']))),
+                    'domain'    => XAGIO_DOMAIN,
                     'root_name' => $root_name,
                     'event'     => 'activated',
                 ]
@@ -370,400 +367,395 @@ if (!class_exists('XAGIO_API')) {
 
         public static function getPostTypes($request = null)
         {
-            $post_types = XAGIO_MODEL_SEO::getAllPostTypes();
-            xagio_json('success', 'Retrieved post types.', $post_types);
+            $xagio_post_types = XAGIO_MODEL_SEO::getAllPostTypes();
+
+            xagio_json('success', 'Retrieved post types.', $xagio_post_types);
+        }
+
+        public static function getCategoriesAndTags($request = null)
+        {
+            $data = XAGIO_MODEL_SEO::getAllCategoriesAndTags();
+
+            xagio_json('success', 'Retrieved categories and tags.', $data);
         }
 
         public static function getTaxonomies($request = null)
         {
-            $taxonomies = XAGIO_MODEL_SEO::getAllTaxonomies(FALSE);
-            xagio_json('success', 'Retrieved taxonomies.', $taxonomies);
+            $xagio_taxonomies = XAGIO_MODEL_SEO::getAllTaxonomies(FALSE);
+            xagio_json('success', 'Retrieved taxonomies.', $xagio_taxonomies);
         }
 
-        public static function searchTaxonomies($request = null)
-        {
+        public static function searchTaxonomies( $request = null ) {
             global $wpdb;
 
-            $aColumns = [
-                "{$wpdb->prefix}terms.term_id",
-                "{$wpdb->prefix}terms.name",
-                "{$wpdb->prefix}term_taxonomy.description",
-                "{$wpdb->prefix}term_taxonomy.count",
-                "{$wpdb->prefix}term_taxonomy.taxonomy",
+            // Paging (numbers only)
+            $start  = absint( $request->get_param( 'iDisplayStart' ) );
+            $length = absint( $request->get_param( 'iDisplayLength' ) );
+            if ( $length < 1 ) {
+                $length = 50;
+            }
+            if ( $length > 200 ) {
+                $length = 200;
+            }
+
+            // ORDER BY
+            $sortable = [
+                'term_id'      => 't.term_id',
+                'name'         => 't.name',
+                'description'  => 'tt.description',
+                'count'        => 'tt.count',
+                'taxonomy'     => 'tt.taxonomy',
             ];
+            $order_by  = 't.term_id';
+            $order_dir = 'DESC';
 
-            $sIndexColumn = "{$wpdb->prefix}terms.term_id";
-            $sTable       = "{$wpdb->prefix}terms";
+            // DataTables style input
+            $sort_col = $request->get_param( 'mDataProp_0' );
+            $sort_dir = $request->get_param( 'sSortDir_0' );
 
-            // Initialize parameters array for placeholders
-            $queryParams = [];
-
-            // Paging
-            $sLimit = "LIMIT 0, 50";
-            if (!empty($request->get_param('iDisplayStart')) && !empty($request->get_param('iDisplayLength'))) {
-                $sLimit        = "LIMIT %d, %d";
-                $queryParams[] = intval($request->get_param('iDisplayStart'));
-                $queryParams[] = intval($request->get_param('iDisplayLength'));
+            if ( is_string( $sort_col ) ) {
+                $sort_col = sanitize_key( $sort_col );
+                if ( isset( $sortable[ $sort_col ] ) ) {
+                    $order_by = $sortable[ $sort_col ];
+                }
+            }
+            if ( is_string( $sort_dir ) ) {
+                $sort_dir  = strtolower( sanitize_text_field( wp_unslash( $sort_dir ) ) );
+                $order_dir = ( 'asc' === $sort_dir ) ? 'ASC' : 'DESC';
             }
 
-            // Ordering
-            $sOrder = '';
-            if (!empty($request->get_param('iSortCol_0')) && !empty($request->get_param('iSortingCols'))) {
-                $orderArr = [];
-                for ($i = 0; $i < intval($request->get_param('iSortingCols')); $i++) {
-                    if (!empty($request->get_param('iSortCol_' . $i)) && !empty($request->get_param('bSortable_' . $request->get_param('iSortCol_' . $i)))) {
-                        if ($request->get_param('bSortable_' . $request->get_param('iSortCol_' . $i)) === "true") {
-                            if (!empty($request->get_param('mDataProp_' . $request->get_param('iSortCol_' . $i)))) {
-                                $column = sanitize_text_field(wp_unslash($request->get_param('mDataProp_' . $request->get_param('iSortCol_' . $i))));
-                                if (!empty($request->get_param('sSortDir_' . $i))) {
-                                    $direction = sanitize_text_field(wp_unslash($request->get_param('sSortDir_' . $i)));
-                                }
-                                $orderArr[] = esc_sql($column) . " " . esc_sql($direction);
-                            }
-                        }
-                    }
-                }
-                if (!empty($orderArr)) {
-                    $sOrder = "ORDER BY " . implode(", ", $orderArr);
+            // Filters (values only)
+            $taxonomy = $request->get_param( 'taxonomy' );
+            $search   = $request->get_param( 'sSearch' );
+
+            $taxonomy = is_string( $taxonomy ) ? sanitize_key( $taxonomy ) : '';
+            $search   = is_string( $search ) ? sanitize_text_field( wp_unslash( $search ) ) : '';
+
+            // Strong validation for taxonomy
+            if ( $taxonomy ) {
+                $allowed_tax = get_taxonomies( [], 'names' );
+                if ( ! in_array( $taxonomy, $allowed_tax, true ) ) {
+                    $taxonomy = '';
                 }
             }
 
-            // Taxonomy filter
-            $sWhere = '';
-            if (!empty($request->get_param('taxonomy'))) {
-                $safe_taxonomy = sanitize_text_field(wp_unslash($request->get_param('taxonomy')));
-                $sWhere        .= " WHERE {$wpdb->prefix}term_taxonomy.taxonomy = %s ";
-                $queryParams[] = $safe_taxonomy;
+            $where_sql = 'WHERE 1=1';
+            $args      = [];
+
+            if ( $taxonomy ) {
+                $where_sql .= ' AND tt.taxonomy = %s';
+                $args[] = $taxonomy;
             }
 
-            // Search filter
-            if (!empty($request->get_param('sSearch'))) {
-                $safeSearch      = '%' . sanitize_text_field(wp_unslash($request->get_param('sSearch'))) . '%';
-                $searchCondition = "{$wpdb->prefix}terms.name LIKE %s OR {$wpdb->prefix}terms.term_id LIKE %s OR {$wpdb->prefix}term_taxonomy.description LIKE %s";
-
-                if (empty($sWhere)) {
-                    $sWhere .= " WHERE ";
-                } else {
-                    $sWhere .= " AND ";
-                }
-
-                $sWhere        .= "($searchCondition)";
-                $queryParams[] = $safeSearch;
-                $queryParams[] = $safeSearch;
-                $queryParams[] = $safeSearch;
+            if ( $search !== '' ) {
+                $like = '%' . $wpdb->esc_like( $search ) . '%';
+                $where_sql .= ' AND (t.name LIKE %s OR t.term_id LIKE %s OR tt.description LIKE %s)';
+                $args[] = $like;
+                $args[] = $like;
+                $args[] = $like;
             }
 
-            // Build final SQL query
-            $columns = implode(", ", array_map('esc_sql', $aColumns));
-
-
-            // Execute query with a single prepare call
+            // Main query: keep query string literal
             $rResult = $wpdb->get_results(
                 $wpdb->prepare(
-                    "
-    SELECT SQL_CALC_FOUND_ROWS {$columns}
-    FROM {$sTable}
-    JOIN {$wpdb->prefix}term_taxonomy ON {$wpdb->prefix}term_taxonomy.term_id = {$wpdb->prefix}terms.term_id
-    {$sWhere}
-    {$sOrder}
-    {$sLimit}
-", ...$queryParams
-                ), ARRAY_A
+                    "SELECT SQL_CALC_FOUND_ROWS
+				t.term_id,
+				t.name,
+				tt.description,
+				tt.count,
+				tt.taxonomy
+			FROM {$wpdb->prefix}terms t
+			JOIN {$wpdb->prefix}term_taxonomy tt ON tt.term_id = t.term_id
+			{$where_sql}
+			ORDER BY {$order_by} {$order_dir}
+			LIMIT %d, %d",
+                    array_merge( $args, [ $start, $length ] )
+                ),
+                ARRAY_A
             );
 
-            // Get total records after filtering
-            $iFilteredTotal = $wpdb->get_var("SELECT FOUND_ROWS()");
+            $iFilteredTotal = (int) $wpdb->get_var( 'SELECT FOUND_ROWS()' );
+            $iTotal         = (int) $wpdb->get_var( "SELECT COUNT(term_id) FROM {$wpdb->prefix}terms" );
 
-            // Total data set length
-            $iTotal = $wpdb->get_var("SELECT COUNT({$sIndexColumn}) FROM {$sTable}");
-
-            // Additional processing for schema and other information
-            foreach ($rResult as $i => $row) {
-                $term = get_term($row['term_id']);
-                if ($term && !is_wp_error($term)) {
-                    $id                    = $term->term_id;
-                    $rResult[$i]['schema'] = XAGIO_MODEL_SCHEMA::getSchemas($row['term_id'], 'term');
+            foreach ( $rResult as $xagio_i => $row ) {
+                $term = get_term( (int) $row['term_id'] );
+                if ( $term && ! is_wp_error( $term ) ) {
+                    $rResult[ $xagio_i ]['schema'] = XAGIO_MODEL_SCHEMA::getSchemas( (int) $row['term_id'], 'term' );
                 } else {
-                    $rResult[$i]['schema'] = false;
+                    $rResult[ $xagio_i ]['schema'] = false;
                 }
             }
 
-            // Output
-            $output = [
-                "sEcho"                => !empty($request->get_param('sEcho')) ? intval($request->get_param('sEcho')) : 0,
-                "iTotalRecords"        => $iTotal,
-                "iTotalDisplayRecords" => $iFilteredTotal,
-                "aaData"               => $rResult,
+            $xagio_output = [
+                'sEcho'                => absint( $request->get_param( 'sEcho' ) ),
+                'iTotalRecords'        => $iTotal,
+                'iTotalDisplayRecords' => $iFilteredTotal,
+                'aaData'               => $rResult,
             ];
 
-            wp_send_json($output);
-            wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
+            wp_send_json( $xagio_output );
         }
 
-        public static function searchPosts($request = null)
-        {
+
+        public static function searchPosts( $request = null ) {
             global $wpdb;
 
-            $aColumns = [
-                'ID',
-                'post_author',
-                'post_date',
-                'post_title',
-                'post_status',
-                'comment_status',
-                'post_name',
-                'post_parent',
-                'guid',
-                'post_type',
-                'comment_count',
-            ];
+            // Paging (numbers only)
+            $start  = absint( $request->get_param( 'iDisplayStart' ) );
+            $length = $request->get_param( 'iDisplayLength' );
+            $length = ( null === $length ) ? 50 : absint( $length );
 
-            $sIndexColumn = "ID";
-            $sTable       = $wpdb->prefix . 'posts';
-
-            // Initialize parameters array for placeholders
-            $queryParams = [];
-
-            // Paging
-            $sLimit = "LIMIT 0, 50";
-
-            // Ordering
-            $sOrder = '';
-            if (!empty($request->get_param('iSortCol_0')) && !empty($request->get_param('iSortingCols'))) {
-                $orderArr = [];
-                for ($i = 0; $i < intval($request->get_param('iSortingCols')); $i++) {
-                    if (!empty($request->get_param('iSortCol_' . $i)) && !empty($request->get_param('bSortable_' . $request->get_param('iSortCol_' . $i))) && $request->get_param('bSortable_' . $request->get_param('iSortCol_' . $i)) == "true") {
-                        if (!empty($request->get_param('mDataProp_' . $request->get_param('iSortCol_' . $i))) && !empty($request->get_param('sSortDir_' . $i))) {
-                            $column     = sanitize_text_field(wp_unslash($request->get_param('mDataProp_' . $request->get_param('iSortCol_' . $i))));
-                            $direction  = sanitize_text_field(wp_unslash($request->get_param('sSortDir_' . $i)));
-                            $orderArr[] = esc_sql($column) . " " . esc_sql($direction);
-                        }
-                    }
-                }
-                if (!empty($orderArr)) {
-                    $sOrder = "ORDER BY " . implode(", ", $orderArr);
-                }
+            if ( $length < 1 ) {
+                $length = 50;
+            }
+            if ( $length > 200 ) {
+                $length = 200;
             }
 
-            if (!empty($request->get_param('PostsType'))) {
-                $sWhere        = " WHERE post_type = %s ";
-                $queryParams[] = sanitize_text_field(wp_unslash($request->get_param('PostsType')));
+            // ORDER BY (whitelist only)
+            $sortable = [
+                'ID'            => 'ID',
+                'post_author'   => 'post_author',
+                'post_date'     => 'post_date',
+                'post_title'    => 'post_title',
+                'post_status'   => 'post_status',
+                'comment_status'=> 'comment_status',
+                'post_name'     => 'post_name',
+                'post_parent'   => 'post_parent',
+                'guid'          => 'guid',
+                'post_type'     => 'post_type',
+                'comment_count' => 'comment_count',
+            ];
+
+            $order_by  = 'ID';
+            $order_dir = 'DESC';
+
+            $sort_col = $request->get_param( 'mDataProp_0' );
+            $sort_dir = $request->get_param( 'sSortDir_0' );
+
+            if ( is_string( $sort_col ) ) {
+                $sort_col = sanitize_key( $sort_col );
+                if ( isset( $sortable[ $sort_col ] ) ) {
+                    $order_by = $sortable[ $sort_col ];
+                }
+            }
+            if ( is_string( $sort_dir ) ) {
+                $sort_dir  = strtolower( sanitize_text_field( wp_unslash( $sort_dir ) ) );
+                $order_dir = ( 'asc' === $sort_dir ) ? 'ASC' : 'DESC';
+            }
+
+            // WHERE (build with fixed strings + placeholders only)
+            $args  = [];
+            $where = "WHERE post_status IN ('publish','future','draft','pending')";
+
+            // Post type filter
+            $post_type = $request->get_param( 'PostsType' );
+            $post_type = is_string( $post_type ) ? sanitize_key( $post_type ) : '';
+
+            if ( $post_type ) {
+                $where .= " AND post_type = %s";
+                $args[] = $post_type;
             } else {
-                // Determine Post Types
-                $allowedPostTypes = XAGIO_MODEL_SEO::getAllPostTypes();
-                $sWhere           = " WHERE post_type IN (" . implode(",", array_fill(0, count($allowedPostTypes), '%s')) . ") ";
-                $queryParams      = array_merge($queryParams, $allowedPostTypes);
-            }
+                $allowed = (array) XAGIO_MODEL_SEO::getAllPostTypes();
+                $allowed = array_values( array_filter( array_map( 'sanitize_key', $allowed ) ) );
 
-            // Add post status condition
-            $sWhere .= " AND post_status IN ('publish', 'future', 'draft', 'pending') ";
-
-            // Search filter
-            if (!empty($request->get_param('sSearch'))) {
-                $safeSearch    = sanitize_text_field(wp_unslash($request->get_param('sSearch')));
-                $sWhere        .= " AND (post_title LIKE CONCAT(CHAR(37), %s, CHAR(37)) OR ID LIKE CONCAT(CHAR(37), %s, CHAR(37)) OR post_name LIKE CONCAT(CHAR(37), %s, CHAR(37))) ";
-                $queryParams[] = $safeSearch;
-                $queryParams[] = $safeSearch;
-                $queryParams[] = $safeSearch;
-            }
-
-            if ($request->get_param('iDisplayStart') !== null && !empty($request->get_param('iDisplayLength')) && $request->get_param('iDisplayLength') != '-1') {
-                $sLimit        = "LIMIT %d, %d";
-                $queryParams[] = intval($request->get_param('iDisplayStart'));
-                $queryParams[] = intval($request->get_param('iDisplayLength'));
-            }
-
-            // Build final SQL query
-            $columns = implode(", ", array_map('esc_sql', $aColumns));
-
-            // Execute query with a single prepare call
-            $rResult = $wpdb->get_results(
-                $wpdb->prepare(
-                    "
-    SELECT SQL_CALC_FOUND_ROWS {$columns}
-    FROM {$sTable}
-    {$sWhere}
-    {$sOrder}
-    {$sLimit}
-", ...$queryParams
-                ), ARRAY_A
-            );
-
-            // Get total records after filtering
-            $iFilteredTotal = $wpdb->get_var("SELECT FOUND_ROWS()");
-
-            // Total data set length
-            $iTotal = $wpdb->get_var(
-                $wpdb->prepare(
-                    "SELECT COUNT(%s) FROM {$sTable}", esc_sql($sIndexColumn),
-                )
-            );
-
-            // Additional processing for schema and other information
-            $aChildren = [];
-            foreach ($rResult as &$row) {
-                $children        = get_pages(['child_of' => $row['ID']]);
-                $row['page_url'] = esc_url(get_permalink($row['ID']));
-
-                if ($children) {
-                    $aChildren[] = XAGIO_MODEL_PROJECTS::getAncestorTree($row['ID']);
+                if ( empty( $allowed ) ) {
+                    // Fallback to very safe defaults.
+                    $allowed = [ 'page', 'post' ];
                 }
 
-                $row = XAGIO_MODEL_PROJECTS::generateSiloPageArray($row);
+                $placeholders = implode( ',', array_fill( 0, count( $allowed ), '%s' ) );
+                $where .= " AND post_type IN ($placeholders)";
+                foreach ( $allowed as $pt ) {
+                    $args[] = $pt;
+                }
             }
 
-            // Reordering children elements
+            // Search
+            $search = $request->get_param( 'sSearch' );
+            $search = is_string( $search ) ? sanitize_text_field( wp_unslash( $search ) ) : '';
+
+            if ( $search !== '' ) {
+                $like = '%' . $wpdb->esc_like( $search ) . '%';
+                $where .= " AND (post_title LIKE %s OR CAST(ID AS CHAR) LIKE %s OR post_name LIKE %s)";
+                $args[] = $like;
+                $args[] = $like;
+                $args[] = $like;
+            }
+
+            // Main query (no $sql variable; literal inside prepare)
+            $rResult = $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT SQL_CALC_FOUND_ROWS
+				ID, post_author, post_date, post_title, post_status,
+				comment_status, post_name, post_parent, guid, post_type, comment_count
+			FROM {$wpdb->posts}
+			{$where}
+			ORDER BY {$order_by} {$order_dir}
+			LIMIT %d, %d",
+                    array_merge( $args, [ $start, $length ] )
+                ),
+                ARRAY_A
+            );
+
+            $iFilteredTotal = (int) $wpdb->get_var( 'SELECT FOUND_ROWS()' );
+
+            // Total data set length (no interpolated identifiers)
+            $iTotal = (int) $wpdb->get_var( "SELECT COUNT(ID) FROM {$wpdb->posts} WHERE post_status IN ('publish','future','draft','pending')" );
+
+            // Additional processing
+            $aChildren = [];
+            foreach ( $rResult as &$row ) {
+                $children        = get_pages( [ 'child_of' => (int) $row['ID'] ] );
+                $row['page_url'] = esc_url( get_permalink( (int) $row['ID'] ) );
+
+                if ( $children ) {
+                    $aChildren[] = XAGIO_MODEL_PROJECTS::getAncestorTree( (int) $row['ID'] );
+                }
+
+                $row = XAGIO_MODEL_PROJECTS::generateSiloPageArray( $row );
+            }
+            unset( $row );
+
             $tempResults = [];
-            foreach ($aChildren as $tree) {
-                foreach ($tree as $child_id) {
-                    foreach ($rResult as $key => $rows) {
-                        if ((int)$child_id === (int)$rows['ID']) {
+            foreach ( $aChildren as $tree ) {
+                foreach ( (array) $tree as $child_id ) {
+                    foreach ( $rResult as $xagio_key => $rows ) {
+                        if ( (int) $child_id === (int) $rows['ID'] ) {
                             $tempResults[] = $rows;
-                            array_splice($rResult, $key, 1);
+                            array_splice( $rResult, $xagio_key, 1 );
                             break;
                         }
                     }
                 }
             }
 
-            $rResult = array_merge($rResult, $tempResults);
+            $rResult = array_merge( $rResult, $tempResults );
 
-            // Output
-            $output = [
-                "sEcho"                => !empty($request->get_param('sEcho')) ? intval($request->get_param('sEcho')) : 0,
-                "iTotalRecords"        => $iTotal,
-                "iTotalDisplayRecords" => $iFilteredTotal,
-                "aaData"               => $rResult,
+            $xagio_output = [
+                'sEcho'                => absint( $request->get_param( 'sEcho' ) ),
+                'iTotalRecords'        => $iTotal,
+                'iTotalDisplayRecords' => $iFilteredTotal,
+                'aaData'               => $rResult,
             ];
 
-            wp_send_json($output);
-            wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
+            wp_send_json( $xagio_output );
         }
 
 
-        public static function allComments($request = null)
-        {
 
+        public static function allComments($request = null) {
             global $wpdb;
 
-            $aColumns = [
-                'comment_ID',
-                'comment_post_ID',
-                'comment_author',
-                'comment_author_email',
-                'comment_author_url',
-                'comment_date',
-                'comment_content',
-                'comment_approved',
-                'comment_parent',
+            // Paging
+            $start  = absint($request->get_param('iDisplayStart'));
+            $length = $request->get_param('iDisplayLength');
+            $length = ($length === null || $length === '' || $length === '-1') ? 50 : absint($length);
+            if ($length < 1) {
+                $length = 50;
+            }
+            if ($length > 200) {
+                $length = 200;
+            }
+
+            $sortable = [
+                'comment_ID'         => 'comment_ID',
+                'comment_post_ID'    => 'comment_post_ID',
+                'comment_author'     => 'comment_author',
+                'comment_author_email' => 'comment_author_email',
+                'comment_author_url' => 'comment_author_url',
+                'comment_date'       => 'comment_date',
+                'comment_content'    => 'comment_content',
+                'comment_approved'   => 'comment_approved',
+                'comment_parent'     => 'comment_parent',
             ];
 
-            $sIndexColumn = "comment_ID";
-            $sTable       = $wpdb->prefix . 'comments';
+            $order_by  = 'comment_ID';
+            $order_dir = 'DESC';
 
-            // Initialize parameters array for placeholders
-            $queryParams = [];
+            $sort_col = $request->get_param('mDataProp_0');
+            $sort_dir = $request->get_param('sSortDir_0');
 
-            // Paging
-            $sLimit = "LIMIT 0, 50";
-            if (!empty($request->get_param('iDisplayStart')) && !empty($request->get_param('iDisplayLength')) && $request->get_param('iDisplayLength') != '-1') {
-                $sLimit        = "LIMIT %d, %d";
-                $queryParams[] = intval($request->get_param('iDisplayStart'));
-                $queryParams[] = intval($request->get_param('iDisplayLength'));
-            }
-
-            // Ordering
-            $sOrder = '';
-            if (!empty($request->get_param('iSortCol_0')) && !empty($request->get_param('iSortingCols'))) {
-                $orderArr = [];
-                for ($i = 0; $i < intval($request->get_param('iSortingCols')); $i++) {
-                    if (!empty($request->get_param('iSortCol_' . $i)) && !empty($request->get_param('bSortable_' . $request->get_param('iSortCol_' . $i))) && $request->get_param('bSortable_' . $request->get_param('iSortCol_' . $i)) == "true") {
-                        if (!empty($request->get_param('mDataProp_' . $request->get_param('iSortCol_' . $i))) && !empty($request->get_param('sSortDir_' . $i))) {
-                            $column     = sanitize_text_field(wp_unslash($request->get_param('mDataProp_' . $request->get_param('iSortCol_' . $i))));
-                            $direction  = sanitize_text_field(wp_unslash($request->get_param('sSortDir_' . $i)));
-                            $orderArr[] = esc_sql($column) . " " . esc_sql($direction);
-                        }
-                    }
-                }
-                if (!empty($orderArr)) {
-                    $sOrder = "ORDER BY " . implode(", ", $orderArr);
+            if (is_string($sort_col)) {
+                $sort_col = sanitize_key($sort_col);
+                if (isset($sortable[$sort_col])) {
+                    $order_by = $sortable[$sort_col];
                 }
             }
-
-            // Filtering
-            $sWhere = " WHERE comment_type = 'comment'";
-
-            // Comment state filter
-            if (!empty($request->get_param('CommentState')) && $request->get_param('CommentState') != '') {
-                $commentState  = sanitize_text_field(wp_unslash($request->get_param('CommentState')));
-                $sWhere        .= " AND comment_approved = %s";
-                $queryParams[] = $commentState;
-            } elseif ($request->get_param('CommentState') === "0") {
-                $commentState  = $request->get_param('CommentState');
-                $sWhere        .= " AND comment_approved = %s";
-                $queryParams[] = $commentState;
+            if (is_string($sort_dir)) {
+                $sort_dir = strtolower(sanitize_text_field(wp_unslash($sort_dir)));
+                $order_dir = ($sort_dir === 'asc') ? 'ASC' : 'DESC';
             }
 
-            // Search filter
-            if (!empty($request->get_param('sSearch')) && !empty($request->get_param('sSearch'))) {
-                $safeSearch    = '%' . sanitize_text_field(wp_unslash($request->get_param('sSearch'))) . '%';
-                $sWhere        .= " AND (comment_content LIKE %s OR comment_ID LIKE %s OR comment_author LIKE %s)";
-                $queryParams[] = $safeSearch;
-                $queryParams[] = $safeSearch;
-                $queryParams[] = $safeSearch;
+            // Filters
+            $state_param = $request->get_param('CommentState');
+            $filter_state = 0;
+            $comment_state = '';
+
+            if ($state_param !== null && $state_param !== '') {
+                $filter_state = 1;
+                // allow "0", "1", "spam", "trash" etc.
+                $comment_state = sanitize_text_field(wp_unslash((string) $state_param));
             }
 
-            // Build final SQL query
-            $columns = implode(", ", array_map('esc_sql', $aColumns));
+            $search_param = $request->get_param('sSearch');
+            $filter_search = 0;
+            $search_like = '';
 
-            // Execute query with a single prepare call
+            if (is_string($search_param)) {
+                $search_param = trim($search_param);
+                if ($search_param !== '') {
+                    $filter_search = 1;
+                    $search_like = '%' . $wpdb->esc_like(sanitize_text_field(wp_unslash($search_param))) . '%';
+                }
+            }
+
+            // MAIN QUERY
             $rResult = $wpdb->get_results(
                 $wpdb->prepare(
-                    "
-    SELECT SQL_CALC_FOUND_ROWS {$columns}
-    FROM {$sTable}
-    {$sWhere}
-    {$sOrder}
-    {$sLimit}
-", ...$queryParams
-                ), ARRAY_A
+                    "SELECT SQL_CALC_FOUND_ROWS
+                comment_ID, comment_post_ID, comment_author, comment_author_email, comment_author_url, comment_date, comment_content, comment_approved, comment_parent
+             FROM {$wpdb->comments}
+             WHERE comment_type = 'comment'
+               AND (%d = 0 OR comment_approved = %s)
+               AND (%d = 0 OR (comment_content LIKE %s OR CAST(comment_ID AS CHAR) LIKE %s OR comment_author LIKE %s))
+             ORDER BY {$order_by} {$order_dir}
+             LIMIT %d, %d", $filter_state, $comment_state, $filter_search, $search_like, $search_like, $search_like, $start, $length),
+                ARRAY_A
             );
 
-            // Get total records after filtering
-            $iFilteredTotal = $wpdb->get_var("SELECT FOUND_ROWS()");
+            $iFilteredTotal = (int) $wpdb->get_var('SELECT FOUND_ROWS()');
+            $iTotal = (int) $wpdb->get_var("SELECT COUNT(comment_ID) FROM {$wpdb->comments} WHERE comment_type = 'comment'");
 
-            // Total data set length
-            $iTotal = $wpdb->get_var(
-                "SELECT COUNT({$sIndexColumn}) FROM {$sTable} WHERE comment_type = 'comment'"
-            );
-
-            // Additional processing for schema and other information
             foreach ($rResult as &$row) {
-                $row['author_email_hash'] = md5(strtolower(trim($row['comment_author_email'])));
+                $row['author_email_hash'] = md5(strtolower(trim((string) $row['comment_author_email'])));
 
-                if ($row['comment_parent'] != 0) {
-                    $parent_comment        = $wpdb->get_row(
+                if (!empty($row['comment_parent'])) {
+                    $parent_comment = $wpdb->get_row(
                         $wpdb->prepare(
-                            "SELECT comment_author FROM {$sTable} WHERE comment_ID = %d", $row['comment_parent']
-                        ), ARRAY_A
+                            "SELECT comment_author FROM {$wpdb->comments} WHERE comment_ID = %d",
+                            absint($row['comment_parent'])
+                        ),
+                        ARRAY_A
                     );
                     $row['parent_comment'] = $parent_comment['comment_author'] ?? false;
                 } else {
                     $row['parent_comment'] = false;
                 }
 
-                $row['post_title'] = esc_html(get_the_title($row['comment_post_ID']));
-                $row['post_url']   = esc_url(get_permalink($row['comment_post_ID']));
+                $row['post_title'] = esc_html(get_the_title((int) $row['comment_post_ID']));
+                $row['post_url']   = esc_url(get_permalink((int) $row['comment_post_ID']));
             }
+            unset($row);
 
             // Count comments by state
             $commentCount = $wpdb->get_results(
-                "SELECT comment_approved, COUNT(comment_approved) as num 
-     FROM {$sTable} 
-     WHERE comment_type = 'comment' 
-     GROUP BY comment_approved", ARRAY_A
+                "SELECT comment_approved, COUNT(comment_approved) as num
+         FROM {$wpdb->comments}
+         WHERE comment_type = 'comment'
+         GROUP BY comment_approved",
+                ARRAY_A
             );
-
 
             $temp = [
                 'pending'  => 0,
@@ -771,32 +763,35 @@ if (!class_exists('XAGIO_API')) {
                 'spam'     => 0,
                 'trash'    => 0,
             ];
-            foreach ($commentCount as $c) {
-                switch ($c['comment_approved']) {
+
+            foreach ((array) $commentCount as $c) {
+                $status = (string) $c['comment_approved'];
+                $num    = (int) $c['num'];
+
+                switch ($status) {
                     case "0":
-                        $temp['pending'] = $c['num'];
+                        $temp['pending'] = $num;
                         break;
                     case "1":
-                        $temp['approved'] = $c['num'];
+                        $temp['approved'] = $num;
                         break;
                     default:
-                        $temp[$c['comment_approved']] = $c['num'];
+                        $temp[$status] = $num;
                         break;
                 }
             }
 
-            // Output
-            $output = [
-                "sEcho"                => !empty($request->get_param('sEcho')) ? intval($request->get_param('sEcho')) : 1,
+            $xagio_output = [
+                "sEcho"                => absint($request->get_param('sEcho')) ?: 1,
                 "iTotalRecords"        => $iTotal,
                 "iTotalDisplayRecords" => $iFilteredTotal,
                 "aaData"               => $rResult,
                 "commentCount"         => $temp,
             ];
 
-            wp_send_json($output);
-            wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
+            wp_send_json($xagio_output);
         }
+
 
 
         /***************************************************************************************************************
@@ -894,21 +889,20 @@ if (!class_exists('XAGIO_API')) {
                 } else {
                     $app_passwords = array();
                 }
-                // If there is no existing app password key and old XAGIO_API is present, regenerate
-                $send_to_panel = false;
+
                 $XAGIO_API     = get_option('XAGIO_API');
-                if ($XAGIO_API != false) {
-                    if (!xagio_is_base64($XAGIO_API) && $existing_api_key == null) {
-                        $send_to_panel = true;
-                        $regenerate    = true;
-                    }
+                if ($XAGIO_API === false) {
+                    $regenerate = true;
                 }
 
                 // If an API key for 'XAGIO_API' does not exist, generate a new one
-                if ($regenerate == true) {
+                if ($regenerate === true) {
                     // Generate a new application password
                     $new_password    = wp_generate_password($pw_length, false); // 24 characters, no special characters
                     $hashed_password = wp_hash_password($new_password);
+
+                    // Prepare for sending
+                    $encoded_password = base64_encode($username . ":" . $new_password . ':' . $hashed_password);
 
                     // Prepare new application password entry
                     $new_item = array(
@@ -926,15 +920,16 @@ if (!class_exists('XAGIO_API')) {
                         // Last used time (null until used)
                         'last_ip'   => null,
                         // Last used IP (null until used)
+                        'api_key'   => $encoded_password
                     );
 
                     if (!empty($existing_api_key)) {
 
                         // If an existing API key is found, replace the current entry with the new one
-                        foreach ($app_passwords as $key => $password_entry) {
+                        foreach ($app_passwords as $xagio_key => $password_entry) {
                             if ($password_entry['name'] == 'XAGIO_API') {
                                 // Update the existing entry with new password and timestamp
-                                $app_passwords[$key] = $new_item;
+                                $app_passwords[$xagio_key] = $new_item;
                                 break;
                             }
                         }
@@ -946,37 +941,25 @@ if (!class_exists('XAGIO_API')) {
 
                     }
 
-                    // Prepare for sending
-                    $encoded_password = base64_encode($username . ":" . $new_password . ':' . $hashed_password);
-
                     // Update the user meta with the new password list
                     update_user_meta($admin_user->ID, '_application_passwords', $app_passwords);
-
-                    // Update the panel api key
-                    if ($send_to_panel) {
-                        self::apiRequest('migrate_license', 'POST', [
-                            'api_key'    => $encoded_password,
-                            'admin_post' => rest_url() . 'xagio-seo/v1/'
-                        ]);
-                    }
-
-                    update_option('XAGIO_API', $hashed_password);
+                    update_option('XAGIO_API', $encoded_password);
                     update_option('using_application_passwords', true);
-
-                    if ($send_to_panel) {
-                        return $hashed_password;
-                    }
 
                     return $encoded_password;
                 } else {
-                    return $existing_api_key['password'] ?? '';
+                    if (isset($existing_api_key['api_key'])) {
+                        return $existing_api_key['api_key'];
+                    } else {
+                        return $existing_api_key['password'];
+                    }
                 }
             } else {
                 return false; // No administrator users found
             }
         }
 
-        public static function downloadFile($location, $file)
+        public static function downloadFile($xagio_location, $xagio_file)
         {
             include_once ABSPATH . 'wp-admin/includes/file.php';
 
@@ -991,19 +974,19 @@ if (!class_exists('XAGIO_API')) {
             }
 
             // Delete the existing file if it exists
-            if ($wp_filesystem->exists($location)) {
-                $wp_filesystem->delete($location);
+            if ($wp_filesystem->exists($xagio_location)) {
+                $wp_filesystem->delete($xagio_location);
             }
 
             // Download the file using wp_remote_get
-            $response = wp_remote_get($file, [
+            $xagio_response = wp_remote_get($xagio_file, [
                 'timeout'  => 60,
                 'stream'   => true,
-                'filename' => $location
+                'filename' => $xagio_location
             ]);
 
             // Check for errors
-            if (is_wp_error($response)) {
+            if (is_wp_error($xagio_response)) {
                 return false;
             }
 
@@ -1016,14 +999,333 @@ if (!class_exists('XAGIO_API')) {
          *
          **************************************************************************************************************/
 
+        public static function createProjectPlannerGroups($request = null)
+        {
+            if ($request === null) {
+                xagio_json('error', 'Invalid request.');
+            }
+
+            $body_params = $request->get_body_params();
+            if (!is_array($body_params)) {
+                $body_params = [];
+            }
+
+            $project_name_raw = '';
+            $query_param      = $body_params['query'] ?? $request->get_param('query');
+            if (is_scalar($query_param)) {
+                $project_name_raw = (string)$query_param;
+            }
+
+            if ($project_name_raw === '') {
+                $keyword_param  = $body_params['keyword'] ?? $request->get_param('keyword');
+                $location_param = $body_params['location'] ?? $request->get_param('location');
+
+                if (is_scalar($keyword_param) || is_scalar($location_param)) {
+                    $keyword          = is_scalar($keyword_param) ? (string)$keyword_param : '';
+                    $xagio_location         = is_scalar($location_param) ? (string)$location_param : '';
+                    $project_name_raw = trim($keyword . ' ' . $xagio_location);
+                }
+            }
+
+            if (!is_string($project_name_raw)) {
+                $project_name_raw = '';
+            }
+
+            $project_name_raw       = wp_unslash($project_name_raw);
+            $project_name           = sanitize_text_field($project_name_raw);
+            $project_name_defaulted = false;
+            $default_project_name   = 'Project Planner ' . gmdate('Y-m-d H:i:s');
+
+            if ($project_name === '') {
+                $project_name           = $default_project_name;
+                $project_name_defaulted = true;
+            }
+
+            $groups_param = $body_params['groups'] ?? $request->get_param('groups');
+
+            $homepage_group_param = $body_params['homepage_group'] ?? $request->get_param('homepage_group');
+            $homepage_group_name  = '';
+
+            if (is_string($homepage_group_param)) {
+                $homepage_group_name = sanitize_text_field(wp_unslash($homepage_group_param));
+            }
+
+            $homepage_group_id = 0;
+
+            if (is_string($groups_param)) {
+                $decoded = json_decode(wp_unslash($groups_param), true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $groups_param = $decoded;
+                }
+            }
+
+            if (!is_array($groups_param)) {
+                $payload = $request->get_json_params();
+                if (is_array($payload)) {
+                    if ($project_name_defaulted && isset($payload['query']) && is_string($payload['query'])) {
+                        $project_name_raw = wp_unslash($payload['query']);
+                        $sanitized_name   = sanitize_text_field($project_name_raw);
+                        if ($sanitized_name !== '') {
+                            $project_name           = $sanitized_name;
+                            $project_name_defaulted = false;
+                        }
+                    }
+                    if (isset($payload['groups']) && is_array($payload['groups'])) {
+                        $groups_param = $payload['groups'];
+                    }
+                }
+            }
+
+            if (!is_array($groups_param)) {
+                xagio_json('error', 'Groups data missing from request payload.');
+            }
+
+            global $wpdb;
+
+            $project_inserted = $wpdb->insert('xag_projects', [
+                'project_name' => $project_name,
+                'date_created' => gmdate('Y-m-d H:i:s'),
+            ]);
+
+            if ($project_inserted === false) {
+                xagio_json('error', 'Failed to create a new project.');
+            }
+
+            $project_id        = (int)$wpdb->insert_id;
+            $created_group_ids = [];
+            $current_date      = gmdate('Y-m-d H:i:s');
+
+            foreach ($groups_param as $xagio_group) {
+                if (!is_array($xagio_group)) {
+                    continue;
+                }
+
+                $group_name_raw = isset($xagio_group['group_name']) && is_string($xagio_group['group_name']) ? $xagio_group['group_name'] : '';
+                $group_name     = sanitize_text_field(wp_unslash($group_name_raw));
+
+                if ($group_name === '') {
+                    continue;
+                }
+
+                $group_inserted = $wpdb->insert('xag_groups', [
+                    'project_id'   => $project_id,
+                    'group_name'   => $group_name,
+                    'date_created' => $current_date,
+                ]);
+
+                if ($group_inserted === false) {
+                    continue;
+                }
+
+                $group_id = (int)$wpdb->insert_id;
+
+                if ($group_id > 0) {
+                    $created_group_ids[] = $group_id;
+                }
+
+                if ($homepage_group_name !== '' && $group_id > 0 && strcasecmp($group_name, $homepage_group_name) === 0) {
+                    $homepage_group_id = $group_id;
+                }
+
+                if (empty($xagio_group['keywords']) || !is_array($xagio_group['keywords'])) {
+                    continue;
+                }
+
+                foreach ($xagio_group['keywords'] as $keyword) {
+
+                    $keyword_name   = sanitize_text_field(wp_unslash($keyword['keyword']));
+                    $keyword_volume = absint(wp_unslash($keyword['search_volume']));
+                    $keyword_cpc    = (float)number_format((float)wp_unslash($keyword['cpc']), 2, '.', '');
+
+
+                    if ($keyword_name === '') {
+                        continue;
+                    }
+
+                    $wpdb->insert('xag_keywords', [
+                        'group_id'     => $group_id,
+                        'keyword'      => $keyword_name,
+                        'volume'       => $keyword_volume,
+                        'cpc'          => $keyword_cpc,
+                        'date_created' => $current_date,
+                    ]);
+                }
+            }
+
+            if (empty($created_group_ids)) {
+                $wpdb->delete('xag_projects', ['id' => $project_id]);
+                xagio_json('error', 'No valid groups were provided in the request payload.');
+            }
+
+            if ($homepage_group_name !== '' && $homepage_group_id === 0) {
+                $homepage_group_id = (int)$wpdb->get_var(
+                    $wpdb->prepare(
+                        'SELECT id FROM xag_groups WHERE project_id = %d AND group_name = %s ORDER BY id ASC LIMIT 1',
+                        $project_id,
+                        $homepage_group_name
+                    )
+                );
+            }
+
+            if ($homepage_group_id > 0) {
+                set_transient('xagio_agentx_homepage_group_id', $homepage_group_id, HOUR_IN_SECONDS);
+            }
+
+            xagio_json('success', 'Project planner groups created successfully.', [
+                'project_id' => $project_id,
+            ]);
+        }
+
+        public static function getTopTenDomainsAgentX($request = null)
+        {
+            // Check if the 'slug' parameter is set in the POST request
+            if (empty($request->get_param('main-keyword')) || empty($request->get_param('location')) || empty($request->get_param('keyword'))) {
+                xagio_json('error', 'Invalid request!');
+            }
+
+            $main_keyword = sanitize_text_field(wp_unslash($_POST['main-keyword']));
+            $xagio_location     = sanitize_text_field(wp_unslash($_POST['location']));
+            $keyword      = sanitize_text_field(wp_unslash($_POST['keyword']));
+
+            if (isset($_POST['search_engine'])) {
+                $search_engine = sanitize_text_field(wp_unslash($_POST['search_engine']));
+            } else {
+                $search_engine = '14';
+            }
+            if (isset($_POST['search_engine_text'])) {
+                $search_engine_text = sanitize_text_field(wp_unslash($_POST['search_engine_text']));
+            } else {
+                $search_engine_text = 'google.com (United States/English)';
+            }
+            if (isset($_POST['search_location'])) {
+                $search_location = sanitize_text_field(wp_unslash($_POST['search_location']));
+            } else {
+                $search_location = '2840';
+            }
+            if (isset($_POST['search_location_text'])) {
+                $search_location_text = sanitize_text_field(wp_unslash($_POST['search_location_text']));
+            } else {
+                $search_location_text = 'United States';
+            }
+
+            $listings = [
+                "facebook.com",
+                "google.com",
+                "facebook.com",
+                "instagram.com",
+                "linkedin.com",
+                "apple.com",
+                "yelp.com",
+                "bing.com",
+                "bbb.org",
+                "mapquest.com",
+                "foursquare.com",
+                "angi.com",
+                "thumbtack.com",
+                "yellowpages.com",
+                "nextdoor.com",
+                "manta.com",
+                "merchantcircle.com",
+                "yellowbook.com",
+                "chamberofcommerce.com",
+                "dandb.com",
+                "brownbook.net",
+                "partners.local.com",
+                "turbify.com",
+                "dashboard.ezlocal.com",
+                "elocal.com",
+                "ebusinesspages.com",
+                "citysquares.com",
+                "local.botw.org",
+                "ibegin.com",
+                "neustarlocaleze.biz",
+                "spoke.com",
+                "golocal247.com",
+                "callupcontact.com",
+                "n49.com",
+                "cybo.com",
+                "directory.justlanded.com",
+                "tuugo.us",
+                "lacartes.com",
+                "citylocalpro.com",
+                "yellow.place",
+                "hub.biz",
+                "cylex.us.com",
+                "fyple.com",
+                "opendi.us",
+                "expressbusinessdirectory.com",
+                "myhuckleberry.com",
+                "bizhwy.com",
+                "dirjournal.com",
+                "usdirectory.com",
+                "finduslocal.com"
+            ];
+
+            update_option('XAGIO_ONBOARDING_LOCATION', $xagio_location);
+            update_option('XAGIO_ONBOARDING_KEYWORD', $keyword);
+            update_option('XAGIO_ONBOARDING_MAIN_KEYWORD', $main_keyword);
+            update_option('XAGIO_AI_WIZARD_TOP_TEN', serialize([
+                'search_engine'        => $search_engine,
+                'search_engine_text'   => $search_engine_text,
+                'search_location'      => $search_location,
+                'search_location_text' => $search_location_text
+            ]));
+
+            $xagio_http_code = 0;
+            $xagio_result    = self::apiRequest(
+                $endpoint = 'find_top_ten_domains_free', $method = 'POST', [
+                'keyword' => $main_keyword,
+                'se_id'   => $search_engine ?? '14',
+                'loc_id'  => $search_location ?? '2840',
+                'ip'      => XAGIO_MODEL_LOG404::getIp()
+            ], $xagio_http_code
+            );
+
+            if ($xagio_http_code == 403) {
+                xagio_json('error', $xagio_result['message'] ?? "Oups, something happened, please contact support.");
+            }
+
+            if (isset($xagio_result['data']) && sizeof($xagio_result['data']) > 0) {
+                $websites = $xagio_result['data'];
+                $OUT      = [];
+
+                foreach ($websites as $website) {
+                    $path                   = wp_parse_url($website['url'], PHP_URL_PATH);
+                    $website['recommended'] = false;
+                    if (is_null($path)) {
+                        $website['recommended'] = true;
+                    } else {
+                        if (strlen($path) <= 1) {
+                            $website['recommended'] = true;
+                        }
+                    }
+
+                    $website['host'] = wp_parse_url($website['url'], PHP_URL_HOST);
+
+                    $website['listing'] = false;
+
+                    $host_check = str_replace('www.', '', $website['host']);
+                    if (in_array($host_check, $listings)) {
+                        $website['listing'] = true;
+                    }
+
+                    $OUT[] = $website;
+                }
+
+                xagio_jsonc([
+                    'status' => 'success',
+                    'data'   => $OUT
+                ]);
+            }
+
+        }
+
         /**
          *  Install Plugin or Theme from Upload
          */
 
         public static function installFromUpload($request = null)
         {
-
-
             // Check if required POST parameters are set
             if (empty($request->get_param('slug')) || empty($request->get_param('type')) || empty($request->get_param('package'))) {
                 xagio_json('error', 'Invalid request!');
@@ -1051,21 +1353,21 @@ if (!class_exists('XAGIO_API')) {
                 xagio_json('error', 'Failed to download the package.');
             }
 
-            $result = false;
+            $xagio_result = false;
             $error  = '';
 
             // Install the plugin or theme based on the type
             if ($type === 'plugins') {
-                $result = XAGIO_MODEL_QUICKWPSETUP::installWordPressPlugin($slug, $plugin_path, $error);
-                if ($result) {
-                    @activate_plugin($result);
+                $xagio_result = XAGIO_MODEL_QUICKWPSETUP::installWordPressPlugin($slug, $plugin_path, $error);
+                if ($xagio_result) {
+                    @activate_plugin($xagio_result);
                 }
             } elseif ($type === 'themes') {
-                $result = XAGIO_MODEL_QUICKWPSETUP::installWordPressTheme($slug, $plugin_path, $error);
+                $xagio_result = XAGIO_MODEL_QUICKWPSETUP::installWordPressTheme($slug, $plugin_path, $error);
             }
 
             // Handle the installation result
-            if (!$result) {
+            if (!$xagio_result) {
                 xagio_json('error', 'Managed to upload, but failed to install specified file.', $error);
             } else {
                 xagio_json('success', 'Successfully installed specified file.');
@@ -1079,7 +1381,6 @@ if (!class_exists('XAGIO_API')) {
          */
         public static function installPluginFromRepo($request = null)
         {
-
 
             // Check if the 'slug' parameter is set in the POST request
             if (!!empty($request->get_param('slug'))) {
@@ -1095,12 +1396,12 @@ if (!class_exists('XAGIO_API')) {
                 xagio_json('error', 'Failed to download specified plugin.');
             } else {
                 // Attempt to install the downloaded plugin
-                $result = XAGIO_MODEL_QUICKWPSETUP::installWordPressPlugin($slug, $plugin_path);
-                if (!$result) {
+                $xagio_result = XAGIO_MODEL_QUICKWPSETUP::installWordPressPlugin($slug, $plugin_path);
+                if (!$xagio_result) {
                     xagio_json('error', 'Managed to download, but failed to install specified plugin.');
                 } else {
                     // Activate the plugin after successful installation
-                    @activate_plugin($result);
+                    @activate_plugin($xagio_result);
                     xagio_json('success', 'Successfully installed specified plugin.');
                     self::syncWithPanel();
                 }
@@ -1129,8 +1430,8 @@ if (!class_exists('XAGIO_API')) {
                 xagio_json('error', 'Failed to download specified theme.');
             } else {
                 // Attempt to install the downloaded theme
-                $result = XAGIO_MODEL_QUICKWPSETUP::installWordPressTheme($slug, $theme_path);
-                if (!$result) {
+                $xagio_result = XAGIO_MODEL_QUICKWPSETUP::installWordPressTheme($slug, $theme_path);
+                if (!$xagio_result) {
                     xagio_json('error', 'Managed to download, but failed to install specified theme.');
                 } else {
                     xagio_json('success', 'Successfully installed specified theme.');
@@ -1149,20 +1450,20 @@ if (!class_exists('XAGIO_API')) {
 
             // Sanitize and validate the input data
             $storage   = !empty($request->get_param('storage')) ? sanitize_text_field(wp_unslash($request->get_param('storage'))) : '';
-            $backup    = !empty($request->get_param('backup')) ? sanitize_text_field(wp_unslash($request->get_param('backup'))) : '';
+            $xagio_backup    = !empty($request->get_param('backup')) ? sanitize_text_field(wp_unslash($request->get_param('backup'))) : '';
             $backup_id = !empty($request->get_param('backup_id')) ? intval($request->get_param('backup_id')) : 0;
 
             // Validate that required parameters are provided
-            if (empty($storage) || empty($backup) || $backup_id === 0) {
+            if (empty($storage) || empty($xagio_backup) || $backup_id === 0) {
                 xagio_json('error', 'Invalid request parameters.');
                 return;
             }
 
             // Since this is async, store the result
-            $result = XAGIO_MODEL_BACKUPS::restoreBackupHandler($storage, $backup, $backup_id);
+            $xagio_result = XAGIO_MODEL_BACKUPS::restoreBackupHandler($storage, $xagio_backup, $backup_id);
 
             // Send the notification to the panel
-            xagio_jsonc($result);
+            xagio_jsonc($xagio_result);
         }
 
         /**
@@ -1249,8 +1550,6 @@ if (!class_exists('XAGIO_API')) {
          */
         public static function setBackupDate($request = null)
         {
-
-
             // Sanitize the backup date
             $backup_date = !empty($request->get_param('backup_date')) ? sanitize_text_field(wp_unslash($request->get_param('backup_date'))) : '';
 
@@ -1264,6 +1563,7 @@ if (!class_exists('XAGIO_API')) {
                     if (!wp_next_scheduled('xagio_doBackup')) {
                         XAGIO_SYNC::getBackupSettings();
                         wp_schedule_event(time(), $backup_date, 'xagio_doBackup');
+                        XAGIO_SYNC::updateBackupSettings();
                     }
                 }
 
@@ -1272,7 +1572,6 @@ if (!class_exists('XAGIO_API')) {
                 xagio_json('error', 'Invalid Backup Date value!');
             }
         }
-
 
         /**
          * Deactivate Plugin - From Panel
@@ -1320,13 +1619,13 @@ if (!class_exists('XAGIO_API')) {
 
 
             // Sanitize and validate the input value
-            $value = !empty($request->get_param('value')) ? intval($request->get_param('value')) : 0;
+            $xagio_value = !empty($request->get_param('value')) ? intval($request->get_param('value')) : 0;
 
             // Update the option
-            update_option('XAGIO_SCHEMA_ALWAYS_ON', $value);
+            update_option('XAGIO_SCHEMA_ALWAYS_ON', $xagio_value);
 
             // Provide a success message based on the value
-            if ($value === 1) {
+            if ($xagio_value === 1) {
                 xagio_json('success', 'Force Homepage Schemas has been enabled!');
             } else {
                 xagio_json('success', 'Force Homepage Schemas has been disabled!');
@@ -1339,11 +1638,9 @@ if (!class_exists('XAGIO_API')) {
          */
         public static function toggleRecaptcha($request = null)
         {
-
-
-            $value = !empty($request->get_param('value')) ? intval($request->get_param('value')) : 0;
-            update_option('XAGIO_RECAPTCHA', $value);
-            if ($value === 1) {
+            $xagio_value = !empty($request->get_param('value')) ? intval($request->get_param('value')) : 0;
+            update_option('XAGIO_RECAPTCHA', $xagio_value);
+            if ($xagio_value === 1) {
                 XAGIO_SYNC::getAPIKeys();
                 xagio_json('success', 'reCAPTCHA has been enabled!');
             } else {
@@ -1351,6 +1648,14 @@ if (!class_exists('XAGIO_API')) {
             }
         }
 
+        /**
+         * reCAPTCHA status
+         */
+        public static function recaptchaStatus()
+        {
+            $status = get_option('XAGIO_RECAPTCHA');
+            xagio_json('success', 'Successfully retrieved data.', $status);
+        }
 
         public static function wipePlugin($request = null)
         {
@@ -1401,17 +1706,17 @@ if (!class_exists('XAGIO_API')) {
                 }
 
                 // Add plugin files to the ZIP archive
-                $files = new RecursiveIteratorIterator(
+                $xagio_files = new RecursiveIteratorIterator(
                     new RecursiveDirectoryIterator($plugin_dir, RecursiveDirectoryIterator::SKIP_DOTS), RecursiveIteratorIterator::SELF_FIRST
                 );
 
-                foreach ($files as $file) {
-                    $file_path     = $file->getRealPath();
-                    $relative_path = substr($file_path, strlen($plugin_dir));
-                    if ($file->isDir()) {
-                        $archive->addEmptyDir($plugin_slug . '/' . $relative_path);
+                foreach ($xagio_files as $xagio_file) {
+                    $file_path     = $xagio_file->getRealPath();
+                    $xagio_relative_path = substr($file_path, strlen($plugin_dir));
+                    if ($xagio_file->isDir()) {
+                        $archive->addEmptyDir($plugin_slug . '/' . $xagio_relative_path);
                     } else {
-                        $archive->addFile($file_path, $plugin_slug . '/' . $relative_path);
+                        $archive->addFile($file_path, $plugin_slug . '/' . $xagio_relative_path);
                     }
                 }
 
@@ -1423,9 +1728,9 @@ if (!class_exists('XAGIO_API')) {
                 }
 
                 // Upload the zipped plugin
-                $result = XAGIO_API::apiRequestUpload('plugins_upload', $zip_path);
-                if ($result && !empty($result['message'])) {
-                    xagio_json('success', $result['message']);
+                $xagio_result = XAGIO_API::apiRequestUpload('plugins_upload', $zip_path);
+                if ($xagio_result && !empty($xagio_result['message'])) {
+                    xagio_json('success', $xagio_result['message']);
                 } else {
                     xagio_json('error', 'Failed to upload the plugin zip file.');
                 }
@@ -1455,8 +1760,8 @@ if (!class_exists('XAGIO_API')) {
                 $success = [];
 
                 foreach ($pluginNames as $pluginName) {
-                    $result = activate_plugin($pluginName);
-                    if (is_wp_error($result)) {
+                    $xagio_result = activate_plugin($pluginName);
+                    if (is_wp_error($xagio_result)) {
                         $error[] = $pluginName;
                     } else {
                         $success[] = $pluginName;
@@ -1594,17 +1899,17 @@ if (!class_exists('XAGIO_API')) {
                 }
 
                 // Add theme files to the ZIP archive
-                $files = new RecursiveIteratorIterator(
+                $xagio_files = new RecursiveIteratorIterator(
                     new RecursiveDirectoryIterator($theme_dir, RecursiveDirectoryIterator::SKIP_DOTS), RecursiveIteratorIterator::SELF_FIRST
                 );
 
-                foreach ($files as $file) {
-                    $file_path     = $file->getRealPath();
-                    $relative_path = substr($file_path, strlen($theme_dir));
-                    if ($file->isDir()) {
-                        $archive->addEmptyDir($theme_slug . '/' . $relative_path);
+                foreach ($xagio_files as $xagio_file) {
+                    $file_path     = $xagio_file->getRealPath();
+                    $xagio_relative_path = substr($file_path, strlen($theme_dir));
+                    if ($xagio_file->isDir()) {
+                        $archive->addEmptyDir($theme_slug . '/' . $xagio_relative_path);
                     } else {
-                        $archive->addFile($file_path, $theme_slug . '/' . $relative_path);
+                        $archive->addFile($file_path, $theme_slug . '/' . $xagio_relative_path);
                     }
                 }
 
@@ -1616,9 +1921,9 @@ if (!class_exists('XAGIO_API')) {
                 }
 
                 // Upload the zipped theme
-                $result = XAGIO_API::apiRequestUpload('themes_upload', $zip_path);
-                if ($result && !empty($result['message'])) {
-                    xagio_json('success', $result['message']);
+                $xagio_result = XAGIO_API::apiRequestUpload('themes_upload', $zip_path);
+                if ($xagio_result && !empty($xagio_result['message'])) {
+                    xagio_json('success', $xagio_result['message']);
                 } else {
                     xagio_json('error', 'Failed to upload the theme zip file.');
                 }
@@ -1631,48 +1936,68 @@ if (!class_exists('XAGIO_API')) {
         /**
          * Remote Login
          */
-        public static function remoteLogin($request = null)
-        {
-            if (is_user_logged_in()) {
-                wp_redirect(admin_url('admin.php?page=xagio-dashboard'));
+        public static function remoteLogin( $request = null ) {
+
+            if ( is_user_logged_in() ) {
+                xagio_redirect( admin_url( 'admin.php?page=xagio-dashboard' ) );
                 exit;
             }
 
-            // Get all admin users
-            $admins = get_users([
-                'role'   => 'administrator',
-                'fields' => ['ID'],
-            ]);
+            // Pick a target user: requested ID (if valid) or first administrator.
+            $target_user = null;
 
-            // Determine the user to login
-            if (!empty($request->get_param('ID')) && intval($request->get_param('ID')) !== 0) {
-                $remoteLoginUserID = intval($request->get_param('ID'));
-                $user_info         = get_userdata($remoteLoginUserID);
-            } else {
-                $user_info = get_userdata($admins[0]->ID);
+            $requested_id = 0;
+            if ( $request && method_exists( $request, 'get_param' ) ) {
+                $requested_id = absint( $request->get_param( 'ID' ) );
             }
 
-            if ($user_info) {
-                $username = $user_info->user_login;
-
-                // Log the user in
-                $user = get_user_by('login', $username);
-                if ($user) {
-                    wp_set_current_user($user->ID, $username);
-                    wp_set_auth_cookie($user->ID);
-                    do_action('wp_login', $username, $user);
+            if ( $requested_id ) {
+                $u = get_userdata( $requested_id );
+                if ( $u instanceof WP_User ) {
+                    $target_user = $u;
                 }
-            } else {
-                xagio_json('error', 'User not found.');
             }
 
-            // Clean up
-            delete_transient('xagio_remoteLoginToken');
+            if ( ! $target_user ) {
+                $admins = get_users( [
+                    'role'   => 'administrator',
+                    'fields' => [ 'ID' ],
+                    'number' => 1,
+                ] );
 
-            // Redirect to the admin dashboard
-            wp_redirect(admin_url());
+                if ( empty( $admins ) ) {
+                    xagio_json( 'error', 'No administrator user found.' );
+                    return;
+                }
+
+                $target_user = get_userdata( (int) $admins[0]->ID );
+            }
+
+            if ( ! ( $target_user instanceof WP_User ) ) {
+                xagio_json( 'error', 'User not found.' );
+                return;
+            }
+
+            // Optional: only allow admin users (defensive)
+            if ( ! user_can( $target_user, 'administrator' ) ) {
+                xagio_json( 'error', 'User is not an administrator.' );
+                return;
+            }
+
+            // Log in (WP will handle cookies/session)
+            wp_set_current_user( $target_user->ID );
+            wp_set_auth_cookie( $target_user->ID, true, is_ssl() );
+
+            // Use your own prefixed hook if you need to notify internal code
+            do_action( 'xagio_remote_login', $target_user );
+
+            // Clean up token
+            delete_transient( 'xagio_remoteLoginToken' );
+
+            xagio_redirect( admin_url() );
             exit;
         }
+
 
 
         /**
@@ -1691,11 +2016,11 @@ if (!class_exists('XAGIO_API')) {
                 ],
             ]);
 
-            $response                           = [];
-            $response['xagio_remoteLoginToken'] = get_transient('xagio_remoteLoginToken');
-            $response['remoteLoginUsers']       = $users;
+            $xagio_response                           = [];
+            $xagio_response['xagio_remoteLoginToken'] = get_transient('xagio_remoteLoginToken');
+            $xagio_response['remoteLoginUsers']       = $users;
 
-            xagio_json('success', $response);
+            xagio_json('success', $xagio_response);
         }
 
         /**
@@ -1710,8 +2035,8 @@ if (!class_exists('XAGIO_API')) {
                 require_once(ABSPATH . 'wp-admin/includes/update.php');
             }
 
-            set_site_transient('update_plugins', null);
-            set_site_transient('update_themes', null);
+            set_site_transient('update_plugins', new stdClass());
+            set_site_transient('update_themes', new stdClass());
 
             wp_update_plugins(array());
             wp_update_themes(array());
@@ -1787,25 +2112,25 @@ if (!class_exists('XAGIO_API')) {
             $themes_temp  = [];
             $themes2_temp = [];
             $themes3_temp = [];
-            foreach ($themes as $key => $value) {
-                $screenshot          = $value->get_screenshot();
-                $value               = (array)$value;
-                $value['screenshot'] = $screenshot;
-                $themes_temp[$key]   = $value;
+            foreach ($themes as $xagio_key => $xagio_value) {
+                $screenshot          = $xagio_value->get_screenshot();
+                $xagio_value               = (array)$xagio_value;
+                $xagio_value['screenshot'] = $screenshot;
+                $themes_temp[$xagio_key]   = $xagio_value;
             }
-            foreach ($themes_temp as $key => $theme) {
-                if (!!empty($themes2_temp[$key])) {
-                    $themes2_temp[$key] = [];
+            foreach ($themes_temp as $xagio_key => $theme) {
+                if (!!empty($themes2_temp[$xagio_key])) {
+                    $themes2_temp[$xagio_key] = [];
                 }
-                foreach ($theme as $k => $v) {
-                    $k                      = str_replace('WP_Theme', '', $k);
-                    $k                      = preg_replace('/[^A-Za-z0-9\-]/', '', $k);
-                    $themes2_temp[$key][$k] = $v;
+                foreach ($theme as $xagio_k => $v) {
+                    $xagio_k                      = str_replace('WP_Theme', '', $xagio_k);
+                    $xagio_k                      = preg_replace('/[^A-Za-z0-9\-]/', '', $xagio_k);
+                    $themes2_temp[$xagio_key][$xagio_k] = $v;
                 }
             }
-            foreach ($themes2_temp as $key => $theme) {
+            foreach ($themes2_temp as $xagio_key => $theme) {
                 $theme['headers']['screenshot'] = $theme['screenshot'];
-                $themes3_temp[$key]             = $theme['headers'];
+                $themes3_temp[$xagio_key]             = $theme['headers'];
             }
 
             $data = [
@@ -1897,7 +2222,7 @@ if (!class_exists('XAGIO_API')) {
             ]);
 
             // Merge comments to delete
-//            $comments_to_delete = array_merge($pending_comments, $spam_comments);
+            //            $comments_to_delete = array_merge($pending_comments, $spam_comments);
 
             // If there are comments to delete, proceed with deletion
             if (!empty($comments_to_delete)) {
@@ -2003,11 +2328,11 @@ if (!class_exists('XAGIO_API')) {
 
             $results = $wpdb->get_results('SELECT * FROM xag_reviews', ARRAY_A);
 
-            for ($i = 0; $i < sizeof($results); $i++) {
-                if ($results[$i]['page_id'] !== 0) {
-                    $results[$i]['page_name'] = get_the_title($results[$i]['page_id']);
+            for ($xagio_i = 0; $xagio_i < sizeof($results); $xagio_i++) {
+                if ($results[$xagio_i]['page_id'] !== 0) {
+                    $results[$xagio_i]['page_name'] = get_the_title($results[$xagio_i]['page_id']);
                 } else {
-                    $results[$i]['page_name'] = 'Global Review';
+                    $results[$xagio_i]['page_name'] = 'Global Review';
                 }
             }
 
@@ -2046,10 +2371,10 @@ if (!class_exists('XAGIO_API')) {
                 xagio_json('error', 'Invalid request!');
             }
 
-            $args   = array_map('sanitize_text_field', wp_unslash($request->get_param('args')));
-            $result = wp_update_comment($args);
+            $xagio_args   = array_map('sanitize_text_field', wp_unslash($request->get_param('args')));
+            $xagio_result = wp_update_comment($xagio_args);
 
-            if ($result) {
+            if ($xagio_result) {
                 xagio_json('success', 'Comment edited successfully.');
             } else {
                 xagio_json('error', 'Could not edit comment at the moment.');
@@ -2065,7 +2390,7 @@ if (!class_exists('XAGIO_API')) {
             }
 
             $comment_id = intval($request->get_param('comment_id'));
-            $content    = sanitize_textarea_field(wp_unslash($request->get_param('content')));
+            $xagio_content    = sanitize_textarea_field(wp_unslash($request->get_param('content')));
 
             $comment = get_comment($comment_id, ARRAY_A);
 
@@ -2087,16 +2412,16 @@ if (!class_exists('XAGIO_API')) {
                     'comment_post_ID'      => $comment['comment_post_ID'],
                     'comment_author'       => $user_info->user_login,
                     'comment_author_email' => $user_info->user_email,
-                    'comment_content'      => $content,
+                    'comment_content'      => $xagio_content,
                     'comment_type'         => '',
                     'comment_parent'       => $comment['comment_ID'],
                     'user_id'              => $user_info->ID,
                     'comment_date'         => current_time('mysql'),
                 ];
 
-                $result = wp_insert_comment($data);
+                $xagio_result = wp_insert_comment($data);
 
-                if ($result) {
+                if ($xagio_result) {
                     xagio_json('success', 'Successfully replied to comment.');
                 } else {
                     xagio_json('error', 'Could not reply to comment at the moment.');
@@ -2134,17 +2459,17 @@ if (!class_exists('XAGIO_API')) {
             // Update comments in bulk or individually
             if (!empty($comment_ids)) {
                 if (count($comment_ids) > 1) {
-                    $placeholders = implode(',', array_fill(0, count($comment_ids), '%d'));
-                    $result       = $wpdb->query(
+                    $xagio_placeholders = implode(',', array_fill(0, count($comment_ids), '%d'));
+                    $xagio_result       = $wpdb->query(
                         $wpdb->prepare(
-                            "UPDATE {$wpdb->prefix}comments SET comment_approved = %s WHERE comment_ID IN ($placeholders)", ...array_merge([$status], $comment_ids)
+                            "UPDATE {$wpdb->prefix}comments SET comment_approved = %s WHERE comment_ID IN ($xagio_placeholders)", ...array_merge([$status], $comment_ids)
                         )
                     );
                 } else {
-                    $result = wp_set_comment_status($comment_ids[0], $status);
+                    $xagio_result = wp_set_comment_status($comment_ids[0], $status);
                 }
 
-                if ($result !== false) {
+                if ($xagio_result !== false) {
                     $message = 'Successfully ' . (($status === 'approve') ? 'approved' : (($status === 'hold') ? 'unapproved' : (($status === 'spam') ? 'moved to spam' : 'deleted'))) . ' comment(s).';
                     xagio_json('success', $message);
                 } else {
@@ -2179,12 +2504,6 @@ if (!class_exists('XAGIO_API')) {
                 'comment_count',
             ];
 
-            /* Indexed column (used for fast and accurate table cardinality) */
-            $sIndexColumn = "ID";
-
-            /* DB table to use */
-            $sTable = $wpdb->prefix . 'posts';
-
             // Determine Post Types
             $allowedPostTypes = XAGIO_MODEL_SEO::getAllPostTypes();
 
@@ -2207,22 +2526,22 @@ if (!class_exists('XAGIO_API')) {
             $rResult = $wpdb->get_results(
                 $wpdb->prepare(
                     "SELECT SQL_CALC_FOUND_ROWS $columns
-        FROM $sTable
-        $sWhere", ...$allowedPostTypes
+                    FROM {$wpdb->prefix}posts
+                    $sWhere", ...$allowedPostTypes
                 ), ARRAY_A
             );
 
 
             $posts_data = [];
 
-            for ($i = 0; $i < count($rResult); $i++) {
-                $posts_data[$i]['id']            = $rResult[$i]['ID'];
-                $posts_data[$i]['post_type']     = $rResult[$i]['post_type'];
-                $posts_data[$i]['post_title']    = $rResult[$i]['post_title'];
-                $posts_data[$i]['post_status']   = $rResult[$i]['post_status'];
-                $posts_data[$i]['guid']          = $rResult[$i]['guid'];
-                $posts_data[$i]['post_author']   = get_the_author_meta('display_name', $rResult[$i]['post_author']);
-                $posts_data[$i]['comment_count'] = $rResult[$i]['comment_count'];
+            for ($xagio_i = 0; $xagio_i < count($rResult); $xagio_i++) {
+                $posts_data[$xagio_i]['id']            = $rResult[$xagio_i]['ID'];
+                $posts_data[$xagio_i]['post_type']     = $rResult[$xagio_i]['post_type'];
+                $posts_data[$xagio_i]['post_title']    = $rResult[$xagio_i]['post_title'];
+                $posts_data[$xagio_i]['post_status']   = $rResult[$xagio_i]['post_status'];
+                $posts_data[$xagio_i]['guid']          = $rResult[$xagio_i]['guid'];
+                $posts_data[$xagio_i]['post_author']   = get_the_author_meta('display_name', $rResult[$xagio_i]['post_author']);
+                $posts_data[$xagio_i]['comment_count'] = $rResult[$xagio_i]['comment_count'];
             }
 
             /*Returning results*/
@@ -2285,8 +2604,8 @@ if (!class_exists('XAGIO_API')) {
             $errors    = [];
 
             foreach ($revisions as $revision) {
-                $result = wp_delete_post_revision($revision->ID);
-                if (is_wp_error($result)) {
+                $xagio_result = wp_delete_post_revision($revision->ID);
+                if (is_wp_error($xagio_result)) {
                     $errors[] = $revision->ID;
                 }
             }
@@ -2336,11 +2655,11 @@ if (!class_exists('XAGIO_API')) {
                     update_option('XAGIO_MEMBERSHIP', $membership);
                 }
 
-                // Deactivate on panel if license not set
-                if (!XAGIO_LICENSE::isLicenseSet()) {
-                    XAGIO_API::apiRequest(
-                        $apiEndpoint = 'license', $method = 'DELETE', $args = [], $http_code, $without_license = FALSE
-                    );
+                if (!empty($request->get_param('license_email')) && !empty($request->get_param('license_key'))) {
+                    $license_email = sanitize_text_field(wp_unslash($request->get_param('license_email')));
+                    $license_key = sanitize_text_field(wp_unslash($request->get_param('license_key')));
+                    update_option('XAGIO_LICENSE_EMAIL', $license_email);
+                    update_option('XAGIO_LICENSE_KEY', $license_key);
                 }
 
                 xagio_json('success', 'Successfully retrieved blog description.', [
@@ -2356,6 +2675,8 @@ if (!class_exists('XAGIO_API')) {
                     'old_features'     => get_option('XAGIO_FEATURES'),
                     'admin_post'       => XAGIO_MODEL_SETTINGS::getApiUrl(),
                     'ip_address'       => XAGIO_IP_ADDRESS,
+                    'timezone'         => wp_timezone_string(),
+                    'next_backup'      => wp_next_scheduled('xagio_doBackup')
                 ]);
 
             } catch (Exception $e) {
@@ -2368,8 +2689,6 @@ if (!class_exists('XAGIO_API')) {
          */
         public static function dailySyncPRT($request = null)
         {
-
-
             try {
                 // Check if prtData is set and is an array
                 if (empty($request->get_param('prtData')) || !is_array($request->get_param('prtData'))) {
@@ -2386,12 +2705,12 @@ if (!class_exists('XAGIO_API')) {
                 foreach ($prtData as $termName => $termData) {
                     $sanitizedTermName = sanitize_text_field($termName);
                     $sanitizedTermData = wp_json_encode(
-                        array_map(function ($item) {
-                            $item['term_id'] = absint($item['term_id']);
-                            $item['url_id']  = absint($item['url_id']);
-                            $item['rank']    = is_numeric($item['rank']) ? absint($item['rank']) : $item['rank'];
-                            $item['engine']  = esc_url_raw($item['engine']);
-                            return $item;
+                        array_map(function ($xagio_item) {
+                            $xagio_item['term_id'] = absint($xagio_item['term_id']);
+                            $xagio_item['url_id']  = absint($xagio_item['url_id']);
+                            $xagio_item['rank']    = is_numeric($xagio_item['rank']) ? absint($xagio_item['rank']) : $xagio_item['rank'];
+                            $xagio_item['engine']  = esc_url_raw($xagio_item['engine']);
+                            return $xagio_item;
                         }, $termData)
                     );
 
@@ -2435,7 +2754,7 @@ if (!class_exists('XAGIO_API')) {
                     $data    = json_decode($results->rank, true);
                     $newData = [];
 
-                    foreach ($data as $key => $val) {
+                    foreach ($data as $xagio_key => $val) {
                         if ($val['term_id'] != $term_id) {
                             $newData[] = $val;
                         }
@@ -2465,8 +2784,8 @@ if (!class_exists('XAGIO_API')) {
             // Check if plugins are activated
             $plugins = $pluginsThemes['plugins'];
 
-            foreach ($plugins as $name => $plugin) {
-                $pluginsThemes['plugins'][$name]['active'] = is_plugin_active($name);
+            foreach ($plugins as $xagio_name => $plugin) {
+                $pluginsThemes['plugins'][$xagio_name]['active'] = is_plugin_active($xagio_name);
             }
 
             // Check which theme is activated
@@ -2474,11 +2793,11 @@ if (!class_exists('XAGIO_API')) {
 
             $current_theme = get_option('current_theme');
 
-            foreach ($themes as $name => $theme) {
+            foreach ($themes as $xagio_name => $theme) {
                 if ($theme['Name'] == $current_theme) {
-                    $pluginsThemes['themes'][$name]['active'] = TRUE;
+                    $pluginsThemes['themes'][$xagio_name]['active'] = TRUE;
                 } else {
-                    $pluginsThemes['themes'][$name]['active'] = FALSE;
+                    $pluginsThemes['themes'][$xagio_name]['active'] = FALSE;
                 }
             }
 
@@ -2538,11 +2857,11 @@ if (!class_exists('XAGIO_API')) {
             }
 
             // Sanitize inputs
-            $page_id = intval($request->get_param('page_id'));
-            $value   = sanitize_text_field(wp_unslash($request->get_param('value')));
+            $xagio_page_id = intval($request->get_param('page_id'));
+            $xagio_value   = sanitize_text_field(wp_unslash($request->get_param('value')));
 
             // Update post meta
-            update_post_meta($page_id, 'ps_seo_disable_global_scripts', $value);
+            update_post_meta($xagio_page_id, 'ps_seo_disable_global_scripts', $xagio_value);
 
             xagio_json('success', 'Successfully updated render global script option.');
         }
@@ -2559,8 +2878,8 @@ if (!class_exists('XAGIO_API')) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $page_id = intval($request->get_param('page_id'));
-            $scripts = get_post_meta($page_id);
+            $xagio_page_id = intval($request->get_param('page_id'));
+            $scripts = get_post_meta($xagio_page_id);
 
             $filtered_value = array();
             $required_key   = array(
@@ -2575,9 +2894,9 @@ if (!class_exists('XAGIO_API')) {
                 'ps_seo_disable_page_footer_scripts'
             );
 
-            foreach ($scripts as $key => $val) {
-                if (in_array($key, $required_key)) {
-                    $filtered_value[$key] = $val[0];
+            foreach ($scripts as $xagio_key => $val) {
+                if (in_array($xagio_key, $required_key)) {
+                    $filtered_value[$xagio_key] = $val[0];
                 }
             }
 
@@ -2599,7 +2918,7 @@ if (!class_exists('XAGIO_API')) {
             }
 
             // Sanitize the page ID
-            $page_id = intval($request->get_param('page_id'));
+            $xagio_page_id = intval($request->get_param('page_id'));
 
             // Sanitize and decode the scripts
             $ps_seo_scripts        = !empty($request->get_param('script')['seo_scripts']) ? base64_decode(sanitize_textarea_field(wp_unslash($request->get_param('script')['seo_scripts']))) : '';
@@ -2616,17 +2935,17 @@ if (!class_exists('XAGIO_API')) {
             $ps_seo_disable_page_footer_scripts = !empty($request->get_param('script')['seo_disable_page_footer_scripts']) ? sanitize_text_field(wp_unslash($request->get_param('script')['seo_disable_page_footer_scripts'])) : '';
 
             // Update post meta with sanitized values
-            update_post_meta($page_id, 'ps_seo_scripts', trim($ps_seo_scripts));
-            update_post_meta($page_id, 'ps_seo_body_scripts', trim($ps_seo_body_scripts));
-            update_post_meta($page_id, 'ps_seo_footer_scripts', trim($ps_seo_footer_scripts));
+            update_post_meta($xagio_page_id, 'ps_seo_scripts', trim($ps_seo_scripts));
+            update_post_meta($xagio_page_id, 'ps_seo_body_scripts', trim($ps_seo_body_scripts));
+            update_post_meta($xagio_page_id, 'ps_seo_footer_scripts', trim($ps_seo_footer_scripts));
 
-            update_post_meta($page_id, 'ps_seo_disable_global_scripts', trim($ps_seo_disable_global_scripts));
-            update_post_meta($page_id, 'ps_seo_disable_global_body_scripts', trim($ps_seo_disable_global_body_scripts));
-            update_post_meta($page_id, 'ps_seo_disable_global_footer_scripts', trim($ps_seo_disable_global_footer_scripts));
+            update_post_meta($xagio_page_id, 'ps_seo_disable_global_scripts', trim($ps_seo_disable_global_scripts));
+            update_post_meta($xagio_page_id, 'ps_seo_disable_global_body_scripts', trim($ps_seo_disable_global_body_scripts));
+            update_post_meta($xagio_page_id, 'ps_seo_disable_global_footer_scripts', trim($ps_seo_disable_global_footer_scripts));
 
-            update_post_meta($page_id, 'ps_seo_disable_page_scripts', trim($ps_seo_disable_page_scripts));
-            update_post_meta($page_id, 'ps_seo_disable_page_body_scripts', trim($ps_seo_disable_page_body_scripts));
-            update_post_meta($page_id, 'ps_seo_disable_page_footer_scripts', trim($ps_seo_disable_page_footer_scripts));
+            update_post_meta($xagio_page_id, 'ps_seo_disable_page_scripts', trim($ps_seo_disable_page_scripts));
+            update_post_meta($xagio_page_id, 'ps_seo_disable_page_body_scripts', trim($ps_seo_disable_page_body_scripts));
+            update_post_meta($xagio_page_id, 'ps_seo_disable_page_footer_scripts', trim($ps_seo_disable_page_footer_scripts));
 
             xagio_json('success', 'Successfully updated global script.');
         }
@@ -2730,18 +3049,19 @@ if (!class_exists('XAGIO_API')) {
                 delete_option('core_updater.lock');
 
                 // Including required class for updates
+                require_once(ABSPATH . 'wp-admin/includes/update.php');
                 require_once(ABSPATH . 'wp-admin/includes/class-wp-upgrader.php');
 
                 $reinstall = !empty($request->get_param('reinstall'));
-                $version   = !empty($request->get_param('version')) ? sanitize_text_field(wp_unslash($request->get_param('version'))) : FALSE;
+                $xagio_version   = !empty($request->get_param('version')) ? sanitize_text_field(wp_unslash($request->get_param('version'))) : FALSE;
 
                 // Check if already updated
-                if ($version == get_bloginfo('version')) {
+                if ($xagio_version == get_bloginfo('version')) {
                     xagio_json('success', 'Successfully updated WordPress core.');
                     exit;
                 }
 
-                $update = find_core_update($version, 'en_US');
+                $update = find_core_update($xagio_version, 'en_US');
 
                 if (!$update) {
                     xagio_json('error', 'Cannot find any new updates for WordPress core.');
@@ -2861,9 +3181,9 @@ if (!class_exists('XAGIO_API')) {
                     } else {
                         $skin     = new Xagio_Silent_Upgrader_Skin();
                         $upgrader = new Theme_Upgrader($skin);
-                        $result   = $upgrader->upgrade($themeName);
+                        $xagio_result   = $upgrader->upgrade($themeName);
 
-                        if (!$result || is_wp_error($result)) {
+                        if (!$xagio_result || is_wp_error($xagio_result)) {
                             $status[$themeName] = false;
                         } else {
                             $status[$themeName] = true;
@@ -3148,15 +3468,40 @@ if (!class_exists('XAGIO_API')) {
 
         }
 
-        public static function postLicense($request = null)
+	    public static function rankTrackingSettings($request = null)
+	    {
+		    $data = $request->get_param('data') ?: [];
+
+		    if (array_key_exists('default_search_engine', $data)) {
+			    $search_engines = sanitize_text_field(wp_unslash($data['default_search_engine'] ?? ''));
+			    update_option('XAGIO_LOCATION_DEFAULT_SEARCH_ENGINE', json_decode($search_engines, true));
+		    }
+
+		    if (array_key_exists('default_country', $data)) {
+			    $default_country = (($data['default_country'] ?? '') === 'Select country')
+				    ? ''
+				    : sanitize_text_field(wp_unslash($data['default_country'] ?? ''));
+			    update_option('XAGIO_LOCATION_DEFAULT_COUNTRY', $default_country);
+		    }
+
+		    if (array_key_exists('default_location', $data)) {
+			    $default_location = sanitize_text_field(wp_unslash($data['default_location'] ?? ''));
+			    update_option('XAGIO_LOCATION_DEFAULT_CITY', $default_location);
+		    }
+
+		    xagio_json('success', 'Rank tracking settings successfully updated.');
+	    }
+
+
+	    public static function postLicense($request = null)
         {
             // Sanitize and process input
             $email = !empty($request->get_param('license_email')) ? sanitize_email(wp_unslash($request->get_param('license_email'))) : '';
-            $key   = !empty($request->get_param('license_key')) ? sanitize_text_field(wp_unslash($request->get_param('license_key'))) : '';
+            $xagio_key   = !empty($request->get_param('license_key')) ? sanitize_text_field(wp_unslash($request->get_param('license_key'))) : '';
 
             // Update the license information
             update_option('XAGIO_LICENSE_EMAIL', $email);
-            update_option('XAGIO_LICENSE_KEY', $key);
+            update_option('XAGIO_LICENSE_KEY', $xagio_key);
 
             // Return success response
             xagio_json('success', 'License successfully updated.', [
@@ -3165,10 +3510,216 @@ if (!class_exists('XAGIO_API')) {
             ]);
         }
 
+        public static function activateLicense($request = null)
+        {
+            if ($request === null) {
+                wp_die('Invalid request type.');
+            }
+
+            $email = $request->get_param('license_email');
+            $xagio_key   = $request->get_param('license_key');
+
+            $email = is_string($email) ? sanitize_email(wp_unslash($email)) : '';
+            $xagio_key   = is_string($xagio_key) ? sanitize_text_field(wp_unslash($xagio_key)) : '';
+
+            if (empty($email) || empty($xagio_key)) {
+                xagio_json('error', 'License email and key are required.');
+            }
+
+            update_option('XAGIO_LICENSE_EMAIL', $email);
+            update_option('XAGIO_LICENSE_KEY', $xagio_key);
+
+            $domain = wp_parse_url(admin_url(), PHP_URL_HOST);
+            $domain = str_replace('www.', '', (string)$domain);
+
+            $xagio_api = get_option('XAGIO_API');
+
+            $http_query = [
+                'license_email' => $email,
+                'license_key'   => $xagio_key,
+                'domain'        => $domain,
+                'admin_post'    => XAGIO_MODEL_SETTINGS::getApiUrl(),
+                'api_key'       => $xagio_api,
+                'blog_name'     => get_bloginfo('name'),
+                'blog_desc'     => get_bloginfo('description'),
+            ];
+
+            $xagio_response = wp_remote_post(XAGIO_PANEL_URL . '/api/license?' . http_build_query($http_query, '', '&'), [
+                'user-agent'  => 'Xagio - ' . XAGIO_CURRENT_VERSION . " ($domain)",
+                'timeout'     => 120,
+                'redirection' => 5,
+                'httpversion' => '1.0',
+                'blocking'    => true,
+            ]);
+
+            if (is_wp_error($xagio_response)) {
+                xagio_json('error', 'There was a problem while communicating with our server. Make sure your server meets all the requirements.', [
+                    'error' => $xagio_response->get_error_message(),
+                ]);
+            }
+
+            if (empty($xagio_response['body'])) {
+                xagio_json('error', 'The license information that you submitted is not valid. Please try again.');
+            }
+
+            $code    = isset($xagio_response['response']['code']) ? (int)$xagio_response['response']['code'] : 500;
+            $payload = json_decode($xagio_response['body'], true);
+            $message = is_array($payload) && !empty($payload['message']) ? $payload['message'] : 'License activation failed.';
+
+            if (!is_array($payload)) {
+                xagio_json('error', 'The license information that you submitted is not valid. Please try again.');
+            }
+
+            if ($code <= 201) {
+                if (class_exists('XAGIO_SYNC')) {
+                    XAGIO_SYNC::getMembershipInfo();
+                }
+
+                xagio_json('success', 'License successfully activated.', [
+                    'account'  => get_option('XAGIO_ACCOUNT_DETAILS'),
+                    'response' => $payload,
+                ]);
+            }
+
+            XAGIO_LICENSE::removeLicense();
+            xagio_json('error', $message, $payload);
+        }
+
+        public static function updateBlogSettings($request = null)
+        {
+            if ($request === null) {
+                wp_die('Invalid request type.');
+            }
+
+            $blog_name    = $request->get_param('blog_name');
+            $blog_tagline = $request->get_param('blog_tagline');
+
+            $provided = false;
+
+            if ($blog_name !== null) {
+                $provided  = true;
+                $blog_name = is_string($blog_name) ? sanitize_text_field(wp_unslash($blog_name)) : '';
+                update_option('blogname', $blog_name);
+            }
+
+            if ($blog_tagline !== null) {
+                $provided     = true;
+                $blog_tagline = is_string($blog_tagline) ? sanitize_text_field(wp_unslash($blog_tagline)) : '';
+                update_option('blogdescription', $blog_tagline);
+            }
+
+            if (!$provided) {
+                xagio_json('error', 'You must provide at least one field to update.');
+            }
+
+            xagio_json('success', 'Blog settings updated successfully.', [
+                'blog_name'    => get_bloginfo('name'),
+                'blog_tagline' => get_bloginfo('description'),
+            ]);
+        }
+
+        public static function getAgentXStatus($request = null)
+        {
+            XAGIO_MODEL_OCW::runWizard();
+
+            $status = get_option('XAGIO_OCW', [
+                'step' => 'not_running',
+                'data' => [],
+            ]);
+
+            if (!is_array($status)) {
+                $status = [
+                    'step' => 'not_running',
+                    'data' => [],
+                ];
+            }
+
+            $posts_urls = [];
+            if (isset($status['data']['posts'])) {
+                foreach($status['data']['posts'] as $post) {
+                    $posts_urls[] = [
+                        get_the_title($post),
+                        get_permalink($post)
+                    ];
+                }
+                $status['data']['posts_urls'] = $posts_urls;
+            }
+
+            xagio_json('success', 'Agent X status retrieved.', $status);
+        }
+
+        public static function configureAgentX($request = null)
+        {
+            if ($request === null) {
+                xagio_json('error', 'Invalid request.');
+            }
+
+            $body_params = $request->get_body_params();
+            if (!is_array($body_params)) {
+                $body_params = [];
+            }
+
+            global $wpdb;
+            $project = $wpdb->get_row('SELECT id FROM xag_projects ORDER BY id ASC LIMIT 1', ARRAY_A);
+
+            if (!$project || empty($project['id'])) {
+                xagio_json('error', 'No projects found in Project Planner.');
+            }
+
+            $project_id = absint($project['id']);
+
+            $homepage_group = false;
+            $homepage_group_id = absint(get_transient('xagio_agentx_homepage_group_id'));
+
+            $existing      = get_option('XAGIO_OCW', [
+                'step' => 'not_running',
+                'data' => [],
+            ]);
+            $existing_data = isset($existing['data']) && is_array($existing['data']) ? $existing['data'] : [];
+
+            $rank_tracker_defaults = [
+                'search_engines'       => [],
+                'search_country'       => '',
+                'search_location'      => '',
+                'search_location_name' => '',
+            ];
+
+            if (isset($existing_data['rank_tracker']) && is_array($existing_data['rank_tracker'])) {
+                $rank_tracker = array_merge($rank_tracker_defaults, $existing_data['rank_tracker']);
+            } else {
+                $rank_tracker = $rank_tracker_defaults;
+            }
+
+            $rank_tracker['search_country']       = isset($rank_tracker['search_country']) && !is_array($rank_tracker['search_country']) ? sanitize_text_field($rank_tracker['search_country']) : '';
+            $rank_tracker['search_location']      = isset($rank_tracker['search_location']) && !is_array($rank_tracker['search_location']) ? sanitize_text_field($rank_tracker['search_location']) : '';
+            $rank_tracker['search_location_name'] = isset($rank_tracker['search_location_name']) && !is_array($rank_tracker['search_location_name']) ? sanitize_text_field($rank_tracker['search_location_name']) : '';
+            $rank_tracker['search_engines']       = is_array($rank_tracker['search_engines']) ? array_map('absint', $rank_tracker['search_engines']) : [];
+
+            $configuration_data = [
+                'project_id'           => $project_id,
+                'progress'             => 1,
+                'homepage_group'       => $homepage_group_id,
+                'templates'            => 1,
+                'competition_language' => isset($existing_data['competition_language']) && !is_array($existing_data['competition_language']) ? sanitize_text_field($existing_data['competition_language']) : '',
+                'competition_location' => isset($existing_data['competition_location']) && !is_array($existing_data['competition_location']) ? sanitize_text_field($existing_data['competition_location']) : '',
+                'rank_tracker'         => $rank_tracker,
+                'wait'                 => false,
+            ];
+
+            $config_to_save = [
+                'step' => 'running_wizard',
+                'data' => $configuration_data,
+            ];
+
+            update_option('XAGIO_OCW', $config_to_save);
+
+            xagio_json('success', 'Agent X configuration updated.', $config_to_save);
+        }
+
         public static function getSystemStatus()
         {
 
-            $output = [
+            $xagio_output = [
                 "xagio_version"          => xagio_get_version(),
                 "xagio_panel_url"        => XAGIO_PANEL_URL,
                 "xagio_plugin_path"      => XAGIO_PATH,
@@ -3196,7 +3747,7 @@ if (!class_exists('XAGIO_API')) {
                 "wp_remote_post"         => function_exists('wp_remote_post') ? "1" : "0",
             ];
 
-            wp_send_json($output);
+            wp_send_json($xagio_output);
             wp_die();
         }
 
@@ -3229,13 +3780,13 @@ if (!class_exists('XAGIO_API')) {
             $TYPE      = !empty($request->get_param('type')) ? sanitize_text_field(wp_unslash($request->get_param('type'))) : 'post';
 
             if (!empty($schemaIDs)) {
-                $output          = null;
-                $renderedSchemas = XAGIO_MODEL_SCHEMA::getRemoteRenderedSchemas($schemaIDs, null, $TYPE, $output);
+                $xagio_output          = null;
+                $renderedSchemas = XAGIO_MODEL_SCHEMA::getRemoteRenderedSchemas($schemaIDs, null, $TYPE, $xagio_output);
 
                 if ($renderedSchemas !== false) {
                     if ($TYPE === 'post') {
                         if ($ID !== 0) {
-                            if(XAGIO_MODEL_SEO::is_homepage($ID)) {
+                            if (XAGIO_MODEL_SEO::is_homepage($ID)) {
                                 update_option('XAGIO_SEO_SCHEMA_META', $renderedSchemas['meta']);
                                 update_option('XAGIO_SEO_SCHEMA_DATA', $renderedSchemas['data']);
                             }
@@ -3262,7 +3813,7 @@ if (!class_exists('XAGIO_API')) {
 
                     xagio_json('success', 'Operation successfully finished.');
                 } else {
-                    xagio_json('error', 'A problem occurred.', $output);
+                    xagio_json('error', 'A problem occurred.', $xagio_output);
                 }
             } else {
                 if ($ID !== 0) {
@@ -3307,11 +3858,11 @@ if (!class_exists('XAGIO_API')) {
             if (is_null($schema_id) || empty($page_ids)) {
                 xagio_json('error', 'Not a valid ID or no pages selected.');
             } else {
-                foreach ($page_ids as $page_id) {
-                    if ($page_id === 0) {
+                foreach ($page_ids as $xagio_page_id) {
+                    if ($xagio_page_id === 0) {
                         self::removeSchemaFromGlobal($schema_id);
                     } else {
-                        self::removeSchemaFromPage($schema_id, $page_id);
+                        self::removeSchemaFromPage($schema_id, $xagio_page_id);
                     }
                 }
                 xagio_json('success', 'Removed successfully');
@@ -3323,8 +3874,8 @@ if (!class_exists('XAGIO_API')) {
             $schema_meta = get_option('XAGIO_SEO_SCHEMA_META', []);
 
             if (!empty($schema_meta)) {
-                foreach ($schema_meta as $index => $meta) {
-                    if ($meta['id'] === $schema_id) {
+                foreach ($schema_meta as $index => $xagio_meta) {
+                    if ($xagio_meta['id'] === $schema_id) {
                         unset($schema_meta[$index]);
                         update_option('XAGIO_SEO_SCHEMA_META', array_values($schema_meta));
                         break;
@@ -3339,25 +3890,38 @@ if (!class_exists('XAGIO_API')) {
             }
         }
 
-        private static function removeSchemaFromPage($schema_id, $page_id)
+        private static function removeSchemaFromPage($schema_id, $xagio_page_id)
         {
-            $schema_meta = get_post_meta($page_id, 'XAGIO_SEO_SCHEMA_META', true);
+            $schema_meta = get_post_meta($xagio_page_id, 'XAGIO_SEO_SCHEMA_META', true);
 
             if (!empty($schema_meta)) {
-                foreach ($schema_meta as $index => $meta) {
-                    if ($meta['id'] === $schema_id) {
+                foreach ($schema_meta as $index => $xagio_meta) {
+                    if ($xagio_meta['id'] === $schema_id) {
                         unset($schema_meta[$index]);
-                        update_post_meta($page_id, 'XAGIO_SEO_SCHEMA_META', array_values($schema_meta));
+                        update_post_meta($xagio_page_id, 'XAGIO_SEO_SCHEMA_META', array_values($schema_meta));
                         break;
                     }
                 }
 
-                $schema_data = get_post_meta($page_id, 'XAGIO_SEO_SCHEMA_DATA', true);
+                $schema_data = get_post_meta($xagio_page_id, 'XAGIO_SEO_SCHEMA_DATA', true);
                 if (!empty($schema_data[$index])) {
                     unset($schema_data[$index]);
-                    update_post_meta($page_id, 'XAGIO_SEO_SCHEMA_DATA', array_values($schema_data));
+                    update_post_meta($xagio_page_id, 'XAGIO_SEO_SCHEMA_DATA', array_values($schema_data));
                 }
             }
+        }
+
+        public static function getRenderedSchemaData($request = null)
+        {
+            $xagio_page_id = !empty($request->get_param('page_id')) ? intval($request->get_param('page_id')) : 0;
+
+            if ($xagio_page_id == 0) {
+                $schema = get_option('XAGIO_SEO_SCHEMA_DATA');
+            } else {
+                $schema = get_post_meta($xagio_page_id, 'XAGIO_SEO_SCHEMA_DATA', TRUE);
+            }
+
+            xagio_json('success', 'Retrieved schema json.', $schema);
         }
 
 
@@ -3390,10 +3954,10 @@ if (!class_exists('XAGIO_API')) {
                 xagio_json('error', 'DATA is not properly being sent.');
             } else {
                 $DATA   = array_map('sanitize_text_field', $DATA);
-                $result = wp_update_post($DATA, true);
+                $xagio_result = wp_update_post($DATA, true);
 
-                if (is_wp_error($result)) {
-                    xagio_json('error', 'Failed to update post content.', $result->get_error_message());
+                if (is_wp_error($xagio_result)) {
+                    xagio_json('error', 'Failed to update post content.', $xagio_result->get_error_message());
                 } else {
                     xagio_json('success', 'Successfully updated post content.');
                 }
@@ -3402,14 +3966,18 @@ if (!class_exists('XAGIO_API')) {
 
         public static function createPost($request = null)
         {
-
-
-            $DATA = !empty($request->get_param('data')) ? map_deep(wp_unslash($request->get_param('data')), 'sanitize_text_field') : null;
+            $DATA    = !empty($request->get_param('data')) ? $request->get_param('data') : null;
+            $xagio_content = $DATA["post_content"];
 
             if (is_null($DATA)) {
                 xagio_json('error', 'DATA is not properly being sent.');
             } else {
-                $DATA    = array_map('sanitize_text_field', $DATA);
+                $DATA = map_deep($DATA, function ($xagio_value) {
+                    return is_array($xagio_value) ? $xagio_value : sanitize_text_field($xagio_value);
+                });
+
+                $DATA["post_content"] = $xagio_content;
+
                 $post_id = wp_insert_post($DATA, true);
 
                 if (is_wp_error($post_id)) {
@@ -3446,7 +4014,7 @@ if (!class_exists('XAGIO_API')) {
                 return false;
             }
 
-            if (empty($_SERVER['SERVER_NAME'])) {
+            if (!defined('XAGIO_DOMAIN') || XAGIO_DOMAIN === '') {
                 return [
                     'status'  => 'error',
                     'message' => 'Required parameters are missing.'
@@ -3454,7 +4022,7 @@ if (!class_exists('XAGIO_API')) {
             }
 
             // Set the domain name
-            $domain     = preg_replace('/^www\./', '', sanitize_text_field(wp_unslash($_SERVER['SERVER_NAME'])));
+            $domain     = XAGIO_DOMAIN;
             $user_agent = "Xagio - " . XAGIO_CURRENT_VERSION . " ($domain)";
 
             // Ensure the file exists
@@ -3480,7 +4048,7 @@ if (!class_exists('XAGIO_API')) {
             $body      .= "--$boundary--\r\n";
 
             // Make the request
-            $response = wp_remote_post(XAGIO_PANEL_URL . "/api/" . $apiEndpoint, [
+            $xagio_response = wp_remote_post(XAGIO_PANEL_URL . "/api/" . $apiEndpoint, [
                 'method'  => 'POST',
                 'timeout' => 60,
                 'headers' => [
@@ -3493,11 +4061,11 @@ if (!class_exists('XAGIO_API')) {
             // Clean up temporary file after upload
             wp_delete_file($fileToUpload);
 
-            if (is_wp_error($response)) {
+            if (is_wp_error($xagio_response)) {
                 return false;
             }
 
-            $data = json_decode(wp_remote_retrieve_body($response), true);
+            $data = json_decode(wp_remote_retrieve_body($xagio_response), true);
             if (!$data) {
                 return false;
             } else {
@@ -3505,40 +4073,31 @@ if (!class_exists('XAGIO_API')) {
             }
         }
 
-        public static function apiRequest($apiEndpoint = NULL, $method = 'GET', $args = [], &$http_code = FALSE, $without_license = FALSE)
+        public static function apiRequest($apiEndpoint = NULL, $method = 'GET', $xagio_args = [], &$xagio_http_code = FALSE, $without_license = FALSE, $download = false)
         {
-            if ($apiEndpoint == NULL || XAGIO_CONNECTED == FALSE) {
-                if (!$without_license) {
-                    return FALSE;
-                }
+            if ($apiEndpoint == NULL) {
+                return FALSE;
             }
 
-            if (!!empty($_SERVER['SERVER_NAME'])) {
+            if (!defined('XAGIO_DOMAIN') || XAGIO_DOMAIN === '') {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
             // Set the domain name
-            $domain = preg_replace('/^www\./', '', sanitize_text_field(wp_unslash($_SERVER['SERVER_NAME'])));
+            $domain = XAGIO_DOMAIN;
 
-            if ($without_license === FALSE) {
-
-                $license_email = null;
-                $license_key   = null;
-
-                XAGIO_LICENSE::isLicenseSet($license_email, $license_key);
-
-                // Set the HTTP Query
+            if (!XAGIO_LICENSE::isLicenseSet($license_email, $license_key)) {
+                $http_query = [
+                    'domain' => $domain,
+                ];
+            } else {
                 $http_query = [
                     'license_email' => $license_email,
                     'license_key'   => $license_key,
                     'domain'        => $domain,
                 ];
-
-                $http_query = array_merge($http_query, $args);
-
-            } else {
-                $http_query = $args;
             }
+            $http_query = array_merge($http_query, $xagio_args);
 
             $data = [
                 'user-agent'  => "Xagio - " . XAGIO_CURRENT_VERSION . " ($domain)",
@@ -3555,27 +4114,93 @@ if (!class_exists('XAGIO_API')) {
                 $data['body'] = $http_query;
             }
 
-            $response = wp_remote_request(XAGIO_PANEL_URL . "/api/" . $apiEndpoint, $data);
-            if (is_wp_error($response)) {
+            $xagio_response = wp_remote_request(XAGIO_PANEL_URL . "/api/" . $apiEndpoint, $data);
+
+            if (is_wp_error($xagio_response)) {
                 return FALSE;
             } else {
-                $http_code = $response['response']['code'];
-                if (empty($response['body'])) {
+                $xagio_http_code = $xagio_response['response']['code'];
+
+                if (empty($xagio_response['body'])) {
                     return FALSE;
-                } else {
-                    $data = json_decode($response['body'], TRUE);
-                    if (!$data) {
-                        return FALSE;
-                    } else {
-                        return $data;
-                    }
                 }
+
+                // If $download is set, save the response as a file
+                if ($download !== false) {
+                    $file_path = $download;
+
+                    $dir = dirname($file_path);
+                    if (!file_exists($dir)) {
+                        xagio_mkdir($dir);
+                    }
+
+                    if (xagio_file_put_contents($file_path, $xagio_response['body']) === false) {
+                        return FALSE; // Return false if file writing fails
+                    }
+
+                    return $file_path; // Return the path to the saved file
+                }
+
+                // Otherwise, decode JSON as usual
+                $data = json_decode($xagio_response['body'], TRUE);
+                if (!$data) {
+                    return FALSE;
+                }
+
+                return $data;
             }
         }
+
 
         public static function syncServerAPI($request = null)
         {
             do_action('XAGIO_CHECK_LICENSE');
+        }
+
+        private static function sanitizeAgentXConfiguration($xagio_value)
+        {
+            if (is_array($xagio_value)) {
+                $sanitized = [];
+                foreach ($xagio_value as $xagio_key => $xagio_item) {
+                    $sanitized_key             = is_string($xagio_key) ? sanitize_key($xagio_key) : $xagio_key;
+                    $sanitized[$sanitized_key] = self::sanitizeAgentXConfiguration($xagio_item);
+                }
+
+                return $sanitized;
+            }
+
+            if (is_bool($xagio_value)) {
+                return $xagio_value;
+            }
+
+            if (is_numeric($xagio_value)) {
+                return strpos((string)$xagio_value, '.') !== false ? (float)$xagio_value : (int)$xagio_value;
+            }
+
+            if (is_string($xagio_value)) {
+                $xagio_value = wp_unslash($xagio_value);
+                $bool  = xagio_parse_bool($xagio_value);
+                if (is_bool($bool)) {
+                    return $bool;
+                }
+
+                return sanitize_text_field($bool);
+            }
+
+            return $xagio_value;
+        }
+
+        private static function mergeAgentXConfiguration($original, $updates)
+        {
+            foreach ($updates as $xagio_key => $xagio_value) {
+                if (isset($original[$xagio_key]) && is_array($original[$xagio_key]) && is_array($xagio_value)) {
+                    $original[$xagio_key] = self::mergeAgentXConfiguration($original[$xagio_key], $xagio_value);
+                } else {
+                    $original[$xagio_key] = $xagio_value;
+                }
+            }
+
+            return $original;
         }
 
         private function removeDirectory($path)
@@ -3598,12 +4223,12 @@ if (!class_exists('XAGIO_API')) {
             }
 
             // Get the list of files in the directory
-            $files = $wp_filesystem->dirlist($path);
+            $xagio_files = $wp_filesystem->dirlist($path);
 
             // Iterate through the files and delete them
-            foreach ($files as $file) {
-                $file_path = $path . '/' . $file['name'];
-                if ($file['type'] === 'd') {
+            foreach ($xagio_files as $xagio_file) {
+                $file_path = $path . '/' . $xagio_file['name'];
+                if ($xagio_file['type'] === 'd') {
                     self::removeDirectory($file_path);
                 } else {
                     $wp_filesystem->delete($file_path);
@@ -3613,6 +4238,31 @@ if (!class_exists('XAGIO_API')) {
             // Delete the directory itself
             $wp_filesystem->rmdir($path);
             return true;
+        }
+    }
+}
+
+if (!class_exists('XAGIO_Captured_WP_Die_Exception')) {
+    class XAGIO_Captured_WP_Die_Exception extends \RuntimeException
+    {
+        private $status_code;
+
+        public function __construct($message = '', $title = '', array $xagio_args = [])
+        {
+            $status = 500;
+
+            if (isset($xagio_args['response']) && is_numeric($xagio_args['response'])) {
+                $status = (int)$xagio_args['response'];
+            }
+
+            $this->status_code = $status;
+
+            parent::__construct(is_string($message) ? $message : '', 0);
+        }
+
+        public function getStatusCode()
+        {
+            return $this->status_code;
         }
     }
 }

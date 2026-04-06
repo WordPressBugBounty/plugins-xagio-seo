@@ -11,6 +11,7 @@
     transition: transform 150ms ease-in;
     mask-size: 1em;
     mask-position: -1px -1px;
+    flex-shrink: 0;
     /*align-self: baseline;*/
 }
 
@@ -373,6 +374,10 @@
 
 .xagio-icon-blue {
     color: #3a33e8;
+}
+
+a.xagio-template-social-link {
+    display: flex;
 }
 
 

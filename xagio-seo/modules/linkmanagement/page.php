@@ -7,16 +7,16 @@
  * Slug: xagio-linkmanagement
  * Parent_Slug: xagio-dashboard
  * Icon: /assets/img/logo-menu-xagio.webp
- * JavaScript: xagio_datatables,media-upload,thickbox,xagio_google_charts,xagio_linkmanagement
+ * JavaScript: xagio_datatables,media-upload,thickbox,xagio_chart,xagio_linkmanagement
  * Css: xagio_datatables,thickbox,xagio_linkmanagement
  * Position: 9
  * Version: 1.0.0
  */
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
-$redirect_mask = get_option('XAGIO_REDIRECT_MASK');
-$MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
-if (!$redirect_mask) $redirect_mask = 'xredirect';
+$xagio_redirect_mask = get_option('XAGIO_REDIRECT_MASK');
+$XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
+if (!$xagio_redirect_mask) $xagio_redirect_mask = 'xredirect';
 ?>
 <div class="xagio-main-header xagio-main-header-big-gaps">
     <img class="logo-image repo-xagio" src="<?php echo  esc_url(XAGIO_URL); ?>assets/img/logo-xagio.webp"/>
@@ -25,10 +25,10 @@ if (!$redirect_mask) $redirect_mask = 'xredirect';
     </h2>
     <div class="xagio-header-actions">
         <button class="xagio-button xagio-button-primary create-shortcode" data-url="" data-group="Custom" data-xagio-modal="shortcodeModal"><i class="xagio-icon xagio-icon-plus"></i> Create Shortcode</button>
-        <button type="button" class="xagio-button xagio-button-primary show-filters"><i class="xagio-icon xagio-icon-filter"></i> Filters</button>
+        <button type="button" class="xagio-button xagio-button-primary show-filters"><i class="xagio-icon xagio-icon-search"></i> Search</button>
         <button type="button" class="xagio-button xagio-button-primary export-links"><i class="xagio-icon xagio-icon-download"></i> Export</button>
         <button type="button" class="xagio-button xagio-button-primary" data-xagio-modal="importLinks"><i class="xagio-icon xagio-icon-upload"></i> Import</button>
-        <?php if(isset($MEMBERSHIP_INFO["membership"]) && $MEMBERSHIP_INFO["membership"] === "Xagio AI Free") { ?>
+        <?php if(isset($XAGIO_MEMBERSHIP_INFO["membership"]) && $XAGIO_MEMBERSHIP_INFO["membership"] === "Xagio AI Free") { ?>
             <a href="https://xagio.com/?goto=wppremfeatures" target="_blank" class="xagio-button xagio-button-secondary xagio-button-premium-button">
                 See Xagio Premium Features
             </a>
@@ -155,10 +155,10 @@ if (!$redirect_mask) $redirect_mask = 'xredirect';
                             xagio_id, xagio_goto etc, because this will be setup globally and if any other plugin or theme have some functionality bind to for example ?id=1 it could lead to conflict and unexpected behavior.
                         </div>
                         <h5 class="xagio-panel-title xagio-margin-top-medium">Your URL Mask</h5>
-                        <input type="text" name="redirect_mask" class="xagio-input-text-mini" id="redirect_mask" placeholder="eg. xredirect" value="<?php echo esc_attr($redirect_mask) ?>">
+                        <input type="text" name="redirect_mask" class="xagio-input-text-mini" id="redirect_mask" placeholder="eg. xredirect" value="<?php echo esc_attr($xagio_redirect_mask) ?>">
 
                         <div class="xagio-flex-space-between xagio-margin-top-medium">
-                            <label>Masked URL preview - <a href="<?php echo esc_url(get_site_url()); ?>/?<?php echo esc_attr($redirect_mask) ?>=internal-name"><?php echo esc_url(get_site_url()); ?>/?<span class="redirect_mask_preview"><?php echo esc_html($redirect_mask) ?></span>=internal-name</a></label>
+                            <label>Masked URL preview - <a href="<?php echo esc_url(get_site_url()); ?>/?<?php echo esc_attr($xagio_redirect_mask) ?>=internal-name"><?php echo esc_url(get_site_url()); ?>/?<span class="redirect_mask_preview"><?php echo esc_html($xagio_redirect_mask) ?></span>=internal-name</a></label>
                             <button type="submit" class="xagio-button xagio-button-primary save-shortcode-setup"><i class="xagio-icon xagio-icon-check"></i> Save Changes</button>
                         </div>
                     </form>
@@ -271,7 +271,7 @@ if (!$redirect_mask) $redirect_mask = 'xredirect';
         <button class="xagio-modal-close"><i class="xagio-icon xagio-icon-close"></i></button>
     </div>
     <div class="xagio-modal-body">
-        <div id="tracking_charts" style="width: 100%; height: 350px;"></div>
+        <canvas id="tracking_charts" style="width: 100%; height: 350px;"></canvas>
 
         <div class="xagio-flex-right xagio-flex-gap-medium xagio-margin-top-medium">
             <button type="button" class="xagio-button xagio-button-primary uk-button-truncate-tracking" data-xagio-close-modal><i class="xagio-icon xagio-icon-delete"></i> Reset</button>
@@ -286,7 +286,7 @@ if (!$redirect_mask) $redirect_mask = 'xredirect';
         <button class="xagio-modal-close"><i class="xagio-icon xagio-icon-close"></i></button>
     </div>
     <div class="xagio-modal-body">
-        <div id="url_tracking_charts" style="width: 100%; height: 350px;"></div>
+        <canvas id="tracking_charts_url" style="width: 100%; height: 350px;"></canvas>
 
         <div class="xagio-flex-right xagio-flex-gap-medium xagio-margin-top-medium">
             <button type="button" class="xagio-button xagio-button-primary uk-button-url-truncate-tracking" data-xagio-close-modal><i class="xagio-icon xagio-icon-delete"></i> Reset</button>
@@ -353,8 +353,8 @@ if (!$redirect_mask) $redirect_mask = 'xredirect';
             </div>
             <div class="xagio-2-column-75-25-grid xagio-margin-top-medium">
                 <div>
-                    <div class="modal-label">Shortcode: <i class="xagio-icon xagio-icon-info" data-xagio-tooltip data-xagio-title="Format should be (my_shortcode)"></i></div>
-                    <input pattern="[a-zA-Z0-9_]{3,}" type="text" id="shortcode" name="shortcode" class="xagio-input-text-mini" placeholder="eg. my_shortcode_name" required>
+                    <div class="modal-label">Shortcode <i class="xagio-icon xagio-icon-info" data-xagio-tooltip data-xagio-title="Format should be (my_shortcode)"></i></div>
+                    <input type="text" id="shortcode" name="shortcode" class="xagio-input-text-mini" placeholder="eg. my_shortcode_name" required>
                 </div>
                 <div>
                     <div class="modal-label">No Follow Link</div>
@@ -384,8 +384,8 @@ if (!$redirect_mask) $redirect_mask = 'xredirect';
 
             <div class="xagio-2-column-75-25-grid xagio-margin-top-medium">
                 <div>
-                    <div class="modal-label">Internal Name <i class="xagio-icon xagio-icon-info" data-xagio-tooltip data-xagio-title="Only lowercase letters, minimum 4 characters"></i></div>
-                    <input type="text" id="name" name="name" class="xagio-input-text-mini" placeholder="eg. myshortcode" pattern="[a-z]{4,}" required>
+                    <div class="modal-label">Internal Name</div>
+                    <input type="text" id="name" name="name" class="xagio-input-text-mini" placeholder="eg. myshortcode"required>
                 </div>
                 <div>
 

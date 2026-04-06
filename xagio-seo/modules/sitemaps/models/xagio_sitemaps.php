@@ -16,52 +16,139 @@ if (!class_exists('XAGIO_MODEL_SITEMAPS')) {
 
         public static function initialize()
         {
-            XAGIO_MODEL_SITEMAPS::defines();
+            self::defines();
 
-            add_action('template_redirect', [
-                'XAGIO_MODEL_SITEMAPS',
-                'displaySitemap'
-            ], 99);
+            add_action('template_redirect', ['XAGIO_MODEL_SITEMAPS', 'displaySitemap'], 99);
 
             if (get_option('XAGIO_ENABLE_SITEMAPS') == true) {
                 add_filter('wp_sitemaps_enabled', '__return_false');
+
+                // Content changes -> invalidate sitemap cache
+                add_action('save_post', ['XAGIO_MODEL_SITEMAPS', 'onSavePostInvalidate'], 20, 3);
+                add_action('transition_post_status', ['XAGIO_MODEL_SITEMAPS', 'onTransitionPostStatusInvalidate'], 10, 3);
+
+                add_action('trashed_post', ['XAGIO_MODEL_SITEMAPS', 'invalidateSitemaps']);
+                add_action('untrashed_post', ['XAGIO_MODEL_SITEMAPS', 'invalidateSitemaps']);
+                add_action('deleted_post', ['XAGIO_MODEL_SITEMAPS', 'invalidateSitemaps']);
+
+                // Taxonomy changes -> invalidate (only if taxonomy enabled in your sitemap settings)
+                add_action('created_term', ['XAGIO_MODEL_SITEMAPS', 'onTermChangeInvalidate'], 10, 3);
+                add_action('edited_term', ['XAGIO_MODEL_SITEMAPS', 'onTermChangeInvalidate'], 10, 3);
+                add_action('delete_term', ['XAGIO_MODEL_SITEMAPS', 'onTermChangeInvalidate'], 10, 4);
+
+                // Lazy rebuild on next request (NOT in displaySitemap)
+                add_action('shutdown', ['XAGIO_MODEL_SITEMAPS', 'maybeRebuildSitemaps'], 0);
             }
 
-            if (!XAGIO_HAS_ADMIN_PERMISSIONS)
-                return;
+            if (!XAGIO_HAS_ADMIN_PERMISSIONS) return;
 
-            add_action('admin_post_xagio_sitemaps_settings', [
-                'XAGIO_MODEL_SITEMAPS',
-                'saveSitemapSettings'
-            ]);
-            add_action('admin_post_xagio_content_settings', [
-                'XAGIO_MODEL_SITEMAPS',
-                'saveContentSettings'
-            ]);
-            add_action('admin_post_xagio_get_sitemaps', [
-                'XAGIO_MODEL_SITEMAPS',
-                'getSitemaps'
-            ]);
+            add_action('admin_post_xagio_sitemaps_settings', ['XAGIO_MODEL_SITEMAPS', 'saveSitemapSettings']);
+            add_action('admin_post_xagio_content_settings', ['XAGIO_MODEL_SITEMAPS', 'saveContentSettings']);
+            add_action('admin_post_xagio_get_sitemaps', ['XAGIO_MODEL_SITEMAPS', 'getSitemaps']);
+        }
 
+        public static function invalidateSitemaps()
+        {
+            if (!get_option('XAGIO_ENABLE_SITEMAPS')) return;
+
+            if (get_transient('xagio_sitemaps_invalidate_debounce')) return;
+            set_transient('xagio_sitemaps_invalidate_debounce', 1, 30);
+
+            update_option('xagio_sitemaps_needs_rebuild', 1, false);
+        }
+
+        public static function onSavePostInvalidate($post_id, $post, $update)
+        {
+            if (!get_option('XAGIO_ENABLE_SITEMAPS')) return;
+
+            if (wp_is_post_revision($post_id) || wp_is_post_autosave($post_id)) return;
+            if (!$post) return;
+
+            $pt  = get_post_type($post_id);
+            $pto = $pt ? get_post_type_object($pt) : null;
+
+            if (!$pto || empty($pto->public)) return;
+
+            if ($post->post_status === 'publish') {
+                self::invalidateSitemaps();
+            }
+        }
+
+        public static function onTransitionPostStatusInvalidate($new_status, $old_status, $post)
+        {
+            if (!get_option('XAGIO_ENABLE_SITEMAPS')) return;
+            if (!$post) return;
+            if ($new_status === $old_status) return;
+
+            if ($new_status === 'publish' || $old_status === 'publish') {
+                self::invalidateSitemaps();
+            }
+        }
+
+        public static function onTermChangeInvalidate($term_id, $tt_id = null, $taxonomy = null, $deleted_term = null)
+        {
+            if (!get_option('XAGIO_ENABLE_SITEMAPS')) return;
+
+            $settings = get_option('XAGIO_SITEMAP_CONTENT_SETTINGS');
+            if (is_array($settings) && isset($settings['taxonomies']) && is_string($taxonomy)) {
+                if (empty($settings['taxonomies'][$taxonomy]['enabled'])) {
+                    return;
+                }
+            }
+
+            self::invalidateSitemaps();
+        }
+
+        public static function maybeRebuildSitemaps()
+        {
+            if (!get_option('XAGIO_ENABLE_SITEMAPS')) return;
+
+            if (defined('DOING_AJAX') && DOING_AJAX) return;
+            if (defined('DOING_CRON') && DOING_CRON) return;
+            if (defined('REST_REQUEST') && REST_REQUEST) return;
+
+            $needs = (int) get_option('xagio_sitemaps_needs_rebuild', 0);
+            if (!$needs) return;
+
+            if (get_transient('xagio_sitemaps_rebuild_lock')) return;
+            set_transient('xagio_sitemaps_rebuild_lock', 1, 120);
+
+            try {
+                $file_mode = filter_var(get_option('XAGIO_CACHE_SITEMAPS'), FILTER_VALIDATE_BOOLEAN);
+
+                if ($file_mode) {
+                    $xagio_files = glob(ABSPATH . 'sitemap-xag*.xml');
+                    foreach ($xagio_files as $xagio_file) {
+                        wp_delete_file($xagio_file);
+                    }
+                } else {
+                    delete_transient('xagio_sitemaps');
+                }
+
+                self::createSitemap();
+
+                update_option('xagio_sitemaps_needs_rebuild', 0, false);
+
+            } finally {
+                delete_transient('xagio_sitemaps_rebuild_lock');
+            }
         }
 
         public static function saveSitemapSettings()
         {
             check_ajax_referer('xagio_nonce', '_xagio_nonce');
 
-            if (!isset($_POST['XAGIO_ENABLE_SITEMAPS'], $_POST['XAGIO_SITEMAP_COMPRESSION'], $_POST['XAGIO_CACHE_SITEMAPS'], $_POST['XAGIO_DONT_INDEX_SUBPAGES'])) {
+            if (!isset($_POST['XAGIO_ENABLE_SITEMAPS'], $_POST['XAGIO_SITEMAP_COMPRESSION'], $_POST['XAGIO_CACHE_SITEMAPS'])) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
             $XAGIO_ENABLE_SITEMAPS     = intval($_POST['XAGIO_ENABLE_SITEMAPS']);
             $XAGIO_SITEMAP_COMPRESSION = intval($_POST['XAGIO_SITEMAP_COMPRESSION']);
             $XAGIO_CACHE_SITEMAPS      = intval($_POST['XAGIO_CACHE_SITEMAPS']);
-            $XAGIO_DONT_INDEX_SUBPAGES = intval($_POST['XAGIO_DONT_INDEX_SUBPAGES']);
 
             update_option('XAGIO_ENABLE_SITEMAPS', $XAGIO_ENABLE_SITEMAPS);
             update_option('XAGIO_SITEMAP_COMPRESSION', $XAGIO_SITEMAP_COMPRESSION);
             update_option('XAGIO_CACHE_SITEMAPS', $XAGIO_CACHE_SITEMAPS);
-            update_option('XAGIO_DONT_INDEX_SUBPAGES', $XAGIO_DONT_INDEX_SUBPAGES);
 
             if ($XAGIO_ENABLE_SITEMAPS) {
                 $db_values = get_option("XAGIO_SITEMAP_CONTENT_SETTINGS");
@@ -77,9 +164,9 @@ if (!class_exists('XAGIO_MODEL_SITEMAPS')) {
             if ($XAGIO_CACHE_SITEMAPS) {
                 delete_transient('xagio_sitemaps');
             } else {
-                $files = glob(ABSPATH . 'sitemap-xag*.xml');
-                foreach ($files as $file) {
-                    wp_delete_file($file);
+                $xagio_files = glob(ABSPATH . 'sitemap-xag*.xml');
+                foreach ($xagio_files as $xagio_file) {
+                    wp_delete_file($xagio_file);
                 }
             }
 
@@ -281,9 +368,9 @@ if (!class_exists('XAGIO_MODEL_SITEMAPS')) {
         public static function deleteSitemap()
         {
             delete_transient('xagio_sitemaps');
-            $files = glob(ABSPATH . 'sitemap-xag*.xml');
-            foreach ($files as $file) {
-                wp_delete_file($file);
+            $xagio_files = glob(ABSPATH . 'sitemap-xag*.xml');
+            foreach ($xagio_files as $xagio_file) {
+                wp_delete_file($xagio_file);
             }
         }
 
@@ -343,11 +430,21 @@ if (!class_exists('XAGIO_MODEL_SITEMAPS')) {
         public static function generateSitemapIndex($sitemaps)
         {
             // fetch the template from meta folder
-            $template = xagio_file_get_contents(XAGIO_PATH . '/modules/sitemaps/meta/sitemapindex.xml');
+            $xagio_template = xagio_file_get_contents(XAGIO_PATH . '/modules/sitemaps/meta/sitemapindex.xml');
 
-            // replace {{url}} with the site url and {{date}} with the current date in human-readable format
-            $template = str_replace('{{url}}', get_site_url(), $template);
-            $template = str_replace('{{date}}', gmdate('H:i:s F j, Y'), $template);
+
+            if (XAGIO_DISABLE_HTML_FOOTPRINT == FALSE) {
+                // replace {{url}} with the site url and {{date}} with the current date in human-readable format
+                $xagio_template = str_replace('{{url}}', get_site_url(), $xagio_template);
+                $xagio_template = str_replace('{{date}}', gmdate('H:i:s F j, Y'), $xagio_template);
+            } else {
+                $xagio_template = explode("\n", $xagio_template);
+
+                unset($xagio_template[2], $xagio_template[3]);
+
+                // Reindex and save back to file
+                $xagio_template = join("\n", array_values($xagio_template));
+            }
 
             $sitemap = '';
             foreach ($sitemaps as $data) {
@@ -360,19 +457,28 @@ if (!class_exists('XAGIO_MODEL_SITEMAPS')) {
             if (empty($sitemap))
                 return null;
 
-            $template = str_replace('{{urls}}', $sitemap, $template);
+            $xagio_template = str_replace('{{urls}}', $sitemap, $xagio_template);
 
-            return $template;
+            return $xagio_template;
         }
 
-        public static function generateSitemap($value = 'post', $settings = [])
+        public static function generateSitemap($xagio_value = 'post', $settings = [])
         {
             // fetch the template from meta folder
-            $template = xagio_file_get_contents(XAGIO_PATH . '/modules/sitemaps/meta/sitemap.xml');
+            $xagio_template = xagio_file_get_contents(XAGIO_PATH . '/modules/sitemaps/meta/sitemap.xml');
 
-            // replace {{url}} with the site url and {{date}} with the current date in human-readable format
-            $template = str_replace('{{url}}', get_site_url(), $template);
-            $template = str_replace('{{date}}', gmdate('H:i:s F j, Y'), $template);
+            if (XAGIO_DISABLE_HTML_FOOTPRINT == FALSE) {
+                // replace {{url}} with the site url and {{date}} with the current date in human-readable format
+                $xagio_template = str_replace('{{url}}', get_site_url(), $xagio_template);
+                $xagio_template = str_replace('{{date}}', gmdate('H:i:s F j, Y'), $xagio_template);
+            } else {
+                $xagio_template = explode("\n", $xagio_template);
+
+                unset($xagio_template[2], $xagio_template[3]);
+
+                // Reindex and save back to file
+                $xagio_template = join("\n", array_values($xagio_template));
+            }
 
             // Set up an array to hold the data for our sitemap
             $sitemap_data = [];
@@ -381,7 +487,7 @@ if (!class_exists('XAGIO_MODEL_SITEMAPS')) {
 
                 // Get a list of all published posts
                 $posts_args = array(
-                    'post_type'      => $value,
+                    'post_type'      => $xagio_value,
                     'post_status'    => 'publish',
                     'posts_per_page' => -1,
                 );
@@ -404,8 +510,8 @@ if (!class_exists('XAGIO_MODEL_SITEMAPS')) {
                         $sitemap_data[] = array(
                             'loc'        => get_permalink($post->ID),
                             'lastmod'    => get_the_modified_date('Y-m-d', $post->ID),
-                            'priority'   => $settings['priority'],
-                            'changefreq' => $settings['change_frequency']
+                            'priority'   => $settings['priority'] ?? "",
+                            'changefreq' => $settings['change_frequency'] ?? ""
                         );
                     }
                 }
@@ -413,7 +519,7 @@ if (!class_exists('XAGIO_MODEL_SITEMAPS')) {
             } else if ($settings['type'] == 'taxonomy') {
 
                 $terms = get_terms(array(
-                    'taxonomy'   => $value,
+                    'taxonomy'   => $xagio_value,
                     'hide_empty' => true,
                 ));
 
@@ -425,8 +531,8 @@ if (!class_exists('XAGIO_MODEL_SITEMAPS')) {
                 foreach ($terms as $term) {
                     $sitemap_data[] = array(
                         'loc'        => get_term_link($term),
-                        'priority'   => $settings['priority'],
-                        'changefreq' => $settings['change_frequency']
+                        'priority'   => $settings['priority'] ?? "",
+                        'changefreq' => $settings['change_frequency'] ?? ""
                     );
                 }
 
@@ -452,9 +558,9 @@ if (!class_exists('XAGIO_MODEL_SITEMAPS')) {
             if (empty($sitemap))
                 return null;
 
-            $template = str_replace('{{urls}}', $sitemap, $template);
+            $xagio_template = str_replace('{{urls}}', $sitemap, $xagio_template);
 
-            return $template;
+            return $xagio_template;
         }
 
     }

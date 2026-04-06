@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name: Xagio SEO
+ * Plugin Name: Xagio SEO - AI Powered SEO
  * Plugin URI: https://xagio.net/
  * Description: WordPress Management & AI Search Engine Optimization combined. Do everything from a single location with one software.
- * Version: 7.0.0.19
+ * Version: 7.1.0.35
  * Author: Xagio
  * Author URI: https://xagio.com
  * License: GPLv3 or later
@@ -12,3 +12,4 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 require_once('init.php');
+

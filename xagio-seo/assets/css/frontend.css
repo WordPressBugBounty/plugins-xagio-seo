@@ -1,0 +1,336 @@
+/* Highlighted element style */
+.inspector-highlight {
+    cursor: pointer;
+    border-radius: 10px !important;
+    outline: 3px solid #2f2aea !important;
+}
+
+#inspector-info {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    z-index: 999999;
+    background: #1e1e1e;
+    color: white;
+    padding: 15px;
+    width: 500px;
+    max-width: 500px;
+    font-size: 13px;
+    border: 1px solid #373737;
+    border-radius: 10px;
+    display: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    font-family: Outfit, sans-serif;
+}
+
+/* Header inside info panel */
+.inspector-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+/* Logo in header */
+.inspector-logo {
+    width: 20px;
+    height: 20px;
+    margin-right: 6px;
+}
+
+/* Title in header */
+.inspector-title {
+    font-weight: bold;
+    font-size: 15px;
+}
+
+#wp-admin-bar-xagio-inspector img.inspector-logo {
+    width: 20px;
+    vertical-align: middle;
+    margin-left: 5px;
+    padding-right: 5px;
+    display: inline;
+}
+
+button#send-to-ai-btn {
+    border: 0 !important;
+    background: #2d2ae9;
+    color: white;
+    height: 35px;
+    width: 35px;
+    padding: 0;
+    border-radius: 5px;
+}
+
+.inspector-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 20px;
+    position: absolute;
+    bottom: 15px;
+    right: 15px;
+}
+
+button#send-to-ai-btn:disabled {
+    color: gray;
+    border-color: gray;
+    background: #545454 !important;
+}
+
+/* wrapper dims & positions */
+.xag_ai_loading {
+    position: relative;
+    display: inline-block; /* for <img> wrappers */
+    opacity: 0.7; /* dim the content */
+    pointer-events: none; /* optional: disable clicks */
+}
+
+/* dark overlay */
+.xag_ai_loading::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1;
+}
+
+/* big white spinner */
+.xag_ai_loading::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 48px;
+    height: 48px;
+    margin: -24px 0 0 -24px;
+    border: 5px solid rgba(255, 255, 255, 0.6);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: xag-spin 1s linear infinite;
+    z-index: 2;
+}
+
+@keyframes xag-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.xag-ai-additional-prompt {
+    display: block;
+    margin-bottom: 8px;
+}
+
+textarea#ai-additional-prompt {
+    background: transparent;
+    border: 0;
+    margin-top: 10px;
+    font-size: 14px;
+    color: white;
+    outline: none !important;
+    padding: 0 0 25px;
+}
+
+label.xag-ai-additional-prompt {
+    background: #000002;
+    padding: 15px;
+    border-radius: 5px;
+    position: relative;
+}
+
+.inspector-text-and-cost {
+    font-size: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#inspector-page-type {
+    margin-left: auto;
+    font-weight: bold;
+    font-size: 12px;
+    background: #f0f0f0;
+    color: black;
+    padding: 2px 6px;
+    border-radius: 5px;
+}
+
+.inspector-text-and-cost > span:first-child {
+    font-size: 18px;
+}
+
+span.inspector-cost {
+    background: #1e1e1e;
+    padding: 5px 15px;
+    border-radius: 25px;
+}
+
+span.inspector-logo-container {
+    display: flex;
+}
+
+.inspector-selected-element-content, .inspector-selected-element-type {
+    font-size: 15px;
+}
+
+.inspector-selected-element-content {
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: #dfdfdf;
+}
+
+.inspector-action-holder {
+    margin-bottom: 10px;
+    padding: 0;
+    border: none;
+}
+
+.inspector-action-holder-legend {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.inspector-action-holder > legend + label {
+    margin-right: 12px;
+}
+
+.inspector-action-holder label {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 15px;
+}
+
+.inspector-action-holder label input {
+    width: 25px;
+    height: 25px;
+    cursor: pointer;
+}
+
+.inspector-action-holder-grid {
+    display: flex;
+    position: absolute;
+    gap: 5px;
+    bottom: 10px;
+    left: 10px;
+}
+
+.xags-container img {
+    max-width: 20px;
+}
+
+.xags-container {
+    display: flex;
+    gap: 10px;
+}
+
+.xags-container .xags-item {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+}
+
+.inspector-action-holder-grid [type=radio] {
+    display: none;
+}
+
+.inspector-action-holder-grid [type=radio] + span {
+    background: #1e1e1e;
+    padding: 6px 7px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.inspector-action-holder-grid [type=radio]:checked + span {
+    background: #24236f;
+}
+
+#xagio-backups-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .4);
+    z-index: 999999;
+    display: none;
+    align-items: center;
+    justify-content: center
+}
+
+#xagio-backups-modal .modal-inner {
+    margin: 20vh auto;
+    background: #1e1e1e;
+    color: #f1f1f1;
+    width: 560px;
+    max-width: 92vw;
+    border-radius: 8px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, .5)
+}
+
+#xagio-backups-modal .modal-head {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, .08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between
+}
+
+#xagio-backups-modal .modal-body {
+    max-height: 60vh;
+    overflow: auto;
+    padding: 12px 16px
+}
+
+#xagio-backups-modal .list {
+    margin: 0;
+    padding: 0;
+    list-style: none
+}
+
+#xagio-backups-modal .list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, .06)
+}
+
+#xagio-backups-modal .meta .sub {
+    opacity: .8;
+    font-size: 12px
+}
+
+#xagio-backups-modal .actions .button {
+    margin-left: 8px
+}
+
+#xagio-backups-modal .empty {
+    opacity: .8;
+    padding: 12px 0
+}
+
+#xagio-backups-modal .close {
+    background: none;
+    border: 0;
+    font-size: 18px;
+    line-height: 1;
+    color: #fff;
+    cursor: pointer
+}
+
+.xagio-mini-btn {
+    margin-left: 8px
+}
+
+a#open-backups-modal {
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+a#open-backups-modal i.xagio-icon.xagio-icon-refresh {
+    color: #2d2ae9;
+    font-size: 20px;
+}
+

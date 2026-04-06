@@ -32,6 +32,32 @@
 
         });
 
+        $(document).on('click', '.xagio-fix-requirement', function (e) {
+            e.preventDefault();
+            let btn = $(this);
+            let action = btn.data('xagio-action');
+            btn.disable('Loading ...');
+
+            $.post(xagio_data.wp_post, `action=xagio_fix_requirement&fix_action=${action}`, function (d) {
+
+                if(d.status === 'success') {
+                    xagio_notify(d.status, d.message);
+                    setTimeout(function(){
+                        btn.disable();
+                        document.location.reload();
+                    }, 2000);
+                } else if(d.status === 'redirect') {
+                    btn.disable();
+                    window.open(d.data, '_blank');
+                } else {
+                    btn.disable();
+                    xagio_notify(d.status, d.message);
+                }
+
+            });
+
+        });
+
         $(document).on('click', '.disconnect-account', function (e) {
             e.preventDefault();
 

@@ -1,134 +1,133 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
-$object  = $GLOBALS['wp_query']->get_queried_object();
-$page_id = 0;
+$xagio_object  = $GLOBALS['wp_query']->get_queried_object();
+$xagio_page_id = 0;
 
 if (
-    is_object($object)
+    is_object($xagio_object)
     && !XAGIO_MODEL_SEO::is_home_static_page()
     && !XAGIO_MODEL_SEO::is_home_posts_page()
 ) {
-    $page_id = $object->ID;
+    $xagio_page_id = $xagio_object->ID;
 } else if (isset($isShortcode)) {
-    $page_id = $post->ID;
+    $xagio_page_id = $post->ID;
 }
 
 // Unique Identifier
-$unique_id = 'rw-display';
-$ps_review = stripslashes_deep(get_option('XAGIO_REVIEW'));
+$xagio_unique_id = 'rw-display';
+$xagio_review = stripslashes_deep(get_option('XAGIO_REVIEW'));
 
 // Reviews Array
-$reviews = [];
+$xagio_reviews = [];
 
 // Should display Random Reviews
-$shouldRandom = FALSE;
-if(is_array($instance)) {
-    if (@$instance['random_reviews'] == 1) {
-        $shouldRandom = TRUE;
+$xagioShouldRandom = FALSE;
+if ( is_array( $xagio_instance ) ) {
+    if ( ( $xagio_instance['random_reviews'] ?? 0 ) == 1 ) {
+        $xagioShouldRandom = TRUE;
     }
 } else {
-    $instance = [];
+    $xagio_instance = [];
 }
 
 // Get all Reviews
-if (@$ps_review['settings']['per_page_reviews'] == 1) {
-    $reviews = XAGIO_MODEL_REVIEWS::getReviewsForPage($page_id, NULL, $shouldRandom);
+if ( ( $xagio_review['settings']['per_page_reviews'] ?? 0 ) == 1 ) {
+    $xagio_reviews = XAGIO_MODEL_REVIEWS::getReviewsForPage( $xagio_page_id, NULL, $xagioShouldRandom );
 } else {
-    $reviews = XAGIO_MODEL_REVIEWS::getReviewsGlobal(FALSE, $shouldRandom);
+    $xagio_reviews = XAGIO_MODEL_REVIEWS::getReviewsGlobal( FALSE, $xagioShouldRandom );
 }
 
 // Count reviews
-$reviewCount = sizeof($reviews);
+$xagioReviewCount = sizeof($xagio_reviews);
 
-$ps_stars            = FALSE;
-$ps_stars_percentage = FALSE;
+$xagio_stars            = FALSE;
+$xagio_stars_percentage = FALSE;
 
-$classes = [];
-if (@$ps_review['settings']['form_labels'] == 1) {
-    $classes[] = 'review-widget-labels';
+$xagio_classes = [];
+if ( ( $xagio_review['settings']['form_labels'] ?? 0 ) == 1 ) {
+    $xagio_classes[] = 'review-widget-labels';
 }
-if (@$ps_review['settings']['form_labels'] == 2) {
-    $classes[] = 'review-widget-placeholders';
+if ( ( $xagio_review['settings']['form_labels'] ?? 0 ) == 2 ) {
+    $xagio_classes[] = 'review-widget-placeholders';
 }
-if (@$ps_review['settings']['widget_width'] == 1) {
-    $classes[] = 'review-widget-auto-width';
+if ( ( $xagio_review['settings']['widget_width'] ?? 0 ) == 1 ) {
+    $xagio_classes[] = 'review-widget-auto-width';
 }
-if (@$ps_review['settings']['widget_theme'] == 1) {
-    $classes[] = 'review-widget-flat';
+if ( ( $xagio_review['settings']['widget_theme'] ?? 0 ) == 1 ) {
+    $xagio_classes[] = 'review-widget-flat';
 }
-if (@$ps_review['settings']['widget_theme'] == 2) {
-    $classes[] = 'review-widget-minimal';
+if ( ( $xagio_review['settings']['widget_theme'] ?? 0 ) == 2 ) {
+    $xagio_classes[] = 'review-widget-minimal';
 }
-if (@$ps_review['settings']['alpha_bg'] == 1 || @$instance['alpha_mode'] == 1) {
-    $classes[] = 'review-widget-alpha';
+if ( ( $xagio_review['settings']['alpha_bg'] ?? 0 ) == 1 || ( $xagio_instance['alpha_mode'] ?? 0 ) == 1 ) {
+    $xagio_classes[] = 'review-widget-alpha';
 }
-
-if (@$ps_review['settings']['popup'] == 1 || @$instance['popup_mode'] == 1) {
-    $classes[] = 'review-widget-popup';
+if ( ( $xagio_review['settings']['popup'] ?? 0 ) == 1 || ( $xagio_instance['popup_mode'] ?? 0 ) == 1 ) {
+    $xagio_classes[] = 'review-widget-popup';
 }
-if (@$ps_review['settings']['alignment'] == NULL) {
-    $classes[] = 'review-widget-left';
+if ( ( $xagio_review['settings']['alignment'] ?? null ) === null ) {
+    $xagio_classes[] = 'review-widget-left';
 } else {
-    $classes[] = 'review-widget-' . $ps_review['settings']['alignment'];
+    $xagio_classes[] = 'review-widget-' . esc_attr( $xagio_review['settings']['alignment'] );
 }
 
 if (
-    @$ps_review['settings']['stars_only'] == 1
-    || @$instance['stars_only'] == 1
+        ( $xagio_review['settings']['stars_only'] ?? 0 ) == 1
+        || ( $xagio_instance['stars_only'] ?? 0 ) == 1
 ) {
 
     // Set the stars mode to ON
-    $ps_stars = TRUE;
+    $xagio_stars = TRUE;
 
     // Add the stars mode class
-    $classes[] = 'review-widget-stars-only';
+    $xagio_classes[] = 'review-widget-stars-only';
 
     // Check if schema gave us the rating value already
     if (isset($GLOBALS['xagio_currentRatingValue'])) {
 
-        $ps_stars_percentage = number_format($GLOBALS['xagio_currentRatingValue'], 0, '.', '');
+        $xagio_stars_percentage = number_format($GLOBALS['xagio_currentRatingValue'], 0, '.', '');
 
     } else {
 
         // Nope, calculate ourselves
-        $ratings = [];
+        $xagio_ratings = [];
 
-        if (@$ps_review['settings']['per_page_reviews'] == 1) {
-            $ratings = XAGIO_MODEL_REVIEWS::getReviewsForPage($page_id, TRUE);
+        if ( ( $xagio_review['settings']['per_page_reviews'] ?? 0 ) == 1 ) {
+            $xagio_ratings = XAGIO_MODEL_REVIEWS::getReviewsForPage($xagio_page_id, TRUE);
         } else {
-            $ratings = XAGIO_MODEL_REVIEWS::getReviewsGlobal(TRUE);
+            $xagio_ratings = XAGIO_MODEL_REVIEWS::getReviewsGlobal(TRUE);
         }
 
-        $ratingsValue = 0;
-        $totalRatings = sizeof($ratings);
+        $xagioRatingsValue = 0;
+        $xagioTotalRatings = sizeof($xagio_ratings);
 
-        foreach ($ratings as $r) {
-            $ratingsValue = $ratingsValue + $r['rating'];
+        foreach ($xagio_ratings as $xagio_r) {
+            $xagioRatingsValue = $xagioRatingsValue + $xagio_r['rating'];
         }
 
-        if (!empty($ratingsValue)) {
-            $ps_stars_percentage = number_format((($ratingsValue / $totalRatings) / 5) * 100, 0, '.', '');
+        if (!empty($xagioRatingsValue)) {
+            $xagio_stars_percentage = number_format((($xagioRatingsValue / $xagioTotalRatings) / 5) * 100, 0, '.', '');
         }
     }
 
-    if (empty($ps_stars_percentage)) {
-        $ps_stars_percentage = FALSE;
+    if (empty($xagio_stars_percentage)) {
+        $xagio_stars_percentage = FALSE;
     }
 
 }
 
 
 // Merge all the classes
-$classes = join(' ', $classes);
+$xagio_classes = join(' ', $xagio_classes);
 ?>
 
-<div class="<?php echo esc_attr($unique_id); ?>">
+<div class="<?php echo esc_attr($xagio_unique_id); ?>">
 
     <input type="hidden" name="XAGIO_REVIEW[fields]"
-           value="<?php echo (@$ps_review['fields'] != NULL) ? esc_attr($ps_review['fields']) : '' ?>"/>
+           value="<?php echo esc_attr( $xagio_review['fields'] ?? '' ); ?>"/>
 
-    <?php if (@$ps_review['settings']['popup'] == 1 || @$instance['popup_mode'] == 1) { ?>
+    <?php if ( ( $xagio_review['settings']['popup'] ?? 0 ) == 1 || ( $xagio_instance['popup_mode'] ?? 0 ) == 1 ) { ?>
         <div class="review-widget-popup-container"></div>
     <?php } ?>
 
@@ -136,11 +135,11 @@ $classes = join(' ', $classes);
     <aside class="widget">
         <?php } ?>
 
-        <div class="review-widget <?php echo esc_attr($classes); ?>">
+        <div class="review-widget <?php echo esc_attr($xagio_classes); ?>">
             <form class="ps-submit-review">
 
                 <!-- Stars Only -->
-                <?php if ($ps_stars === TRUE) { ?>
+                <?php if ($xagio_stars === TRUE) { ?>
                     <input type="hidden" name="stars_only" value="1"/>
                 <?php } else { ?>
                     <input type="hidden" name="stars_only" value="0"/>
@@ -152,34 +151,34 @@ $classes = join(' ', $classes);
                 <?php wp_nonce_field('xagio_nonce', '_xagio_nonce'); ?>
 
                 <!-- Page ID -->
-                <input type="hidden" name="page_id" value="<?php echo absint($page_id) ?>"/>
+                <input type="hidden" name="page_id" value="<?php echo absint($xagio_page_id) ?>"/>
 
                 <div class="review-widget-title">
-                    <h2><?php echo (@$ps_review['details']['title'] == NULL) ? 'Leave a Review' : esc_html(@$ps_review['details']['title']); ?></h2>
+                    <h2><?php echo ( $xagio_review['details']['title'] ?? null ) ? esc_html( $xagio_review['details']['title'] ) : 'Leave a Review'; ?></h2>
                 </div>
-                <div class="review-widget-text"><?php echo (@$ps_review['details']['text'] == NULL) ? 'Please be kind and leave us a review!' : esc_html(@$ps_review['details']['text']); ?></div>
+                <div class="review-widget-text"><?php echo ( $xagio_review['details']['text'] ?? null ) ? esc_html( $xagio_review['details']['text'] ) : 'Please be kind and leave us a review!'; ?></div>
 
                 <div class="review-widget-stars-ratings-sum">
-                    <?php if ($ps_stars_percentage !== FALSE) {
-                        $ratingValue = 0;
+                    <?php if ($xagio_stars_percentage !== FALSE) {
+                        $xagioRatingValue = 0;
 
-                        foreach ($reviews as $r) {
-                            $ratingValue = $ratingValue + $r['rating'];
+                        foreach ($xagio_reviews as $xagio_r) {
+                            $xagioRatingValue = $xagioRatingValue + $xagio_r['rating'];
                         }
 
-                        if (!empty($reviewCount)) {
+                        if (!empty($xagioReviewCount)) {
 
-                            $ratingValue = $ratingValue / $reviewCount;
-                            $ratingValue = number_format($ratingValue, 1);
+                            $xagioRatingValue = $xagioRatingValue / $xagioReviewCount;
+                            $xagioRatingValue = number_format($xagioRatingValue, 1);
 
-                            $displayReviewsHeading = (@$ps_review['details']['rating_text'] == NULL) ? '' : str_replace('{num}', '<b>' . $ps_stars_percentage . '%</b> ', @$ps_review['details']['rating_text']);
-                            $displayReviewsHeading = str_replace('{calc}', '<b>' . $ratingValue . "</b>", $displayReviewsHeading);
-                            $displayReviewsHeading = str_replace('{sum}', '<b>' . $reviewCount . '</b>', $displayReviewsHeading);
+                            $xagioDisplayReviewsHeading = (($xagio_review['details']['rating_text'] ?? null) === null) ? '' : str_replace('{num}', '<b>' . $xagio_stars_percentage . '%</b> ', $xagio_review['details']['rating_text'] ?? '');
+                            $xagioDisplayReviewsHeading = str_replace('{calc}', '<b>' . $xagioRatingValue . "</b>", $xagioDisplayReviewsHeading);
+                            $xagioDisplayReviewsHeading = str_replace('{sum}', '<b>' . $xagioReviewCount . '</b>', $xagioDisplayReviewsHeading);
                         }
                         ?>
-                        <?php echo esc_html($displayReviewsHeading); ?>
+                        <?php echo esc_html($xagioDisplayReviewsHeading); ?>
                     <?php } else { ?>
-                        <?php echo (@$ps_review['details']['no_ratings_message'] == NULL) ? 'Nobody yet left a rating. Be first?' : esc_html(@$ps_review['details']['no_ratings_message']); ?>
+                        <?php echo ( $xagio_review['details']['no_ratings_message'] ?? null ) ? esc_html( $xagio_review['details']['no_ratings_message'] ) : 'Nobody yet left a rating. Be first?'; ?>
                     <?php } ?>
                 </div>
 
@@ -187,12 +186,12 @@ $classes = join(' ', $classes);
 
                 </div>
 
-                <button class="review-widget-button" type="submit"><i class="xagio-icon xagio-icon-send"></i> <?php echo (@$ps_review['details']['button_title'] == NULL) ? 'Submit Review' : esc_html(@$ps_review['details']['button_title']); ?>
+                <button class="review-widget-button" type="submit"><i class="xagio-icon xagio-icon-send"></i> <?php echo ( $xagio_review['details']['button_title'] ?? null ) ? esc_html( $xagio_review['details']['button_title'] ) : 'Submit Review'; ?>
                 </button>
 
                 <span class="review-widget-stars-ratings-info">
-            <?php echo (@$ps_review['details']['rating_info'] == NULL) ? 'Click a star to add your rating' : esc_html(@$ps_review['details']['rating_info']); ?>
-        </span>
+                    <?php echo ( $xagio_review['details']['rating_info'] ?? null ) ? esc_html( $xagio_review['details']['rating_info'] ) : 'Click a star to add your rating'; ?>
+                </span>
 
             </form>
         </div>
@@ -201,19 +200,21 @@ $classes = join(' ', $classes);
     </aside>
 <?php } ?>
 
-    <?php if (@$ps_review['settings']['popup'] == 1 || @$instance['popup_mode'] == 1) { ?>
+    <?php if (($xagio_review['settings']['popup'] ?? 0) == 1 || ($xagio_instance['popup_mode'] ?? 0) == 1) { ?>
         <?php if (!isset($isShortcode)) { ?>
             <aside class="widget">
         <?php } ?>
-        <?php if (@$ps_review['settings']['popup_text'] == 1 || @$instance['popup_text'] == 1) { ?>
+        <?php if (($xagio_review['settings']['popup_text'] ?? 0) == 1 || ($xagio_instance['popup_text'] ?? 0) == 1) { ?>
             <a href="#" id="review-widget-popup-button"
-               class="<?php echo (@$ps_review['settings']['exit_popup'] == 1 || @$instance['exit_popup'] == 1) ? 'exit-popup-window' : ''; ?>"><i
-                        class="xagio-icon xagio-icon-external-link"></i> <?php echo (@$ps_review['details']['popup_button_title'] == NULL) ? 'Leave a Review' : esc_html(@$ps_review['details']['popup_button_title']); ?>
+               class="<?php echo (($xagio_review['settings']['exit_popup'] ?? 0) == 1 || ($xagio_instance['exit_popup'] ?? 0) == 1) ? 'exit-popup-window' : ''; ?>">
+                <i class="xagio-icon xagio-icon-external-link"></i>
+                <?php echo ($xagio_review['details']['popup_button_title'] ?? null) === null ? 'Leave a Review' : esc_html($xagio_review['details']['popup_button_title'] ?? ''); ?>
             </a>
         <?php } else { ?>
             <button type="button" id="review-widget-popup-button"
-                    class="<?php echo (@$ps_review['settings']['exit_popup'] == 1 || @$instance['exit_popup'] == 1) ? 'exit-popup-window' : ''; ?>">
-                <i class="xagio-icon xagio-icon-external-link"></i> <?php echo (@$ps_review['details']['popup_button_title'] == NULL) ? 'Leave a Review' : esc_html(@$ps_review['details']['popup_button_title']); ?>
+                    class="<?php echo (($xagio_review['settings']['exit_popup'] ?? 0) == 1 || ($xagio_instance['exit_popup'] ?? 0) == 1) ? 'exit-popup-window' : ''; ?>">
+                <i class="xagio-icon xagio-icon-external-link"></i>
+                <?php echo ($xagio_review['details']['popup_button_title'] ?? null) === null ? 'Leave a Review' : esc_html($xagio_review['details']['popup_button_title'] ?? ''); ?>
             </button>
         <?php } ?>
         <?php if (!isset($isShortcode)) { ?>

@@ -7,7 +7,7 @@ if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 <html>
 
 <head>
-    <title>Xagio Seo Plan</title>
+    <title>SEO Plan</title>
     <?php wp_head(); ?>
 </head>
 <body>

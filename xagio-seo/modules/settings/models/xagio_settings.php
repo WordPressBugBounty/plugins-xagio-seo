@@ -12,6 +12,8 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
             define('XAGIO_DISABLE_UPLOADS', filter_var(get_option('XAGIO_DISABLE_UPLOADS'), FILTER_VALIDATE_BOOLEAN));
             define('XAGIO_DISABLE_MAINTENANCE', filter_var(get_option('XAGIO_DISABLE_MAINTENANCE'), FILTER_VALIDATE_BOOLEAN));
 
+            define('XAGIO_REMOVE_CATEGORY_BASE', filter_var(get_option('XAGIO_REMOVE_CATEGORY_BASE'), FILTER_VALIDATE_BOOLEAN));
+
             define('XAGIO_RECAPTCHA', filter_var(get_option('XAGIO_RECAPTCHA'), FILTER_VALIDATE_BOOLEAN));
             define('XAGIO_RECAPTCHA_SITE_KEY', get_option('XAGIO_RECAPTCHA_SITE_KEY'));
             define('XAGIO_RECAPTCHA_SECRET_KEY', get_option('XAGIO_RECAPTCHA_SECRET_KEY'));
@@ -78,17 +80,21 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
                 'XAGIO_MODEL_SETTINGS',
                 'saveSettings'
             ]);
-            add_action('admin_post_xagio_save_editors', [
+            add_action('admin_post_xagio_save_profiles', [
                 'XAGIO_MODEL_SETTINGS',
-                'saveEditors'
+                'saveProfiles'
+            ]);
+            add_action('admin_post_xagio_load_profiles', [
+                'XAGIO_MODEL_SETTINGS',
+                'loadProfiles'
             ]);
             add_action('admin_post_xagio_save_defaults', [
                 'XAGIO_MODEL_SETTINGS',
                 'saveDefaults'
             ]);
-            add_action('admin_post_xagio_save_verifications', [
+            add_action('admin_post_xagio_save_scripts', [
                 'XAGIO_MODEL_SETTINGS',
-                'saveVerifications'
+                'saveScripts'
             ]);
             add_action('admin_post_xagio_save_separator', [
                 'XAGIO_MODEL_SETTINGS',
@@ -133,6 +139,15 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
                 'getDefaultCountry'
             ]);
 
+            add_action('admin_post_xagio_set_default_location', [
+                'XAGIO_MODEL_SETTINGS',
+                'setDefaultLocation'
+            ]);
+            add_action('admin_post_xagio_get_default_location', [
+                'XAGIO_MODEL_SETTINGS',
+                'getDefaultLocation'
+            ]);
+
             add_action('admin_post_xagio_set_default_search_engine', [
                 'XAGIO_MODEL_SETTINGS',
                 'setDefaultSearchEngine'
@@ -161,6 +176,55 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
                 'XAGIO_MODEL_SETTINGS',
                 'setDefaultAiWizardLocation'
             ]);
+
+            if (XAGIO_REMOVE_CATEGORY_BASE) {
+                add_filter('category_rewrite_rules', [
+                    'XAGIO_MODEL_SETTINGS',
+                    'categoryRewriteRules'
+                ]);
+
+                add_filter('term_link', [
+                    'XAGIO_MODEL_SETTINGS',
+                    'termLink'
+                ], 10, 3);
+
+                add_action('init', [
+                    'XAGIO_MODEL_SETTINGS',
+                    'changeCategoryPermalinkStructure'
+                ]);
+            }
+
+            flush_rewrite_rules();
+        }
+
+        public static function categoryRewriteRules()
+        {
+            $new_rules = [];
+            $categories = get_categories(['hide_empty' => false]);
+
+            foreach ($categories as $cat) {
+                $slug = $cat->slug;
+
+                $new_rules[$slug . '/?$'] = 'index.php?category_name=' . $slug;
+                $new_rules[$slug . '/page/([0-9]{1,})/?$'] = 'index.php?category_name=' . $slug . '&paged=$matches[1]';
+                $new_rules[$slug . '/(.*)$'] = 'index.php?category_name=' . $slug . '&name=$matches[1]';
+            }
+
+            return $new_rules;
+        }
+
+        public static function termLink($xagio_url, $term, $taxonomy)
+        {
+            if ($taxonomy === 'category') {
+                $xagio_url = str_replace('/category/', '/', $xagio_url);
+            }
+            return $xagio_url;
+        }
+
+        public static function changeCategoryPermalinkStructure()
+        {
+            global $wp_rewrite;
+            $wp_rewrite->extra_permastructs['category']['struct'] = '%category%';
         }
 
         public static function setDefaultAiWizardLocation()
@@ -171,11 +235,9 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $value = sanitize_text_field(wp_unslash($_POST['value']));
+            $xagio_value = sanitize_text_field(wp_unslash($_POST['value']));
 
-            if (!empty($value)) {
-                update_option('XAGIO_LOCATION_DEFAULT_AI_LOCATION', $value);
-            }
+			update_option('XAGIO_LOCATION_DEFAULT_AI_LOCATION', $xagio_value);
 
             xagio_json('success', 'Default AI Wizard location changed.');
         }
@@ -188,31 +250,32 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $value = sanitize_text_field(wp_unslash($_POST['value']));
+            $xagio_value = sanitize_text_field(wp_unslash($_POST['value']));
 
-            if (!empty($value)) {
-                update_option('XAGIO_LOCATION_DEFAULT_AI_SEARCH_ENGINE', $value);
+            if (!empty($xagio_value)) {
+                update_option('XAGIO_LOCATION_DEFAULT_AI_SEARCH_ENGINE', $xagio_value);
             }
 
             xagio_json('success', 'Default AI Wizard search engine changed.');
         }
 
-        public static function setDefaultAuditLocation()
-        {
-            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+	    public static function setDefaultAuditLocation()
+	    {
+		    check_ajax_referer('xagio_nonce', '_xagio_nonce');
 
-            if (!isset($_POST['data'])) {
-                wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
-            }
+		    $location     = isset($_POST['location']) ? sanitize_text_field(wp_unslash($_POST['location'])) : '';
+		    $locationCode = isset($_POST['location_code']) ? sanitize_text_field(wp_unslash($_POST['location_code'])) : '';
 
-            $data = sanitize_text_field(wp_unslash($_POST['data']));
+		    if ($location !== '' && $locationCode !== '') {
+			    $data = $location . ',' . $locationCode;
+		    } else {
+			    $data = '';
+		    }
 
-            if (!empty($data)) {
-                update_option('XAGIO_LOCATION_DEFAULT_AUDIT_LANGUAGE', $data);
-            }
+		    update_option('XAGIO_LOCATION_DEFAULT_AUDIT_LANGUAGE', $data);
 
-            xagio_json('success', 'Default Audit Location changed.');
-        }
+		    xagio_json('success', 'Default Audit Location changed.');
+	    }
 
         public static function setDefaultKeywordLanguage()
         {
@@ -222,10 +285,10 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $language = sanitize_text_field(wp_unslash($_POST['language']));
+            $xagio_language = sanitize_text_field(wp_unslash($_POST['language']));
 
-            if (!empty($language)) {
-                update_option('XAGIO_LOCATION_DEFAULT_KEYWORD_LANGUAGE', $language);
+            if (!empty($xagio_language)) {
+                update_option('XAGIO_LOCATION_DEFAULT_KEYWORD_LANGUAGE', $xagio_language);
             }
 
             xagio_json('success', 'Default Language changed.');
@@ -239,11 +302,9 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $country = sanitize_text_field(wp_unslash($_POST['country']));
+            $xagio_country = sanitize_text_field(wp_unslash($_POST['country']));
 
-            if (!empty($country)) {
-                update_option('XAGIO_LOCATION_DEFAULT_KEYWORD_COUNTRY', $country);
-            }
+			update_option('XAGIO_LOCATION_DEFAULT_KEYWORD_COUNTRY', $xagio_country);
 
             xagio_json('success', 'Default Country changed.');
         }
@@ -258,16 +319,54 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
 
             $data = sanitize_text_field(wp_unslash($_POST['data']));
 
-            if (!empty($data)) {
+	        if ($data !== "" && $data !== null) {
                 update_option('XAGIO_LOCATION_DEFAULT_COUNTRY', $data);
+                update_option('XAGIO_LOCATION_DEFAULT_CITY', '');
+
+	            $xagio_output = XAGIO_API::apiRequest('rank_settings', 'POST', [
+		            'setting' => 'country',
+		            'domain' => XAGIO_DOMAIN,
+		            'country' => $data,
+		            'location' => ''
+	            ], $xagio_http_code);
+
                 xagio_json('success', 'Default Country changed.', $data);
-            }
+            } else {
+		        xagio_json('error', 'Something went wrong.');
+	        }
         }
 
         public static function getDefaultCountry()
         {
             $data = get_option('XAGIO_LOCATION_DEFAULT_COUNTRY');
             xagio_json('success', 'Default Country retrieved.', $data);
+        }
+	
+	    public static function setDefaultLocation()
+        {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
+            if (!isset($_POST['data'])) {
+                wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
+            }
+
+            $data = sanitize_text_field(wp_unslash($_POST['data']));
+
+            update_option('XAGIO_LOCATION_DEFAULT_CITY', $data);
+
+	        $xagio_output = XAGIO_API::apiRequest('rank_settings', 'POST', [
+		        'setting' => 'location',
+		        'domain' => XAGIO_DOMAIN,
+		        'location' => $data
+	        ], $xagio_http_code);
+
+            xagio_json('success', 'Default City changed.', $data);
+        }
+
+        public static function getDefaultLocation()
+        {
+            $data = get_option('XAGIO_LOCATION_DEFAULT_CITY');
+            xagio_json('success', 'Default City retrieved.', $data);
         }
 
         public static function setDefaultSearchEngine()
@@ -281,14 +380,26 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
 
             if (!empty($data)) {
                 update_option('XAGIO_LOCATION_DEFAULT_SEARCH_ENGINE', $data);
+
+	            $xagio_output = XAGIO_API::apiRequest('rank_settings', 'POST', [
+		            'setting' => 'search_engine',
+		            'domain' => XAGIO_DOMAIN,
+		            'search_engine' => json_encode($data)
+	            ], $xagio_http_code);
+
                 xagio_json('success', 'Default Search Engine changed.', $data);
             }
         }
 
-        public static function getDefaultSearchEngine()
+        public static function getDefaultSearchEngine($return = false)
         {
             $data = get_option('XAGIO_LOCATION_DEFAULT_SEARCH_ENGINE');
-            xagio_json('success', 'Default Search Engine retrieved.', $data);
+            if($return) {
+                return $data;
+            } else {
+                xagio_json('success', 'Default Search Engine retrieved.', $data);
+            }
+
         }
 
         public static function disableUploads()
@@ -313,17 +424,17 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
 
                 if (isset($_POST['recaptcha_response'])) {
                     $recaptcha_response = sanitize_text_field(wp_unslash($_POST['recaptcha_response']));
-                    $response           = wp_remote_post('https://www.google.com/recaptcha/api/siteverify', [
+                    $xagio_response           = wp_remote_post('https://www.google.com/recaptcha/api/siteverify', [
                         'body' => [
                             'secret'   => XAGIO_RECAPTCHA_SECRET_KEY,
                             'response' => $recaptcha_response
                         ]
                     ]);
 
-                    $response_body = wp_remote_retrieve_body($response);
-                    $result        = json_decode($response_body);
+                    $response_body = wp_remote_retrieve_body($xagio_response);
+                    $xagio_result        = json_decode($response_body);
 
-                    if (!$result->success || $result->score < 0.5) {
+                    if (!$xagio_result->success || $xagio_result->score < 0.5) {
                         wp_die('<strong>ERROR</strong>: reCAPTCHA verification failed, please try again.');
                     }
                 }
@@ -338,6 +449,7 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
             if (XAGIO_RECAPTCHA && !empty(XAGIO_RECAPTCHA_SITE_KEY) && !empty(XAGIO_RECAPTCHA_SECRET_KEY)) {
 
                 echo '<input type="hidden" name="recaptcha_response" id="recaptchaResponse">';
+                wp_nonce_field('xagio_nonce', '_xagio_nonce');
 
             }
         }
@@ -363,17 +475,17 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
 
                 if (isset($_POST['recaptcha_response'])) {
                     $recaptcha_response = sanitize_text_field(wp_unslash($_POST['recaptcha_response']));
-                    $response           = wp_remote_post('https://www.google.com/recaptcha/api/siteverify', [
+                    $xagio_response           = wp_remote_post('https://www.google.com/recaptcha/api/siteverify', [
                         'body' => [
                             'secret'   => XAGIO_RECAPTCHA_SECRET_KEY,
                             'response' => $recaptcha_response
                         ]
                     ]);
 
-                    $response_body = wp_remote_retrieve_body($response);
-                    $result        = json_decode($response_body);
+                    $response_body = wp_remote_retrieve_body($xagio_response);
+                    $xagio_result        = json_decode($response_body);
 
-                    if (!$result->success || $result->score < 0.5) {
+                    if (!$xagio_result->success || $xagio_result->score < 0.5) {
                         return new WP_Error('recaptcha_error', '<strong>ERROR</strong>: reCAPTCHA verification failed, please try again.');
                     }
                 }
@@ -386,6 +498,7 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
         {
             if (XAGIO_RECAPTCHA && !empty(XAGIO_RECAPTCHA_SITE_KEY) && !empty(XAGIO_RECAPTCHA_SECRET_KEY)) {
                 echo '<input type="hidden" name="recaptcha_response" id="recaptchaResponse">';
+                wp_nonce_field('xagio_nonce', '_xagio_nonce');
             }
         }
 
@@ -400,7 +513,7 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
 
         public static function saveSettings_XAGIO_FORCE_HOMEPAGE_SCHEMA($option_value)
         {
-            if (!isset($_SERVER['SERVER_NAME'])) {
+            if (!defined('XAGIO_DOMAIN') || XAGIO_DOMAIN === '') {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
@@ -409,7 +522,7 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
                 if (XAGIO_CONNECTED) {
                     XAGIO_API::apiRequest(
                         $endpoint = 'toggleForceSchema', $method = 'GET', [
-                            'domain'       => preg_replace('/^www\./', '', sanitize_text_field(wp_unslash($_SERVER['SERVER_NAME']))),
+                            'domain'       => XAGIO_DOMAIN,
                             'force_schema' => 1,
                         ]
                     );
@@ -420,7 +533,7 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
                 if (XAGIO_CONNECTED) {
                     XAGIO_API::apiRequest(
                         $endpoint = 'toggleForceSchema', $method = 'GET', [
-                            'domain'       => preg_replace('/^www\./', '', sanitize_text_field(wp_unslash($_SERVER['SERVER_NAME']))),
+                            'domain'       => XAGIO_DOMAIN,
                             'force_schema' => 0,
                         ]
                     );
@@ -442,78 +555,79 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
             xagio_json('success', $separator);
         }
 
+        public static function saveProfiles()
+        {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
+            if (isset($_POST["XAGIO_SEO_PROFILES"])) {
+                $data = map_deep(wp_unslash($_POST["XAGIO_SEO_PROFILES"]), 'sanitize_text_field');
+
+                update_option("XAGIO_SEO_PROFILES", $data);
+
+                xagio_json('success', "Profiles saved.");
+            }
+        }
+
+        public static function loadProfiles()
+        {
+            $xagio_profiles = get_option("XAGIO_SEO_PROFILES");
+
+            if (isset($xagio_profiles)) {
+                xagio_json('success', 'Profiles successfully retrieved', $xagio_profiles);
+            } else {
+                xagio_json('error', 'Profiles data not found.');
+            }
+        }
+
         public static function saveDefaults()
         {
             check_ajax_referer('xagio_nonce', '_xagio_nonce');
 
-            if (isset($_POST['XAGIO_SEO_DEFAULT_POST_TYPES'])) {
-                $XAGIO_SEO_DEFAULT_POST_TYPES = map_deep(wp_unslash($_POST['XAGIO_SEO_DEFAULT_POST_TYPES']), 'sanitize_text_field');
+            $keysToUpdate = [
+                'XAGIO_SEO_DEFAULT_POST_TYPES',
+                'XAGIO_SEO_DEFAULT_OG',
+                'XAGIO_SEO_DEFAULT_TAXONOMIES',
+                'XAGIO_SEO_DEFAULT_MISCELLANEOUS',
+            ];
 
-                $option_name = "XAGIO_SEO_DEFAULT_POST_TYPES";
+            foreach ($keysToUpdate as $optionKey) {
+                if (!isset($_POST[$optionKey])) {
+                    continue;
+                }
 
-                // Get the option or initialize it
-                $option = get_option($option_name, []);
+                // Retrieve and sanitize posted data
+                $postedData = map_deep(wp_unslash($_POST[$optionKey]), 'sanitize_text_field');
 
-                foreach ($XAGIO_SEO_DEFAULT_POST_TYPES as $type => $fields) {
+                $option = get_option($optionKey, []);
+
+                foreach ($postedData as $type => $fields) {
+
                     if (!isset($option[$type])) {
                         $option[$type] = [];
                     }
 
-                    foreach ($fields as $field => $field_value) {
-                        // Sanitize field names and values
+                    // Process each field
+                    foreach ($fields as $field => $xagio_value) {
+                        // Always sanitize the field name
                         $field = sanitize_text_field($field);
 
-                        if (empty($field_value)) {
+                        if (empty($xagio_value)) {
                             unset($option[$type][$field]);
                         } else {
-                            // Sanitize as URL if field is an image, otherwise as a text field or boolean
+                            // Check if it's an "IMAGE" field to sanitize as a URL
                             if (strpos($field, 'IMAGE') !== false) {
-                                $field_value = sanitize_url(wp_unslash($field_value));
+                                $xagio_value = sanitize_url(wp_unslash($xagio_value));
                             } else {
-                                $field_value = xagio_parse_bool(sanitize_text_field(wp_unslash($field_value)));
+                                // Otherwise parse as boolean or treat as text
+                                $xagio_value = xagio_parse_bool(sanitize_text_field(wp_unslash($xagio_value)));
                             }
-                            $option[$type][$field] = $field_value;
+                            $option[$type][$field] = $xagio_value;
                         }
                     }
                 }
+
                 // Update the option in the database
-                update_option($option_name, $option);
-            }
-
-            if (isset($_POST['XAGIO_SEO_DEFAULT_OG'])) {
-
-                $XAGIO_SEO_DEFAULT_OG = map_deep(wp_unslash($_POST['XAGIO_SEO_DEFAULT_OG']), 'sanitize_text_field');
-
-                $option_name = "XAGIO_SEO_DEFAULT_OG";
-
-                // Get the option or initialize it
-                $option = get_option($option_name, []);
-
-                foreach ($XAGIO_SEO_DEFAULT_OG as $type => $fields) {
-                    if (!isset($option[$type])) {
-                        $option[$type] = [];
-                    }
-
-                    foreach ($fields as $field => $field_value) {
-                        // Sanitize field names and values
-                        $field = sanitize_text_field($field);
-
-                        if (empty($field_value)) {
-                            unset($option[$type][$field]);
-                        } else {
-                            // Sanitize as URL if field is an image, otherwise as a text field or boolean
-                            if (strpos($field, 'IMAGE') !== false) {
-                                $field_value = sanitize_url(wp_unslash($field_value));
-                            } else {
-                                $field_value = xagio_parse_bool(sanitize_text_field(wp_unslash($field_value)));
-                            }
-                            $option[$type][$field] = $field_value;
-                        }
-                    }
-                }
-                // Update the option in the database
-                update_option($option_name, $option);
-
+                update_option($optionKey, $option);
             }
 
             // Send success response
@@ -521,10 +635,35 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
         }
 
 
-        public static function saveVerifications()
+        public static function saveScripts()
         {
             check_ajax_referer('xagio_nonce', '_xagio_nonce');
 
+            $allowed_tags = [
+                'script' => [
+                    'type' => true,
+                    'src'  => true
+                ]
+            ];
+
+            // SAVE GLOBAL SCRIPTS
+            // Process each POST field individually and safely
+            if (isset($_POST['XAGIO_SEO_GLOBAL_SCRIPTS_HEAD'])) {
+                $XAGIO_SEO_GLOBAL_SCRIPTS_HEAD = base64_decode(wp_kses(wp_unslash($_POST['XAGIO_SEO_GLOBAL_SCRIPTS_HEAD']), $allowed_tags));
+                update_option('XAGIO_SEO_GLOBAL_SCRIPTS_HEAD', $XAGIO_SEO_GLOBAL_SCRIPTS_HEAD);
+            }
+
+            if (isset($_POST['XAGIO_SEO_GLOBAL_SCRIPTS_BODY'])) {
+                $XAGIO_SEO_GLOBAL_SCRIPTS_BODY = base64_decode(wp_kses(wp_unslash($_POST['XAGIO_SEO_GLOBAL_SCRIPTS_BODY']), $allowed_tags));
+                update_option('XAGIO_SEO_GLOBAL_SCRIPTS_BODY', $XAGIO_SEO_GLOBAL_SCRIPTS_BODY);
+            }
+
+            if (isset($_POST['XAGIO_SEO_GLOBAL_SCRIPTS_FOOTER'])) {
+                $XAGIO_SEO_GLOBAL_SCRIPTS_FOOTER = base64_decode(wp_kses(wp_unslash($_POST['XAGIO_SEO_GLOBAL_SCRIPTS_FOOTER']), $allowed_tags));
+                update_option('XAGIO_SEO_GLOBAL_SCRIPTS_FOOTER', $XAGIO_SEO_GLOBAL_SCRIPTS_FOOTER);
+            }
+
+            // SAVE WEBMASTER SCRIPTS
             // Process each POST field individually and safely
             if (isset($_POST['XAGIO_SEO_VERIFICATION_GOOGLE'])) {
                 $XAGIO_SEO_VERIFICATION_GOOGLE = base64_decode(sanitize_text_field(wp_unslash($_POST['XAGIO_SEO_VERIFICATION_GOOGLE'])));
@@ -569,39 +708,6 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
             // Return a success message
             xagio_json('success', "Operation completed!");
         }
-
-
-        public static function saveEditors()
-        {
-            check_ajax_referer('xagio_nonce', '_xagio_nonce');
-
-            $allowed_tags = [
-                'script' => [
-                    'type' => true,
-                    'src'  => true
-                ]
-            ];
-
-            // Process each POST field individually and safely
-            if (isset($_POST['XAGIO_SEO_GLOBAL_SCRIPTS_HEAD'])) {
-                $XAGIO_SEO_GLOBAL_SCRIPTS_HEAD = base64_decode(wp_kses(wp_unslash($_POST['XAGIO_SEO_GLOBAL_SCRIPTS_HEAD']), $allowed_tags));
-                update_option('XAGIO_SEO_GLOBAL_SCRIPTS_HEAD', $XAGIO_SEO_GLOBAL_SCRIPTS_HEAD);
-            }
-
-            if (isset($_POST['XAGIO_SEO_GLOBAL_SCRIPTS_BODY'])) {
-                $XAGIO_SEO_GLOBAL_SCRIPTS_BODY = base64_decode(wp_kses(wp_unslash($_POST['XAGIO_SEO_GLOBAL_SCRIPTS_BODY']), $allowed_tags));
-                update_option('XAGIO_SEO_GLOBAL_SCRIPTS_BODY', $XAGIO_SEO_GLOBAL_SCRIPTS_BODY);
-            }
-
-            if (isset($_POST['XAGIO_SEO_GLOBAL_SCRIPTS_FOOTER'])) {
-                $XAGIO_SEO_GLOBAL_SCRIPTS_FOOTER = base64_decode(wp_kses(wp_unslash($_POST['XAGIO_SEO_GLOBAL_SCRIPTS_FOOTER']), $allowed_tags));
-                update_option('XAGIO_SEO_GLOBAL_SCRIPTS_FOOTER', $XAGIO_SEO_GLOBAL_SCRIPTS_FOOTER);
-            }
-
-            // Return a success message
-            xagio_json('success', "Operation completed!");
-        }
-
 
         public static function saveSettings()
         {
@@ -663,12 +769,6 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
                 update_option('XAGIO_GOOGLE_SEARCH_WINDOW_INURL', xagio_parse_bool($window_in_url));
             }
 
-
-
-
-
-
-
             if (isset($_POST['XAGIO_DEV_MODE'])) {
                 $dev_mode = sanitize_text_field(wp_unslash($_POST['XAGIO_DEV_MODE']));
                 update_option('XAGIO_DEV_MODE', xagio_parse_bool($dev_mode));
@@ -677,6 +777,11 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
             if (isset($_POST['XAGIO_DISABLE_UPLOADS'])) {
                 $disable_uploads = sanitize_text_field(wp_unslash($_POST['XAGIO_DISABLE_UPLOADS']));
                 update_option('XAGIO_DISABLE_UPLOADS', xagio_parse_bool($disable_uploads));
+            }
+
+            if (isset($_POST['XAGIO_REMOVE_CATEGORY_BASE'])) {
+                $remove_category_base = sanitize_text_field(wp_unslash($_POST['XAGIO_REMOVE_CATEGORY_BASE']));
+                update_option('XAGIO_REMOVE_CATEGORY_BASE', xagio_parse_bool($remove_category_base));
             }
 
             if (isset($_POST['XAGIO_RECAPTCHA'])) {
@@ -847,10 +952,10 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
                 $results = $wpdb->get_results($wpdb->prepare("SELECT post_id, meta_key, meta_value FROM wp_postmeta WHERE meta_key = %s", $meta_key), ARRAY_A);
 
                 // Organize results by post ID
-                foreach ($results as $result) {
-                    $post_id = $result['post_id'];
-                    unset($result['post_id']); // Remove post_id from the individual result
-                    $by_id[$post_id][] = $result; // Store by post ID
+                foreach ($results as $xagio_result) {
+                    $post_id = $xagio_result['post_id'];
+                    unset($xagio_result['post_id']); // Remove post_id from the individual result
+                    $by_id[$post_id][] = $xagio_result; // Store by post ID
                 }
             }
 
@@ -872,16 +977,16 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
                 xagio_json('error', 'File is not sent!');
             }
 
-            $file = map_deep(wp_unslash($_FILES['import_options_file']), 'sanitize_text_field');
+            $xagio_file = map_deep(wp_unslash($_FILES['import_options_file']), 'sanitize_text_field');
 
-            if ($file['error'] == UPLOAD_ERR_OK && is_uploaded_file($file['tmp_name'])) {
+            if ($xagio_file['error'] == UPLOAD_ERR_OK && is_uploaded_file($xagio_file['tmp_name'])) {
 
-                $info = pathinfo($file['name']);
+                $info = pathinfo($xagio_file['name']);
                 if ($info["extension"] != "psexp") {
                     xagio_json('error', 'File does not contain right extension!');
                 }
 
-                $json = xagio_file_get_contents($file['tmp_name']);
+                $json = xagio_file_get_contents($xagio_file['tmp_name']);
                 $json = @json_decode($json, TRUE);
 
                 if ($json === NULL && json_last_error() !== JSON_ERROR_NONE) {
@@ -895,15 +1000,15 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
                 $options  = $json['options'];
                 $postmeta = $json['postmeta'];
 
-                foreach ($options as $key => $option) {
-                    update_option($key, $option);
+                foreach ($options as $xagio_key => $option) {
+                    update_option($xagio_key, $option);
                 }
 
-                foreach ($postmeta as $key => $metas) {
-                    $post_id = $key;
+                foreach ($postmeta as $xagio_key => $metas) {
+                    $post_id = $xagio_key;
                     if (get_post_status($post_id) != FALSE) {
-                        foreach ($metas as $value) {
-                            update_post_meta($post_id, $value['meta_key'], maybe_unserialize($value['meta_value']));
+                        foreach ($metas as $xagio_value) {
+                            update_post_meta($post_id, $xagio_value['meta_key'], maybe_unserialize($xagio_value['meta_value']));
                         }
                     }
                 }

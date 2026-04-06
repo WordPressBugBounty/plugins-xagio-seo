@@ -711,7 +711,7 @@ jQuery(function ($) {
                 $operator_body.appendTo($operator);
             }
 
-            let screenshot = xagio_data.panel_url + '/api/screenshot/' + xagio_data.api_key + '/' + window.btoa(infos.permalink).replace(/\=/g, '_a_').replace(/\+/g, '_b_').replace(/\//g, '_c_') + '.png';
+            let screenshot = xagio_data.panel_url + '/api/screenshot/' + window.btoa(xagio_data.site_url) + '/' + window.btoa(infos.permalink).replace(/\=/g, '_a_').replace(/\+/g, '_b_').replace(/\//g, '_c_') + '.png';
 
             if (infos.type === 'post' || infos.type === 'page' || infos.type === 'external') {
                 var $operator_screenshot = $('<div style="background:url(' + screenshot + ') no-repeat;" class="flowchart-screenshot"><a data-uk-lightbox data-lightbox-type="image"  class="view-screenshot" href="' + screenshot + '" title="' + infos.title + '"><i class="xagio-icon xagio-icon-search"></i></a></div>');

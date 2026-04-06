@@ -141,19 +141,41 @@ h3.xagio-accordion-title.xagio-accordion-panel-title {
     background: #fb7e2c;
 }
 
-.hunter-history-holder {
-    display: flex;
+.hunter-history-holder.xagio-grid-4-columns {
+    display: grid;
+    grid-template-columns: repeat(4, calc(25% - 15px));
     gap: 20px;
-    flex-wrap: wrap;
+
+    @media only screen and (max-width: 1600px) {
+        grid-template-columns: repeat(3, calc(33.33% - 13.3px));
+    }
+    @media only screen and (max-width: 1366px) {
+        grid-template-columns: repeat(2, calc(50% - 10px));
+    }
+    @media only screen and (max-width: 992px) {
+        grid-template-columns: 100%;
+    }
+}
+
+.hunter-history-holder .loading {
+    text-align: center;
 }
 
 .hunter-single-history-item {
     background: #f5f7fb;
-    padding: 33px;
+    padding: 26px;
     border-radius: var(--xagio-box-border-radius);
     flex-basis: 190px;
     cursor: pointer;
     transition: all 0.4s;
+}
+
+.hunter-single-history-item.selected, .hunter-single-history-item.selected:hover {
+    background: var(--color-xagio-blue);
+}
+
+.hunter-single-history-item.selected * {
+    color: white;
 }
 
 .hunter-single-history-item:hover {
@@ -182,27 +204,6 @@ span.history-date {
 .xagio-header-actions-in-project {
     display: flex;
     gap: var(--xagio-gap-small);
-    align-items: center;
-}
-.xagio-credits > ul {
-    padding: 0;
-    display: flex;
-    gap: var(--xagio-gap-small);
-    margin: 0;
-}
-.xagio-credits > ul > li {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 0;
-    background: #383ee2;
-    color: white;
-    padding: 10px 23px;
-    border-radius: 100vh;
-    font-weight: bold;
-}
-.xagio-credits {
-    margin-right: 10px;
 }
 .loading-niche-keywords {
     text-align: center;
@@ -341,24 +342,81 @@ a.xagio-button.xagio-button-warning:hover {
     -webkit-font-smoothing: antialiased;
     margin-left: 5px;
 }
-.dataTables_filter {
-    padding-right: 9px;
-}
-
-.dataTables_filter input {
-    margin-top: 3px;
-}
 
 .niche-hunter-table-holder {
     position: relative;
 }
 
-.niche-hunter-table .dataTables_filter{
-    position: absolute;
-    top: 29px;
-    right: 40px;
-}
-
 .niche-tlds-settings span.select2.select2-container.select2-container--default {
     padding: 6px 25px !important;
+}
+
+.niche_hunter_cost_modal .modal-label {
+    margin: 0;
+    display: flex !important;
+    align-items: center;
+    gap: 4px;
+    color: #000000;
+}
+
+.niche_hunter_cost_modal .modal-label div {
+    background: rgba(25, 68, 118, 0.07);
+    border-radius: 5px;
+    padding: 3px 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.niche_hunter_cost_modal .modal-label div span {
+    font-weight: 600;
+}
+
+.xagio-progress .xagio-progress-bar p {
+    width: fit-content;
+    white-space: nowrap;
+    margin: 0;
+    font-size: var(--xagio-font-size-16);
+}
+.tr_green {
+    color: #54cd8d;
+    background: none;
+}
+
+.tr_red {
+    color: #fb5566;
+    background: none;
+}
+
+.tr_yellow {
+    color: #FFB000;
+    background: none;
+}
+
+.tr p, .ur p {
+    font-size: var(--xagio-font-size-16);
+    margin: 0;
+}
+
+.results-table.xagio-table thead tr th {
+    padding: var(--xagio-gap-medium) 20px !important;
+}
+
+.results-table.xagio-table tbody td {
+    padding-inline: 20px !important;
+}
+
+#customSearch {
+    padding: 14px 25px;
+}
+#clear-selected-keywords {
+    padding: 13px !important;
+}
+
+.search-niche-history {
+    margin-top: 2px;
+    max-width: 250px;
+}
+
+#no-hiche-history-found {
+    background: var(--color-xagio-white-primary);
 }
