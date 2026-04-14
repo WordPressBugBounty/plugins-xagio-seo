@@ -1514,7 +1514,7 @@ if($xagio_default_city_code != null){
                         ?>
 
                         <h3 class="pop">Location</h3>
-                        <select id="auditWebsite_default-location" name="lang" class="xagio-input-select xagio-input-select-gray" data-default="<?php echo $xagio_audit_location ?? wp_kses_post($xagio_audit_location) ?>">
+                        <select id="auditWebsite_default-location" name="lang" class="xagio-input-select xagio-input-select-gray" data-default="<?php echo esc_attr($xagio_audit_location ?? ''); ?>">
                             <option value="fr" data-lang="fr" data-lang-code="DZ">Algeria (fr)</option>
                             <option value="es" data-lang="es" data-lang-code="AR">Argentina (es)</option>
                             <option value="en" data-lang="en" data-lang-code="AU">Australia (en)</option>
@@ -2562,7 +2562,7 @@ if($xagio_default_city_code != null){
                         ?>
 
                         <h3 class="pop">Location</h3>
-                        <select id="AiWizard_default-location" class="xagio-input-select xagio-input-select-gray" data-default="<?php echo $xagio_ai_wizard_location ?? wp_kses_post($xagio_ai_wizard_location) ?>">
+                        <select id="AiWizard_default-location" class="xagio-input-select xagio-input-select-gray" data-default="<?php echo esc_attr($xagio_ai_wizard_location ?? ''); ?>">
                             <?php
                             foreach($xagio_country_list as $xagio_item) {
                             ?>

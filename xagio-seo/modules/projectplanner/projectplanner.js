@@ -777,6 +777,11 @@ let cf_template = cf_templates[cf_default_template].data;
 
                         let all_groups = $('.project-groups .groupSelect:checked');
 
+                        // if no selected groups, get all
+                        if (all_groups.length < 1) {
+                            all_groups = $('.project-groups .groupSelect');
+                        }
+
                         let data = [
                             {
                                 name : 'action',
@@ -1306,11 +1311,6 @@ let cf_template = cf_templates[cf_default_template].data;
                 $(document).on('click', '.ai-clustering', function (e) {
                     e.preventDefault();
                     let btn = $(this);
-
-                    if ($('.project-groups .groupSelect:checked').length < 1) {
-                        xagioNotify('danger', 'Please select some groups!');
-                        return;
-                    }
 
                     actions.ai.openAveragePrices(btn, 'AI Clustering', "CLUSTER", "generateAiContent");
                 });
@@ -2937,14 +2937,28 @@ let cf_template = cf_templates[cf_default_template].data;
 
                 let ranking_modal = $('#rankTrackingModal');
 
-                let form_data = $(this).serialize();
+                let form_data = $(this).serializeArray();
                 // add location name
                 let loc_name = $('#search_location').val() == null ? $('#search_country option:selected').text() : $('#search_location option:selected').text();
+
+                if (loc_name === '') {
+                    let data = ranking_modal.find('#search_engine').select2('data');
+                    if (data.length > 0) {
+                        let locationCode = $(data[0].element).data('location-code');
+
+                        $.each(form_data, function (i, field) {
+                            if (field.name === 'search_country') {
+                                field.value = locationCode; // value from search engine
+                            }
+                        });
+
+                        loc_name = $('#search_country option[value="' + locationCode + '"]').text();
+                    }
+                }
+
+                let serialized = $.param(form_data) + '&locname=' + encodeURIComponent(loc_name);
                 
-                let loc_name_query = '&locname=' + loc_name;
-                
-                $.post(xagio_data.wp_post, 'action=xagio_track_keywords_add&' + form_data +
-                                           loc_name_query, function (d) {
+                $.post(xagio_data.wp_post, 'action=xagio_track_keywords_add&' + serialized, function (d) {
                     btn.disable();
 
                     if (d.status == 'error') {

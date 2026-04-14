@@ -543,13 +543,13 @@ if (!class_exists('XAGIO_MODEL_SITEMAPS')) {
             foreach ($sitemap_data as $data) {
                 $sitemap .= '<url>' . "\n";
                 $sitemap .= '<loc>' . esc_url($data['loc']) . '</loc>' . "\n";
-                if (isset($data['lastmod'])) {
+                if (!empty($data['lastmod'])) {
                     $sitemap .= '<lastmod>' . esc_html($data['lastmod']) . '</lastmod>' . "\n";
                 }
-                if (isset($data['priority'])) {
+                if (!empty($data['priority'])) {
                     $sitemap .= '<priority>' . esc_html($data['priority']) . '</priority>' . "\n";
                 }
-                if (isset($data['changefreq'])) {
+                if (!empty($data['changefreq'])) {
                     $sitemap .= '<changefreq>' . esc_html($data['changefreq']) . '</changefreq>' . "\n";
                 }
                 $sitemap .= '</url>' . "\n";

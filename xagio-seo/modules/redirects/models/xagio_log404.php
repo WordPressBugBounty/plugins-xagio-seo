@@ -38,7 +38,7 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
                     update_option('XAGIO_MAX_LOG_LIMIT', 500);
                 }
 
-                add_action('wp_enqueue_scripts', [
+                add_action('template_redirect', [
                     'XAGIO_MODEL_LOG404',
                     'doStuffOn404'
                 ], -999999999);
@@ -89,8 +89,21 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
             require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
 
             $charset_collate = $wpdb->get_charset_collate();
-            $table_404       = $wpdb->prefix . 'xag_log_404s';
-            $table_ref       = $wpdb->prefix . 'xag_log_404s_referrers';
+            $table_404       = 'xag_log_404s';
+            $table_ref       = 'xag_log_404s_referrers';
+
+            // If prefixed tables exist from a previous version, rename them to non-prefixed.
+            // Once renamed the prefixed table no longer exists, so this naturally stops running.
+            if ( !empty($wpdb->prefix) ) {
+                $prefixed_404 = $wpdb->prefix . 'xag_log_404s';
+                $prefixed_ref = $wpdb->prefix . 'xag_log_404s_referrers';
+                if ( $wpdb->get_var("SHOW TABLES LIKE '{$prefixed_404}'") ) {
+                    $wpdb->query("RENAME TABLE `{$prefixed_404}` TO `{$table_404}`");
+                }
+                if ( $wpdb->get_var("SHOW TABLES LIKE '{$prefixed_ref}'") ) {
+                    $wpdb->query("RENAME TABLE `{$prefixed_ref}` TO `{$table_ref}`");
+                }
+            }
 
             // 1) Main 404 log table (no 'reference' column in the new schema)
             $sql_404 = "CREATE TABLE {$table_404} (
@@ -141,7 +154,7 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
 
                 if ( $has_reference ) {
                     // Only select rows that actually have data to migrate
-                    $logs = $wpdb->get_results( "SELECT id, reference FROM `{$wpdb->prefix}xag_log_404s` WHERE reference IS NOT NULL AND reference <> ''", ARRAY_A );
+                    $logs = $wpdb->get_results( "SELECT id, reference FROM `xag_log_404s` WHERE reference IS NOT NULL AND reference <> ''", ARRAY_A );
                     if ( ! empty( $logs ) ) {
                         foreach ( $logs as $log ) {
                             $log_id     = intval( $log['id'] );
@@ -169,7 +182,7 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
 
                     // Drop legacy column now that we've migrated
                     // (Guard in case of permissions / older MySQL)
-                    $wpdb->query( "ALTER TABLE `{$wpdb->prefix}xag_log_404s` DROP COLUMN `reference`" );
+                    $wpdb->query( "ALTER TABLE `xag_log_404s` DROP COLUMN `reference`" );
                 }
 
                 update_option( 'XAG_MIGRATE_REF', true );
@@ -295,182 +308,175 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
 
         public static function doStuffOn404()
         {
-            global $wpdb;
-            $chk404sStatus = get_option('XAGIO_DISABLE_404_LOGS');
+            if (!is_404()) {
+                return;
+            }
 
-            if ($chk404sStatus != 1) {
-                if (is_404()) {
-                    $ip               = self::getIp();
-                    $xagio_url              = self::getCurrentUrl();
-                    $slug             = self::getCurrentSlug();
-                    $chk404sSpiderLog = get_option('XAGIO_ENABLE_SPIDER_404');
-                    $ext              = pathinfo($xagio_url, PATHINFO_EXTENSION);
+            self::log404();
 
-                    if (isset($ext) && !empty($ext)) {
-                        $chkBlockedExt = self::chkBlockedExtensions($ext);
-
-                        if ($chkBlockedExt === TRUE) {
-                            return FALSE;
-                        }
-                    }
-
-                    $chkSlug = self::chkSlugStrExists($slug);
-                    if ($chkSlug === TRUE) {
-                        return FALSE;
-                    }
-
-                    $agent = '';
-                    if (isset($_SERVER['HTTP_USER_AGENT'])) {
-                        $agent = sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT']));
-
-                        if ($chk404sSpiderLog != 1) {
-                            $checkBot = self::smartIpDetectCrawler($agent);
-
-                            if ($checkBot === TRUE) {
-                                return FALSE;
-                            }
-                        }
-
-                    } else {
-                        return FALSE;
-                    }
-
-                    $reference = '';
-                    if (isset($_SERVER['HTTP_REFERER'])) {
-
-                        $reference = sanitize_url(wp_unslash($_SERVER['HTTP_REFERER']));
-                        $mainUrl   = wp_parse_url($xagio_url);
-                        $RefUrl    = wp_parse_url($reference);
-
-                        if ($RefUrl === false) {
-                            return FALSE; // Invalid URL, stop further processing
-                        }
-
-                        if (!isset($RefUrl['scheme']) || !in_array($RefUrl['scheme'], [
-                                'http',
-                                'https'
-                            ])) {
-                            return FALSE; // Unsupported scheme, stop further processing
-                        }
-
-                        if (empty($RefUrl['host'])) {
-                            return FALSE; // Invalid host, stop further processing
-                        }
-
-                        if (strtolower($mainUrl['host']) == strtolower($RefUrl['host'])) {
-                            return FALSE;
-                        }
-
-                        $chkEscRefStr = self::checkEscapeRefStr($reference);
-
-                        if ($chkEscRefStr === TRUE) {
-                            return FALSE;
-                        }
-
-                    }
-
-                    if (empty($reference)) {
-                        $chk404sWithReferenceStatus = get_option('XAGIO_ENABLE_404_REF_URL');
-                        if ($chk404sWithReferenceStatus == 1) {
-                            return FALSE;
-                        }
-                    }
-
-                    $getHits = $wpdb->get_row($wpdb->prepare('SELECT id, ip, agent, last_hit_counts FROM xag_log_404s WHERE url = %s', $xagio_url), ARRAY_A);
-
-                    if (isset($getHits) && !empty($getHits)) {
-
-                        $ipAr        = json_decode($getHits['ip']);
-                        $agentAr     = json_decode($getHits['agent']);
-
-
-                        $log_id = intval($getHits['id']);
-                        $referenceAr = $wpdb->get_results($wpdb->prepare("SELECT reference FROM xag_log_404s_referrers WHERE log_id = %d", $log_id), ARRAY_A);
-                        $referenceArRes = array_column($referenceAr, 'reference');
-                        $ipArRes        = self::insertUpdateJsonVal($ipAr, $ip);
-                        $agentArRes     = self::insertUpdateJsonVal($agentAr, $agent);
-
-                        if ($ipArRes['method'] === 'update' && $agentArRes['method'] === 'update') {
-                            $curntHits = $getHits['last_hit_counts'] + 1;
-                            $wpdb->update('xag_log_404s', [
-                                'ip'              => wp_json_encode($ipArRes['value']),
-                                'agent'           => wp_json_encode($agentArRes['value']),
-                                'last_hit_counts' => $curntHits,
-                            ], [
-                                'id' => $log_id,
-                            ]);
-
-                            if(!empty($reference) && !in_array($reference, $referenceArRes))
-                            {
-                                $ref_domain = wp_parse_url($reference, PHP_URL_HOST);
-                                $wpdb->insert('xag_log_404s_referrers', [
-                                    'log_id'     => $log_id,
-                                    'reference'  => $reference,
-                                    'reference_domain' => $ref_domain
-                                ]);
-                            }
-                        }
-
-                    } else {
-                        $ipAddr    = self::insertUpdateJsonVal(NULL, $ip);
-                        $userAgent = self::insertUpdateJsonVal(NULL, $agent);
-
-                        if ($ipAddr['method'] === 'insert' && $userAgent['method'] === 'insert') {
-                            $inserted = $wpdb->insert('xag_log_404s', [
-                                'url'             => $xagio_url,
-                                'slug'            => $slug,
-                                'agent'           => wp_json_encode($userAgent['value']),
-                                'ip'              => wp_json_encode($ipAddr['value']),
-                                'last_hit_counts' => 1,
-                                'date_created'    => gmdate('Y-m-d H:i:s'),
-                            ]);
-
-                            if( $inserted ) {
-                                $log_id = $wpdb->insert_id;
-                                if(!empty($reference))
-                                {
-                                    $ref_domain = wp_parse_url($reference, PHP_URL_HOST);
-                                    $wpdb->insert('xag_log_404s_referrers', [
-                                        'log_id'     => $log_id,
-                                        'reference'  => $reference,
-                                        'reference_domain' => $ref_domain
-                                    ]);
-                                }
-                            }
-                        }
-                    }
-
-                    $get404sLogLmt = get_option('XAGIO_MAX_LOG_LIMIT');
-                    $logLmt        = intval($get404sLogLmt);
-
-                    if (isset($logLmt) && !empty($logLmt)) {
-                        $wpdb->query(
-                            $wpdb->prepare(
-                                'DELETE tb FROM `xag_log_404s` AS tb
-										JOIN
-											( SELECT id AS tmp_tb
-											  FROM `xag_log_404s`
-											  ORDER BY tmp_tb DESC
-											  LIMIT 18446744073709551615 OFFSET %d
-											) tmp_limit
-										ON tb.id <= tmp_limit.tmp_tb', $logLmt
-                            )
-                        );
-                    }
-
-                    $getGlobal301RdirectUrl = get_option('XAGIO_GLOBAL_404_REDIRECTION_URL');
-
-                    if (isset($getGlobal301RdirectUrl) && !empty($getGlobal301RdirectUrl) && !XAGIO_MODEL_SHARED_PROJECT::is_shared_project_page()) {
-                        xagio_redirect($getGlobal301RdirectUrl, 301);
-                        exit;
-                    }
-
-                }
-            } else {
-                return FALSE;
+            $getGlobal301RdirectUrl = get_option('XAGIO_GLOBAL_404_REDIRECTION_URL');
+            if (!empty($getGlobal301RdirectUrl) && !XAGIO_MODEL_SHARED_PROJECT::is_shared_project_page()) {
+                xagio_redirect($getGlobal301RdirectUrl, 301);
+                exit;
             }
         }
 
+        private static function log404()
+        {
+            global $wpdb;
+
+            $chk404sStatus = get_option('XAGIO_DISABLE_404_LOGS');
+            if ($chk404sStatus == 1) {
+                return;
+            }
+
+            $ip               = self::getIp();
+            $xagio_url        = self::getCurrentUrl();
+            $slug             = self::getCurrentSlug();
+            $chk404sSpiderLog = get_option('XAGIO_ENABLE_SPIDER_404');
+            $ext              = pathinfo($xagio_url, PATHINFO_EXTENSION);
+
+            if (isset($ext) && !empty($ext)) {
+                $chkBlockedExt = self::chkBlockedExtensions($ext);
+                if ($chkBlockedExt === TRUE) {
+                    return;
+                }
+            }
+
+            $chkSlug = self::chkSlugStrExists($slug);
+            if ($chkSlug === TRUE) {
+                return;
+            }
+
+            $agent = '';
+            if (isset($_SERVER['HTTP_USER_AGENT'])) {
+                $agent = sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT']));
+
+                if ($chk404sSpiderLog != 1) {
+                    $checkBot = self::smartIpDetectCrawler($agent);
+                    if ($checkBot === TRUE) {
+                        return;
+                    }
+                }
+            } else {
+                return;
+            }
+
+            $reference = '';
+            if (isset($_SERVER['HTTP_REFERER'])) {
+
+                $reference = sanitize_url(wp_unslash($_SERVER['HTTP_REFERER']));
+                $mainUrl   = wp_parse_url($xagio_url);
+                $RefUrl    = wp_parse_url($reference);
+
+                if ($RefUrl === false) {
+                    return;
+                }
+
+                if (!isset($RefUrl['scheme']) || !in_array($RefUrl['scheme'], ['http', 'https'])) {
+                    return;
+                }
+
+                if (empty($RefUrl['host'])) {
+                    return;
+                }
+
+                if (strtolower($mainUrl['host']) == strtolower($RefUrl['host'])) {
+                    return;
+                }
+
+                $chkEscRefStr = self::checkEscapeRefStr($reference);
+                if ($chkEscRefStr === TRUE) {
+                    return;
+                }
+            }
+
+            if (empty($reference)) {
+                $chk404sWithReferenceStatus = get_option('XAGIO_ENABLE_404_REF_URL');
+                if ($chk404sWithReferenceStatus == 1) {
+                    return;
+                }
+            }
+
+            $getHits = $wpdb->get_row($wpdb->prepare("SELECT id, ip, agent, last_hit_counts FROM xag_log_404s WHERE url = %s", $xagio_url), ARRAY_A);
+
+            if (isset($getHits) && !empty($getHits)) {
+
+                $ipAr    = json_decode($getHits['ip']);
+                $agentAr = json_decode($getHits['agent']);
+
+                $log_id         = intval($getHits['id']);
+                $referenceAr    = $wpdb->get_results($wpdb->prepare("SELECT reference FROM xag_log_404s_referrers WHERE log_id = %d", $log_id), ARRAY_A);
+                $referenceArRes = array_column($referenceAr, 'reference');
+                $ipArRes        = self::insertUpdateJsonVal($ipAr, $ip);
+                $agentArRes     = self::insertUpdateJsonVal($agentAr, $agent);
+
+                if ($ipArRes['method'] === 'update' && $agentArRes['method'] === 'update') {
+                    $curntHits = $getHits['last_hit_counts'] + 1;
+                    $wpdb->update('xag_log_404s', [
+                        'ip'              => wp_json_encode($ipArRes['value']),
+                        'agent'           => wp_json_encode($agentArRes['value']),
+                        'last_hit_counts' => $curntHits,
+                    ], [
+                        'id' => $log_id,
+                    ]);
+
+                    if (!empty($reference) && !in_array($reference, $referenceArRes)) {
+                        $ref_domain = wp_parse_url($reference, PHP_URL_HOST);
+                        $wpdb->insert('xag_log_404s_referrers', [
+                            'log_id'           => $log_id,
+                            'reference'        => $reference,
+                            'reference_domain' => $ref_domain
+                        ]);
+                    }
+                }
+
+            } else {
+                $ipAddr    = self::insertUpdateJsonVal(NULL, $ip);
+                $userAgent = self::insertUpdateJsonVal(NULL, $agent);
+
+                if ($ipAddr['method'] === 'insert' && $userAgent['method'] === 'insert') {
+                    $inserted = $wpdb->insert('xag_log_404s', [
+                        'url'             => $xagio_url,
+                        'slug'            => $slug,
+                        'agent'           => wp_json_encode($userAgent['value']),
+                        'ip'              => wp_json_encode($ipAddr['value']),
+                        'last_hit_counts' => 1,
+                        'date_created'    => gmdate('Y-m-d H:i:s'),
+                    ]);
+
+                    if ($inserted) {
+                        $log_id = $wpdb->insert_id;
+                        if (!empty($reference)) {
+                            $ref_domain = wp_parse_url($reference, PHP_URL_HOST);
+                            $wpdb->insert('xag_log_404s_referrers', [
+                                'log_id'           => $log_id,
+                                'reference'        => $reference,
+                                'reference_domain' => $ref_domain
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            $get404sLogLmt = get_option('XAGIO_MAX_LOG_LIMIT');
+            $logLmt        = intval($get404sLogLmt);
+
+            if (isset($logLmt) && !empty($logLmt)) {
+                $wpdb->query(
+                    $wpdb->prepare(
+                        "DELETE tb FROM `xag_log_404s` AS tb
+                        JOIN
+                            ( SELECT id AS tmp_tb
+                              FROM `xag_log_404s`
+                              ORDER BY tmp_tb DESC
+                              LIMIT 18446744073709551615 OFFSET %d
+                            ) tmp_limit
+                        ON tb.id <= tmp_limit.tmp_tb", $logLmt
+                    )
+                );
+            }
+        }
         public static function insertUpdateJsonVal($ArVal, $currVal)
         {
             if (is_array($ArVal)) {
@@ -557,7 +563,7 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
                 $rResult = $wpdb->get_results(
                     $wpdb->prepare(
                         "SELECT SQL_CALC_FOUND_ROWS id, last_hit_counts, url, date_updated, ip, agent, slug
-                 FROM {$wpdb->prefix}xag_log_404s
+                 FROM xag_log_404s
                  WHERE slug <> '' AND url LIKE %s
                  ORDER BY {$order_by} {$order_dir}
                  LIMIT %d, %d",
@@ -571,7 +577,7 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
                 $rResult = $wpdb->get_results(
                     $wpdb->prepare(
                         "SELECT SQL_CALC_FOUND_ROWS id, last_hit_counts, url, date_updated, ip, agent, slug
-                 FROM {$wpdb->prefix}xag_log_404s
+                 FROM xag_log_404s
                  WHERE slug <> ''
                  ORDER BY {$order_by} {$order_dir}
                  LIMIT %d, %d",
@@ -585,7 +591,7 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
             $iFilteredTotal = (int) $wpdb->get_var('SELECT FOUND_ROWS()');
 
             $iTotal = (int) $wpdb->get_var(
-                "SELECT COUNT(*) FROM {$wpdb->prefix}xag_log_404s WHERE slug <> ''"
+                "SELECT COUNT(*) FROM xag_log_404s WHERE slug <> ''"
             );
 
             $datt = [];
@@ -608,7 +614,7 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
 
                 $referrers = $wpdb->get_results(
                     $wpdb->prepare(
-                        "SELECT * FROM {$wpdb->prefix}xag_log_404s_referrers WHERE log_id = %d",
+                        "SELECT * FROM xag_log_404s_referrers WHERE log_id = %d",
                         $log_id
                     ),
                     ARRAY_A
@@ -894,7 +900,7 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
         public static function clearLog404()
         {
             global $wpdb;
-            $wpdb->query('TRUNCATE TABLE xag_log_404s');
+            $wpdb->query("TRUNCATE TABLE xag_log_404s");
         }
 
         public static function exportLogs()
@@ -926,7 +932,7 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
                     $log['ip']        = json_decode($log['ip']);
 
                     $log_id = intval($log['id']);
-                    $referenceAr = $wpdb->get_results($wpdb->prepare( "SELECT reference FROM {$wpdb->prefix}xag_log_404s_referrers WHERE log_id = %d", $log_id ), ARRAY_A );
+                    $referenceAr = $wpdb->get_results($wpdb->prepare( "SELECT reference FROM xag_log_404s_referrers WHERE log_id = %d", $log_id ), ARRAY_A );
                     $referenceArRes = array_column($referenceAr, 'reference');
 
                     $log['agent']     = json_decode($log['agent']);

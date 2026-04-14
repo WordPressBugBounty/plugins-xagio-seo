@@ -4,7 +4,7 @@ Tags: SEO, Schema, XML Sitemap, Google Search Console, Redirection
 Requires at least: 5.4
 Tested up to: 6.9
 Requires PHP: 7.0
-Stable tag: 7.1.0.35
+Stable tag: 7.1.0.36
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -195,13 +195,17 @@ Xagio AI **eliminates complexity**, giving you the **fastest, easiest way to ran
 3. Projects
 
 == Changelog ==
+= 7.1.0.36 =
+* 🐞 404 logs fix.
+* 🐞 Fixed sitemap error.
+
 = 7.1.0.35 =
 * 🐞 Minor Agent X bug fixes.
 * ⚙️ Agent X performance updates.
 
 = 7.1.0.34 =
-* ⚙️ Added Rank Tracker settings sync with panel
-* 🐞 Fixed an issue with sitemap regeneration on page update
+* ⚙️ Added Rank Tracker settings sync with panel.
+* 🐞 Fixed an issue with sitemap regeneration on page update.
 
 = 7.1.0.33 =
 * ⚙️ Improved Heading 1 (H1) detection and sending for Gutenberg template content.
