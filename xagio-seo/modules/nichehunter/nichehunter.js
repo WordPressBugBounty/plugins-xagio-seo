@@ -309,11 +309,11 @@ let cf_template = cf_templates[cf_default_template].data;
             if(size > 0){
                 $('.copy-keywords-to-project-container').show();
                 $('.niche-selected-keywords').html(size);
-                $('.delete-keywords span').text(size);
+                $('.delete-keywords').attr('data-xagio-title', `Delete Selected Keywords (${size})`);
             } else {
                 $('.copy-keywords-to-project-container').hide();
                 $('.niche-selected-keywords').html('');
-                $('.delete-keywords span').text('0');
+                $('.delete-keywords').attr('data-xagio-title', `Delete Selected Keywords (0)`);
             }
 
         });
@@ -362,11 +362,11 @@ let cf_template = cf_templates[cf_default_template].data;
             if(size > 0){
                 $('.copy-keywords-to-project-container').show();
                 $('.niche-selected-keywords').html(size);
-                $('.delete-keywords span').text(size);
+                $('.delete-keywords').attr('data-xagio-title', `Delete Selected Keywords (${size})`);
             } else {
                 $('.copy-keywords-to-project-container').hide();
                 $('.niche-selected-keywords').html('');
-                $('.delete-keywords span').text('0');
+                $('.delete-keywords').attr('data-xagio-title', `Delete Selected Keywords (0)`);
             }
         });
     });
@@ -768,31 +768,37 @@ let cf_template = cf_templates[cf_default_template].data;
                             $(`.${filtersKey}`).val(filters[filtersKey]).trigger('input');
                             $(`.${filtersKey}`)[0].dispatchEvent(new Event('input', {bubbles: true}));
                             break;
-                        case "gms-max":
-                            $(`input[name="${filtersKey}"]`).val(filters[filtersKey]);
-                            $(`.${filtersKey}`).val(filters[filtersKey]).trigger('input');
+                        case "gms-max": {
+                            let gmsMaxVal = filters[filtersKey] === "max" ? $(`input[name="${filtersKey}"]`)[0].max : filters[filtersKey];
+                            $(`input[name="${filtersKey}"]`).val(gmsMaxVal);
+                            $(`.${filtersKey}`).val(gmsMaxVal).trigger('input');
                             $(`.${filtersKey}`)[0].dispatchEvent(new Event('input', {bubbles: true}));
                             break;
+                        }
                         case "cpc-min":
                             $(`input[name="${filtersKey}"]`).val(filters[filtersKey]);
                             $(`.${filtersKey}`).val(filters[filtersKey]).trigger('input');
                             $(`.${filtersKey}`)[0].dispatchEvent(new Event('input', {bubbles: true}));
                             break;
-                        case "cpc-max":
-                            $(`input[name="${filtersKey}"]`).val(filters[filtersKey]);
-                            $(`.${filtersKey}`).val(filters[filtersKey]).trigger('input');
+                        case "cpc-max": {
+                            let cpcMaxVal = filters[filtersKey] === "max" ? $(`input[name="${filtersKey}"]`)[0].max : filters[filtersKey];
+                            $(`input[name="${filtersKey}"]`).val(cpcMaxVal);
+                            $(`.${filtersKey}`).val(cpcMaxVal).trigger('input');
                             $(`.${filtersKey}`)[0].dispatchEvent(new Event('input', {bubbles: true}));
                             break;
+                        }
                         case "cpm-min":
                             $(`input[name="${filtersKey}"]`).val(filters[filtersKey]);
                             $(`.${filtersKey}`).val(filters[filtersKey]).trigger('input');
                             $(`.${filtersKey}`)[0].dispatchEvent(new Event('input', {bubbles: true}));
                             break;
-                        case "cpm-max":
-                            $(`input[name="${filtersKey}"]`).val(filters[filtersKey]);
-                            $(`.${filtersKey}`).val(filters[filtersKey]).trigger('input');
+                        case "cpm-max": {
+                            let cpmMaxVal = filters[filtersKey] === "max" ? $(`input[name="${filtersKey}"]`)[0].max : filters[filtersKey];
+                            $(`input[name="${filtersKey}"]`).val(cpmMaxVal);
+                            $(`.${filtersKey}`).val(cpmMaxVal).trigger('input');
                             $(`.${filtersKey}`)[0].dispatchEvent(new Event('input', {bubbles: true}));
                             break;
+                        }
                         case "location":
                             $('select[name="filters[location]"]').val(filters[filtersKey]);
                             break;
@@ -1419,7 +1425,7 @@ let cf_template = cf_templates[cf_default_template].data;
 
                 selected_keywords = {};
                 $('.copy-keywords-to-project-container').hide();
-                $('.delete-keywords span').text("0");
+                $('.delete-keywords').attr('data-xagio-title', `Delete Selected Keywords (0)`);
             })
         },
         selectAllKeywords: function () {
@@ -1454,11 +1460,11 @@ let cf_template = cf_templates[cf_default_template].data;
                 if(size > 0){
                     $('.copy-keywords-to-project-container').show();
                     $('.niche-selected-keywords').html(size);
-                    $('.delete-keywords span').text(size);
+                    $('.delete-keywords').attr('data-xagio-title', `Delete Selected Keywords (${size})`);
                 } else {
                     $('.copy-keywords-to-project-container').hide();
                     $('.niche-selected-keywords').html('');
-                    $('.delete-keywords span').text('0');
+                    $('.delete-keywords').attr('data-xagio-title', `Delete Selected Keywords (0)`);
                 }
             });
         },

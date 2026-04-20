@@ -3124,19 +3124,88 @@ if (!class_exists('XAGIO_MODEL_AI')) {
 
         public static function safeJsonDecode($json, $assoc = true)
         {
-            // Remove trailing commas before closing braces/brackets
-            $cleaned = preg_replace('/,\s*([\]}])/', '$1', $json);
+	        // Remove trailing commas before closing braces/brackets
+	        $cleaned = preg_replace('/,\s*([\]}])/', '$1', $json);
 
-            // Decode cleaned JSON
-            $decoded = json_decode($cleaned, $assoc);
+	        // First attempt
+	        $decoded = json_decode($cleaned, $assoc);
+	        if (json_last_error() === JSON_ERROR_NONE) {
+		        return $decoded;
+	        }
 
-            // Check for errors
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                return NULL;
-            }
+	        // Second attempt: fix mismatched closing brackets (e.g. [ ... } )
+	        $cleaned = self::fixMismatchedBrackets($cleaned);
+	        $cleaned = preg_replace('/,\s*([\]}])/', '$1', $cleaned);
 
-            return $decoded;
+	        $decoded = json_decode($cleaned, $assoc);
+	        if (json_last_error() !== JSON_ERROR_NONE) {
+		        return NULL;
+	        }
+
+	        return $decoded;
         }
+
+	    public static function fixMismatchedBrackets($json)
+	    {
+		    $result   = '';
+		    $stack    = [];
+		    $inString = false;
+		    $escaped  = false;
+		    $len      = strlen($json);
+
+		    for ($i = 0; $i < $len; $i++) {
+			    $char = $json[$i];
+
+			    // Handle escape sequences inside strings
+			    if ($escaped) {
+				    $result .= $char;
+				    $escaped = false;
+				    continue;
+			    }
+			    if ($inString && $char === '\\') {
+				    $result .= $char;
+				    $escaped = true;
+				    continue;
+			    }
+
+			    // Toggle string state on unescaped quotes
+			    if ($char === '"') {
+				    $inString = !$inString;
+				    $result  .= $char;
+				    continue;
+			    }
+
+			    // Inside a string: copy everything verbatim
+			    if ($inString) {
+				    $result .= $char;
+				    continue;
+			    }
+
+			    // Opening brackets: push onto stack
+			    if ($char === '{' || $char === '[') {
+				    $stack[] = $char;
+				    $result .= $char;
+				    continue;
+			    }
+
+			    // Closing brackets: match against stack top
+			    if ($char === '}' || $char === ']') {
+				    if (empty($stack)) {
+					    // Stray closer — leave as-is, json_decode will fail later
+					    $result .= $char;
+					    continue;
+				    }
+				    $opening  = array_pop($stack);
+				    $expected = $opening === '{' ? '}' : ']';
+				    $result  .= $expected; // force correct closer
+				    continue;
+			    }
+
+			    $result .= $char;
+		    }
+
+		    return $result;
+	    }
 
         public static function _sendAiRequest($xagio_input = 'PAGE_CONTENT', $prompt_id = 0, $target_id = 0, $xagio_args = [], $additional = [], &$xagio_http_code = 0)
         {

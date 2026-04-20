@@ -317,22 +317,23 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                             </button>
                         </div>
                     </div>
-                    <div class="xagio-flex xagio-flex-gap-medium">
+                    <div class="xagio-flex xagio-flex-gap-small">
+                        <div class="copy-keywords-to-project-container" style="display: none">
+                            <button class="xagio-button xagio-button-danger delete-keywords" data-xagio-tooltip data-xagio-title="">
+                                <i class="xagio-icon xagio-icon-delete"></i>
+                            </button>
+                        </div>
+
+                        <button class="xagio-button xagio-button-primary get-competition" data-xagio-tooltip data-xagio-title="Get Competition For All Selected">
+                            <i class="xagio-icon xagio-icon-key"></i>
+                        </button>
+
                         <div class="xagio-dropdown-simple actions-button">
                             <button class="xagio-button xagio-button-primary">Actions <i class="xagio-icon xagio-icon-arrow-down"></i></button>
                             <ul class="xagio-button-dropdown">
                                 <li>
-                                    <a href="#" class="get-competition" data-xagio-dropdown-close>
-                                        Get Competition
-                                    </a>
-                                </li>
-                                <li>
                                     <a href="#" class="copy-to-clipboard" data-xagio-dropdown-close>
                                         Copy Selected Keywords To Clipboard
-                                    </a>
-                                </li>
-                                <li>
-                                    <a href="#" class="delete-keywords" data-xagio-dropdown-close>Delete Selected Keywords (<span>0</span>)
                                     </a>
                                 </li>
                             </ul>

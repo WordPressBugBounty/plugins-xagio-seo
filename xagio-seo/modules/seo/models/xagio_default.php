@@ -82,6 +82,83 @@ if (!class_exists('XAGIO_MODEL_DEFAULT')) {
 	        if (get_option('XAGIO_GLOBAL_404_REDIRECTION_URL') === false) {
 		        update_option('XAGIO_GLOBAL_404_REDIRECTION_URL', get_site_url());
 	        }
+
+	        if (get_option('XAGIO_SEO_PROFILES') === false) {
+		        $data = [
+			        'contact_details' => [
+				        'business_name' => '',
+				        'business_address' => '',
+				        'business_city' => '',
+				        'business_state' => '',
+				        'business_country' => '',
+				        'business_zip' => '',
+				        'business_phone' => '',
+				        'business_alternate_phone' => '',
+				        'business_email' => '',
+			        ],
+			        'business_directories' => [
+				        'google_business_profile' => '',
+				        'yelp' => '',
+				        'bing_places' => '',
+				        'bbb_org' => '',
+				        'angi' => '',
+				        'yellow_pages' => '',
+				        'foursquare' => '',
+			        ],
+			        'map_services' => [
+				        'apple_maps_connect' => '',
+			        ],
+			        'professional_networks' => [
+				        'indeed' => '',
+				        'angel_list' => '',
+				        'meetup' => '',
+			        ],
+			        'industry_specific' => [
+				        'healthgrades' => '',
+				        'zocdoc' => '',
+				        'houzz' => '',
+				        'thumbtack' => '',
+				        'the_knot' => '',
+				        'wedding_wire' => '',
+				        'lawyers_com' => '',
+				        'avvo' => '',
+				        'clutch' => '',
+			        ],
+			        'social_media' => [
+				        'facebook' => '',
+				        'youtube' => '',
+				        'instagram' => '',
+				        'linkedin' => '',
+				        'x' => '',
+				        'tiktok' => '',
+				        'pinterest' => '',
+			        ],
+			        'review_sites' => [
+				        'trustpilot' => '',
+				        'glassdoor' => '',
+				        'consumer_affairs' => '',
+				        'sitejabber' => '',
+			        ],
+			        'local_listing' => [
+				        'trip_advisor' => '',
+			        ],
+			        'e_commerce' => [
+				        'amazon_business' => '',
+				        'etsy' => '',
+				        'shopify' => '',
+				        'walmart_marketplace' => '',
+				        'big_commerce' => '',
+			        ],
+			        'mobile_app' => [
+				        'apple_app_store' => '',
+				        'google_play_store' => '',
+				        'amazon_appstore' => '',
+				        'samsung_galaxy_store' => '',
+			        ],
+		        ];
+
+		        update_option('XAGIO_SEO_PROFILES', $data);
+	        }
         }
 
         public static function generateSEOTemplatesMagicPage()

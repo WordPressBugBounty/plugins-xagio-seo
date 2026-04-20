@@ -312,6 +312,14 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
                 return;
             }
 
+            // Let the sitemap module handle sitemap URLs at priority 99
+            if (get_option('XAGIO_ENABLE_SITEMAPS') && isset($_SERVER['REQUEST_URI'])) {
+                $request_uri = wp_unslash($_SERVER['REQUEST_URI']);
+                if (strpos($request_uri, 'sitemap') !== false && strpos($request_uri, '.xml') !== false) {
+                    return;
+                }
+            }
+
             self::log404();
 
             $getGlobal301RdirectUrl = get_option('XAGIO_GLOBAL_404_REDIRECTION_URL');

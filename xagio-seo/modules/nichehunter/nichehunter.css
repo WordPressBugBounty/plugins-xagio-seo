@@ -420,3 +420,11 @@ a.xagio-button.xagio-button-warning:hover {
 #no-hiche-history-found {
     background: var(--color-xagio-white-primary);
 }
+
+.delete-keywords, .get-competition {
+    padding: 0 16px !important;
+    height: 44px;
+    width: 44px;
+    display: grid;
+    place-content: center;
+}
