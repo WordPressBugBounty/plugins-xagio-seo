@@ -563,7 +563,7 @@ if (!class_exists('XAGIO_MODEL_OCW')) {
                             update_post_meta($post_id, 'XAGIO_SEO_TITLE', $data_item['title']);
                             update_post_meta($post_id, 'XAGIO_SEO_DESCRIPTION', $data_item['description']);
                         } else {
-                            $xagio_ocw_steps['data']['error'] = 'Failed to create Elementor page with H1: ' . $data_item['h1'];
+                            $xagio_ocw_steps['data']['error'] = 'Failed to create page with H1: ' . $data_item['h1'];
                             update_option('XAGIO_OCW', $xagio_ocw_steps);
                             return;
                         }
@@ -1722,10 +1722,8 @@ if (!class_exists('XAGIO_MODEL_OCW')) {
                     // If the current key is one of our target fields, store its value.
                     if (is_string($xagio_key) && in_array($xagio_key, $fields)) {
 
-                        // If the value is a string and appears to contain HTML,
-                        // remove all attributes from the HTML tags.
                         if (is_string($xagio_value) && strpos($xagio_value, '<') !== false) {
-                            $xagio_value = self::stripHtmlAttributes($xagio_value);
+                            $xagio_value = wp_strip_all_tags(self::stripHtmlAttributes($xagio_value));
                         }
 
                         if (!empty($xagio_value)) {
@@ -1977,6 +1975,37 @@ if (!class_exists('XAGIO_MODEL_OCW')) {
                 if (!$nodes) {
                     foreach ($xp->query('//*[' . $inline . '][not(ancestor::*[' . $block . '])][not(ancestor::*[' . $inline . '])]') as $el) {
                         $nodes[] = $el;
+                    }
+                }
+
+                // Pass 3: raw text fallback — mirrors extractor Pass 3 for elements like
+                // Kadence kt-adv-heading rendered as <div> (no h1-h6/p/span/etc. inside)
+                if (!$nodes && array_key_exists($idx, $xagio_texts)) {
+                    $bodyEl  = $dom->getElementsByTagName('body')->item(0);
+                    $rawText = $bodyEl ? trim($bodyEl->textContent ?? '') : '';
+                    if ($rawText !== '' && mb_strlen($rawText) >= $minLen) {
+                        $new = $decodeEntities((string)$xagio_texts[$idx++]);
+                        if ($rawText !== $new) {
+                            $topEls = [];
+                            if ($bodyEl) {
+                                foreach ($bodyEl->childNodes as $child) {
+                                    if ($child->nodeType === XML_ELEMENT_NODE) $topEls[] = $child;
+                                }
+                            }
+                            if (count($topEls) === 1) {
+                                $el = $topEls[0];
+                                while ($el->firstChild) $el->removeChild($el->firstChild);
+                                $el->appendChild($dom->createTextNode($new));
+                                $consumedOldNew[] = [$rawText, $new];
+                            }
+                        }
+                        $body = $dom->getElementsByTagName('body')->item(0);
+                        if (!$body) return $html;
+                        $newHtml = '';
+                        foreach ($body->childNodes as $child) {
+                            $newHtml .= $dom->saveHTML($child);
+                        }
+                        return $newHtml;
                     }
                 }
 

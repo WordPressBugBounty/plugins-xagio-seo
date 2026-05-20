@@ -38,7 +38,7 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
                     update_option('XAGIO_MAX_LOG_LIMIT', 500);
                 }
 
-                add_action('template_redirect', [
+                add_action('wp_enqueue_scripts', [
                     'XAGIO_MODEL_LOG404',
                     'doStuffOn404'
                 ], -999999999);
@@ -139,7 +139,7 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
                 // Detect legacy column safely (no INFORMATION_SCHEMA permission needed)
                 $has_reference = $wpdb->get_var( $wpdb->prepare(
                     "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
-             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = 'reference'", $table_404
+             		WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = 'reference'", $table_404
                 ) );
 
                 if ( ! $has_reference ) {
@@ -308,183 +308,182 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
 
         public static function doStuffOn404()
         {
-            if (!is_404()) {
-                return;
-            }
-
-            // Let the sitemap module handle sitemap URLs at priority 99
-            if (get_option('XAGIO_ENABLE_SITEMAPS') && isset($_SERVER['REQUEST_URI'])) {
-                $request_uri = wp_unslash($_SERVER['REQUEST_URI']);
-                if (strpos($request_uri, 'sitemap') !== false && strpos($request_uri, '.xml') !== false) {
-                    return;
-                }
-            }
-
-            self::log404();
-
-            $getGlobal301RdirectUrl = get_option('XAGIO_GLOBAL_404_REDIRECTION_URL');
-            if (!empty($getGlobal301RdirectUrl) && !XAGIO_MODEL_SHARED_PROJECT::is_shared_project_page()) {
-                xagio_redirect($getGlobal301RdirectUrl, 301);
-                exit;
-            }
-        }
-
-        private static function log404()
-        {
             global $wpdb;
-
             $chk404sStatus = get_option('XAGIO_DISABLE_404_LOGS');
-            if ($chk404sStatus == 1) {
-                return;
-            }
 
-            $ip               = self::getIp();
-            $xagio_url        = self::getCurrentUrl();
-            $slug             = self::getCurrentSlug();
-            $chk404sSpiderLog = get_option('XAGIO_ENABLE_SPIDER_404');
-            $ext              = pathinfo($xagio_url, PATHINFO_EXTENSION);
+            if ($chk404sStatus != 1) {
+                if (is_404()) {
+                    $ip               = self::getIp();
+                    $xagio_url              = self::getCurrentUrl();
+                    $slug             = self::getCurrentSlug();
+                    $chk404sSpiderLog = get_option('XAGIO_ENABLE_SPIDER_404');
+                    $ext              = pathinfo($xagio_url, PATHINFO_EXTENSION);
 
-            if (isset($ext) && !empty($ext)) {
-                $chkBlockedExt = self::chkBlockedExtensions($ext);
-                if ($chkBlockedExt === TRUE) {
-                    return;
-                }
-            }
+                    if (isset($ext) && !empty($ext)) {
+                        $chkBlockedExt = self::chkBlockedExtensions($ext);
 
-            $chkSlug = self::chkSlugStrExists($slug);
-            if ($chkSlug === TRUE) {
-                return;
-            }
-
-            $agent = '';
-            if (isset($_SERVER['HTTP_USER_AGENT'])) {
-                $agent = sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT']));
-
-                if ($chk404sSpiderLog != 1) {
-                    $checkBot = self::smartIpDetectCrawler($agent);
-                    if ($checkBot === TRUE) {
-                        return;
-                    }
-                }
-            } else {
-                return;
-            }
-
-            $reference = '';
-            if (isset($_SERVER['HTTP_REFERER'])) {
-
-                $reference = sanitize_url(wp_unslash($_SERVER['HTTP_REFERER']));
-                $mainUrl   = wp_parse_url($xagio_url);
-                $RefUrl    = wp_parse_url($reference);
-
-                if ($RefUrl === false) {
-                    return;
-                }
-
-                if (!isset($RefUrl['scheme']) || !in_array($RefUrl['scheme'], ['http', 'https'])) {
-                    return;
-                }
-
-                if (empty($RefUrl['host'])) {
-                    return;
-                }
-
-                if (strtolower($mainUrl['host']) == strtolower($RefUrl['host'])) {
-                    return;
-                }
-
-                $chkEscRefStr = self::checkEscapeRefStr($reference);
-                if ($chkEscRefStr === TRUE) {
-                    return;
-                }
-            }
-
-            if (empty($reference)) {
-                $chk404sWithReferenceStatus = get_option('XAGIO_ENABLE_404_REF_URL');
-                if ($chk404sWithReferenceStatus == 1) {
-                    return;
-                }
-            }
-
-            $getHits = $wpdb->get_row($wpdb->prepare("SELECT id, ip, agent, last_hit_counts FROM xag_log_404s WHERE url = %s", $xagio_url), ARRAY_A);
-
-            if (isset($getHits) && !empty($getHits)) {
-
-                $ipAr    = json_decode($getHits['ip']);
-                $agentAr = json_decode($getHits['agent']);
-
-                $log_id         = intval($getHits['id']);
-                $referenceAr    = $wpdb->get_results($wpdb->prepare("SELECT reference FROM xag_log_404s_referrers WHERE log_id = %d", $log_id), ARRAY_A);
-                $referenceArRes = array_column($referenceAr, 'reference');
-                $ipArRes        = self::insertUpdateJsonVal($ipAr, $ip);
-                $agentArRes     = self::insertUpdateJsonVal($agentAr, $agent);
-
-                if ($ipArRes['method'] === 'update' && $agentArRes['method'] === 'update') {
-                    $curntHits = $getHits['last_hit_counts'] + 1;
-                    $wpdb->update('xag_log_404s', [
-                        'ip'              => wp_json_encode($ipArRes['value']),
-                        'agent'           => wp_json_encode($agentArRes['value']),
-                        'last_hit_counts' => $curntHits,
-                    ], [
-                        'id' => $log_id,
-                    ]);
-
-                    if (!empty($reference) && !in_array($reference, $referenceArRes)) {
-                        $ref_domain = wp_parse_url($reference, PHP_URL_HOST);
-                        $wpdb->insert('xag_log_404s_referrers', [
-                            'log_id'           => $log_id,
-                            'reference'        => $reference,
-                            'reference_domain' => $ref_domain
-                        ]);
-                    }
-                }
-
-            } else {
-                $ipAddr    = self::insertUpdateJsonVal(NULL, $ip);
-                $userAgent = self::insertUpdateJsonVal(NULL, $agent);
-
-                if ($ipAddr['method'] === 'insert' && $userAgent['method'] === 'insert') {
-                    $inserted = $wpdb->insert('xag_log_404s', [
-                        'url'             => $xagio_url,
-                        'slug'            => $slug,
-                        'agent'           => wp_json_encode($userAgent['value']),
-                        'ip'              => wp_json_encode($ipAddr['value']),
-                        'last_hit_counts' => 1,
-                        'date_created'    => gmdate('Y-m-d H:i:s'),
-                    ]);
-
-                    if ($inserted) {
-                        $log_id = $wpdb->insert_id;
-                        if (!empty($reference)) {
-                            $ref_domain = wp_parse_url($reference, PHP_URL_HOST);
-                            $wpdb->insert('xag_log_404s_referrers', [
-                                'log_id'           => $log_id,
-                                'reference'        => $reference,
-                                'reference_domain' => $ref_domain
-                            ]);
+                        if ($chkBlockedExt === TRUE) {
+                            return FALSE;
                         }
                     }
+
+                    $chkSlug = self::chkSlugStrExists($slug);
+                    if ($chkSlug === TRUE) {
+                        return FALSE;
+                    }
+
+                    $agent = '';
+                    if (isset($_SERVER['HTTP_USER_AGENT'])) {
+                        $agent = sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT']));
+
+                        if ($chk404sSpiderLog != 1) {
+                            $checkBot = self::smartIpDetectCrawler($agent);
+
+                            if ($checkBot === TRUE) {
+                                return FALSE;
+                            }
+                        }
+
+                    } else {
+                        return FALSE;
+                    }
+
+                    $reference = '';
+                    if (isset($_SERVER['HTTP_REFERER'])) {
+
+                        $reference = sanitize_url(wp_unslash($_SERVER['HTTP_REFERER']));
+                        $mainUrl   = wp_parse_url($xagio_url);
+                        $RefUrl    = wp_parse_url($reference);
+
+                        if ($RefUrl === false) {
+                            return FALSE; // Invalid URL, stop further processing
+                        }
+
+                        if (!isset($RefUrl['scheme']) || !in_array($RefUrl['scheme'], [
+                                'http',
+                                'https'
+                            ])) {
+                            return FALSE; // Unsupported scheme, stop further processing
+                        }
+
+                        if (empty($RefUrl['host'])) {
+                            return FALSE; // Invalid host, stop further processing
+                        }
+
+                        if (strtolower($mainUrl['host']) == strtolower($RefUrl['host'])) {
+                            return FALSE;
+                        }
+
+                        $chkEscRefStr = self::checkEscapeRefStr($reference);
+
+                        if ($chkEscRefStr === TRUE) {
+                            return FALSE;
+                        }
+
+                    }
+
+                    if (empty($reference)) {
+                        $chk404sWithReferenceStatus = get_option('XAGIO_ENABLE_404_REF_URL');
+                        if ($chk404sWithReferenceStatus == 1) {
+                            return FALSE;
+                        }
+                    }
+
+                    $getHits = $wpdb->get_row($wpdb->prepare('SELECT id, ip, agent, last_hit_counts FROM xag_log_404s WHERE url = %s', $xagio_url), ARRAY_A);
+
+                    if (isset($getHits) && !empty($getHits)) {
+
+                        $ipAr        = json_decode($getHits['ip']);
+                        $agentAr     = json_decode($getHits['agent']);
+
+
+                        $log_id = intval($getHits['id']);
+                        $referenceAr = $wpdb->get_results($wpdb->prepare("SELECT reference FROM xag_log_404s_referrers WHERE log_id = %d", $log_id), ARRAY_A);
+                        $referenceArRes = array_column($referenceAr, 'reference');
+                        $ipArRes        = self::insertUpdateJsonVal($ipAr, $ip);
+                        $agentArRes     = self::insertUpdateJsonVal($agentAr, $agent);
+
+                        if ($ipArRes['method'] === 'update' && $agentArRes['method'] === 'update') {
+                            $curntHits = $getHits['last_hit_counts'] + 1;
+                            $wpdb->update('xag_log_404s', [
+                                'ip'              => wp_json_encode($ipArRes['value']),
+                                'agent'           => wp_json_encode($agentArRes['value']),
+                                'last_hit_counts' => $curntHits,
+                            ], [
+                                'id' => $log_id,
+                            ]);
+
+                            if(!empty($reference) && !in_array($reference, $referenceArRes))
+                            {
+                                $ref_domain = wp_parse_url($reference, PHP_URL_HOST);
+                                $wpdb->insert('xag_log_404s_referrers', [
+                                    'log_id'     => $log_id,
+                                    'reference'  => $reference,
+                                    'reference_domain' => $ref_domain
+                                ]);
+                            }
+                        }
+
+                    } else {
+                        $ipAddr    = self::insertUpdateJsonVal(NULL, $ip);
+                        $userAgent = self::insertUpdateJsonVal(NULL, $agent);
+
+                        if ($ipAddr['method'] === 'insert' && $userAgent['method'] === 'insert') {
+                            $inserted = $wpdb->insert('xag_log_404s', [
+                                'url'             => $xagio_url,
+                                'slug'            => $slug,
+                                'agent'           => wp_json_encode($userAgent['value']),
+                                'ip'              => wp_json_encode($ipAddr['value']),
+                                'last_hit_counts' => 1,
+                                'date_created'    => gmdate('Y-m-d H:i:s'),
+                            ]);
+
+                            if( $inserted ) {
+                                $log_id = $wpdb->insert_id;
+                                if(!empty($reference))
+                                {
+                                    $ref_domain = wp_parse_url($reference, PHP_URL_HOST);
+                                    $wpdb->insert('xag_log_404s_referrers', [
+                                        'log_id'     => $log_id,
+                                        'reference'  => $reference,
+                                        'reference_domain' => $ref_domain
+                                    ]);
+                                }
+                            }
+                        }
+                    }
+
+                    $get404sLogLmt = get_option('XAGIO_MAX_LOG_LIMIT');
+                    $logLmt        = intval($get404sLogLmt);
+
+                    if (isset($logLmt) && !empty($logLmt)) {
+                        $wpdb->query(
+                            $wpdb->prepare(
+                                'DELETE tb FROM `xag_log_404s` AS tb
+                                        JOIN
+                                            ( SELECT id AS tmp_tb
+                                              FROM `xag_log_404s`
+                                              ORDER BY tmp_tb DESC
+                                              LIMIT 18446744073709551615 OFFSET %d
+                                            ) tmp_limit
+                                        ON tb.id <= tmp_limit.tmp_tb', $logLmt
+                            )
+                        );
+                    }
+
+                    $getGlobal301RdirectUrl = get_option('XAGIO_GLOBAL_404_REDIRECTION_URL');
+
+                    if (isset($getGlobal301RdirectUrl) && !empty($getGlobal301RdirectUrl) && !XAGIO_MODEL_SHARED_PROJECT::is_shared_project_page()) {
+                        xagio_redirect($getGlobal301RdirectUrl, 301);
+                        exit;
+                    }
+
                 }
-            }
-
-            $get404sLogLmt = get_option('XAGIO_MAX_LOG_LIMIT');
-            $logLmt        = intval($get404sLogLmt);
-
-            if (isset($logLmt) && !empty($logLmt)) {
-                $wpdb->query(
-                    $wpdb->prepare(
-                        "DELETE tb FROM `xag_log_404s` AS tb
-                        JOIN
-                            ( SELECT id AS tmp_tb
-                              FROM `xag_log_404s`
-                              ORDER BY tmp_tb DESC
-                              LIMIT 18446744073709551615 OFFSET %d
-                            ) tmp_limit
-                        ON tb.id <= tmp_limit.tmp_tb", $logLmt
-                    )
-                );
+            } else {
+                return FALSE;
             }
         }
+
         public static function insertUpdateJsonVal($ArVal, $currVal)
         {
             if (is_array($ArVal)) {
@@ -908,7 +907,7 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
         public static function clearLog404()
         {
             global $wpdb;
-            $wpdb->query("TRUNCATE TABLE xag_log_404s");
+            $wpdb->query('TRUNCATE TABLE xag_log_404s');
         }
 
         public static function exportLogs()
@@ -926,7 +925,7 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
         {
             global $wpdb;
             $getLogs = $wpdb->get_results("SELECT * FROM xag_log_404s WHERE slug != ''", ARRAY_A);
-            
+
             $xagio_output = "";
             $xagio_content = "";
             $total = 0;
@@ -936,7 +935,7 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
                     $ips        = '';
                     $references = '';
                     $agents     = '';
-    
+
                     $log['ip']        = json_decode($log['ip']);
 
                     $log_id = intval($log['id']);
@@ -944,11 +943,11 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
                     $referenceArRes = array_column($referenceAr, 'reference');
 
                     $log['agent']     = json_decode($log['agent']);
-    
+
                     $ips        = implode(" , ", $log['ip']);
                     $references = implode(" , ", $referenceArRes);
                     $agents     = implode(" , ", $log['agent']);
-    
+
                     $xagio_content .= '"' . $log['last_hit_counts'] . '","' . $log['url'] . '","' . $ips . '","' . $references . '","' . $agents . '","' . $log['date_updated'] . '",';
                     $xagio_content .= "\n";
 
@@ -1068,7 +1067,7 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
                 foreach ($referrers as $referer) {
                     $targets[] = $referer['reference'];
                 }
-                
+
             }
 
             $temp_targets = [];
@@ -1141,8 +1140,8 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
                                         }
                                     }
                                 }
-                            }                                        
-                            
+                            }
+
                         }
                     }
                 }

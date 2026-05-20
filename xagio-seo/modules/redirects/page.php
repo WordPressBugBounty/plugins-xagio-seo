@@ -19,7 +19,13 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 // Get all post types dynamically
 $xagio_post_types = get_post_types(['public' => true], 'names');
 // Get all posts, pages, and CPTs
-$xagio_all_posts = get_posts(['post_type' => $xagio_post_types, 'posts_per_page' => -1]);
+$xagio_all_posts = get_posts([
+    'post_type'              => $xagio_post_types,
+    'posts_per_page'         => -1,
+    'no_found_rows'          => true,
+    'update_post_meta_cache' => false,
+    'update_post_term_cache' => false,
+]);
 
 $xagio_grouped_posts = [];
 foreach ($xagio_all_posts as $post) {
@@ -271,7 +277,7 @@ foreach ($xagio_all_posts as $post) {
 <!-- Add Redirect To Modal -->
 <dialog id="addRedirectToModal" class="xagio-modal">
     <div class="xagio-modal-header">
-        <h3 class="xagio-modal-title"><i class="xagio-icon xagio-icon-info"></i> Confirm New URL:</h3>
+        <h3 class="xagio-modal-title"><i class="xagio-icon xagio-icon-info"></i> Confirm New URL</h3>
         <button class="xagio-modal-close"><i class="xagio-icon xagio-icon-close"></i></button>
     </div>
 
@@ -300,16 +306,16 @@ foreach ($xagio_all_posts as $post) {
     </div>
 </dialog>
 
-<!-- Edit Redirect Modal -->
-<dialog id="editRedirectModal" class="xagio-modal">
+<!-- Add 404 Redirect To Modal -->
+<dialog id="add404RedirectModal" class="xagio-modal">
     <div class="xagio-modal-header">
-        <h3 class="xagio-modal-title"><i class="xagio-icon xagio-icon-edit"></i> Edit Redirect: <span></span></h3>
+        <h3 class="xagio-modal-title"><i class="xagio-icon xagio-icon-info"></i> Redirect 404 to URL</h3>
         <button class="xagio-modal-close"><i class="xagio-icon xagio-icon-close"></i></button>
     </div>
-    <div class="xagio-modal-body">
-        <label for="edit_redirect_select" class="modal-label">Select a page/post from the dropdown: </label>
 
-        <select id="edit_redirect_select">
+    <div class="xagio-modal-body">
+        <label for="redirect-404-to-select" class="modal-label">Select a page/post from the dropdown: </label>
+        <select id="redirect-404-to-select">
             <option></option>
             <?php foreach ($xagio_grouped_posts as $post_type => $posts) { ?>
                 <optgroup label="<?php echo esc_html(ucfirst($post_type)) ?>">
@@ -321,13 +327,13 @@ foreach ($xagio_all_posts as $post) {
         </select>
 
         <div class="xagio-margin-top-small">
-            <label for="edit_old_url" class="modal-label">or edit url manually</label>
-            <input type="text" class="xagio-input-text-mini" id="edit_old_url" placeholder="e.g. oldurl ">
+            <label for="redirect-404-to-input" class="modal-label">or add url manually (use the /newurl/ format)</label>
+            <input type="text" class="xagio-input-text-mini" id="redirect-404-to-input" placeholder="e.g. /newurl/ ">
         </div>
 
         <div class="xagio-flex-right xagio-flex-gap-medium xagio-margin-top-medium">
             <button type="button" class="xagio-button xagio-button-outline" data-xagio-close-modal><i class="xagio-icon xagio-icon-close"></i> Cancel</button>
-            <button type="button" class="xagio-button xagio-button-primary edit-redirect-next-step"><i class="xagio-icon xagio-icon-check"></i> Continue</button>
+            <button type="button" class="xagio-button xagio-button-primary submit-404-redirect"><i class="xagio-icon xagio-icon-check"></i> Add Redirect</button>
         </div>
     </div>
 </dialog>
@@ -353,8 +359,8 @@ foreach ($xagio_all_posts as $post) {
         </select>
 
         <div class="xagio-margin-top-small">
-            <label for="edit_new_url" class="modal-label">or edit url manually</label>
-            <input type="text" class="xagio-input-text-mini" id="edit_new_url" placeholder="e.g. oldurl ">
+            <label for="edit_new_url" class="modal-label">or edit url manually (use the /newurl/ format)</label>
+            <input type="text" class="xagio-input-text-mini" id="edit_new_url" placeholder="e.g. /newurl/ ">
         </div>
 
         <div class="xagio-flex-right xagio-flex-gap-medium xagio-margin-top-medium">

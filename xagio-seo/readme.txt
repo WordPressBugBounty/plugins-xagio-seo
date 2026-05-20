@@ -4,7 +4,7 @@ Tags: SEO, Schema, XML Sitemap, Google Search Console, Redirection
 Requires at least: 5.4
 Tested up to: 6.9
 Requires PHP: 7.0
-Stable tag: 7.1.0.37
+Stable tag: 7.1.0.38
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -195,6 +195,11 @@ Xagio AI **eliminates complexity**, giving you the **fastest, easiest way to ran
 3. Projects
 
 == Changelog ==
+= 7.1.0.38 =
+* 🧹 Backend cleanup and small bug fixes.
+* 🔒 Security hardening and stability improvements.
+* ⚙️ Agent X performance updates.
+
 = 7.1.0.37 =
 * 🐞 Sitemap redirect fix.
 * ⚙️ Stability improvements.

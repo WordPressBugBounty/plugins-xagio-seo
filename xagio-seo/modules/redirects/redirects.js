@@ -28,7 +28,6 @@ let selected_refs = 0;
         link.addNewRedirect();
         link.editRedirect();
         link.redirectNextStep();
-        link.editRedirectNextStep();
         link.submitRedirect();
         link.submitEditUrl();
         link.redirectSelect();
@@ -54,11 +53,6 @@ let selected_refs = 0;
                                           dropdownParent: $('#addRedirectModal')
                                       });
 
-        $("#edit_redirect_select").select2({
-                                               placeholder   : "Select page/post",
-                                               width         : '100%',
-                                               dropdownParent: $('#editRedirectModal')
-                                           });
 
         $("#editing-new-url").select2({
                                           placeholder   : "Select page/post",
@@ -71,6 +65,12 @@ let selected_refs = 0;
                                              width         : '100%',
                                              dropdownParent: $('#addRedirectToModal')
                                          });
+
+        $("#redirect-404-to-select").select2({
+                                                 placeholder   : "Select page/post",
+                                                 width         : '100%',
+                                                 dropdownParent: $('#add404RedirectModal')
+                                             });
 
         $('#addRedirectModal').on('close', function () {
             $('.add-new-redirect').disable();
@@ -343,15 +343,14 @@ let selected_refs = 0;
                 let cnewURL = button.data('new-url');
                 let redirect_id = button.data('id');
 
-                let modal = $("#editRedirectModal");
+                let modal = $("#redirectToModal");
 
                 modal.find('.xagio-modal-title span').text(coldURL);
-                modal.find('#edit_redirect_select').val(coldURL).trigger('change');
-                modal.find('#edit_old_url').val(coldURL);
+                modal.find('#editing-new-url').val(cnewURL).trigger('change');
+                modal.find('#edit_new_url').val(cnewURL ? `/${cnewURL}/` : '');
+                modal.find('.submit-edit-url').attr('data-old-url', coldURL).attr('data-id', redirect_id);
 
                 modal[0].showModal();
-
-                $('.edit-redirect-next-step').attr('data-old-url', coldURL).attr('data-new-url', cnewURL).attr('data-id', redirect_id);
             });
         },
         redirectSelect        : function () {
@@ -361,16 +360,11 @@ let selected_refs = 0;
                 $("#addRedirectModal").find('#old_url').val(`/${value}/`);
             })
 
-            $(document).on('change', '#edit_redirect_select', function (e) {
-                let value = $(this).val();
-
-                $("#editRedirectModal").find('#edit_old_url').val(value);
-            })
 
             $(document).on('change', '#editing-new-url', function (e) {
                 let value = $(this).val();
 
-                $("#redirectToModal").find('#edit_new_url').val(value);
+                $("#redirectToModal").find('#edit_new_url').val(value ? `/${value}/` : '');
             })
 
             $(document).on('change', '#redirect-to-select', function (e) {
@@ -431,36 +425,6 @@ let selected_refs = 0;
             });
         },
 
-        editRedirectNextStep: function () {
-            $(document).on('click', '.edit-redirect-next-step', function (e) {
-                e.preventDefault();
-
-                let modal = $("#editRedirectModal");
-                //first modal input
-                let input = modal.find('#edit_old_url').val();
-
-                if (input === '') {
-                    xagioNotify('danger', 'Input field cannot be empty. Please select a page/post or enter a URL manually!');
-                    return;
-                }
-
-                let button = $(this);
-                let cnewURL = button.attr('data-new-url').replace(/^\/|\/$/g, "");
-                let redirect_id = button.data('id');
-
-                modal[0].close();
-
-                let secondModal = $("#redirectToModal");
-                secondModal.find('.xagio-modal-title span').text(cnewURL);
-                secondModal.find('#editing-new-url').val(cnewURL).trigger('change');
-                secondModal.find('#edit_new_url').val(cnewURL);
-                secondModal.find('.submit-edit-url').attr('data-old-url', input).attr('data-id', redirect_id);
-
-                //open second modal
-                secondModal[0].showModal();
-            });
-        },
-
         submitEditUrl: function () {
             $(document).on('click', '.submit-edit-url', function () {
                 let button = $(this);
@@ -476,8 +440,8 @@ let selected_refs = 0;
 
                 button.disable("Saving...");
 
-                $.post(xagio_data.wp_post, 'action=xagio_edit_redirect&id=' + redirect_id + '&newURL=' + newURL +
-                                           '&oldURL=' + oldURL, function () {
+                $.post(xagio_data.wp_post, 'action=xagio_edit_redirect&id=' + redirect_id + '&newURL=' + encodeURIComponent(newURL) +
+                                           '&oldURL=' + encodeURIComponent(oldURL), function () {
                     link.loadRedirects();
                     button.disable();
 
@@ -911,30 +875,46 @@ let selected_refs = 0;
             $(document).on('click', '.add-new-404-redirect', function (e) {
                 e.preventDefault();
 
-                var button = $(this);
-                var old404URL = button.attr('data-current-url');
+                let old404URL = $(this).attr('data-current-url');
+                let modal = $('#add404RedirectModal');
 
-                xagioPromptModal("Redirect to URL", "Redirect to URL (use the /newurl/ format) (DANGER: Creating invalid redirects may result in breaking of your website):", function (result) {
+                modal.find('#redirect-404-to-select').val(null).trigger('change');
+                modal.find('#redirect-404-to-input').val('');
+                modal.find('.submit-404-redirect').attr('data-old404-url', old404URL);
 
-                    if (result) {
-                        let newURL = result;
+                modal[0].showModal();
+            });
 
-                        button.disable();
+            $(document).on('change', '#redirect-404-to-select', function () {
+                let value = $(this).val();
+                $('#add404RedirectModal').find('#redirect-404-to-input').val(value ? `/${value}/` : '');
+            });
 
-                        $.post(xagio_data.wp_post, 'action=xagio_add_log404_redirect&old404URL=' + old404URL +
-                                                   '&newURL=' + newURL, function (d) {
+            $(document).on('click', '.submit-404-redirect', function () {
+                let button = $(this);
+                let modal = $('#add404RedirectModal');
+                let newURL = modal.find('#redirect-404-to-input').val();
+                let old404URL = button.attr('data-old404-url');
 
-                            button.disable();
-                            link.loadRedirects();
-                            if (d.status == 'success') {
-                                xagioNotify("success", "Redirect successfully added in 301 redirects list.");
-                            } else {
-                                xagioNotify("danger", "404 URL not fetched! Please clear log or add this URL from 301 redirects.");
-                            }
-                        });
+                if (newURL === '') {
+                    xagioNotify('danger', 'Input field cannot be empty. Please select a page/post or enter a URL manually!');
+                    return;
+                }
+
+                button.disable("Saving...");
+
+                $.post(xagio_data.wp_post, 'action=xagio_add_log404_redirect&old404URL=' + encodeURIComponent(old404URL) + '&newURL=' + encodeURIComponent(newURL), function (d) {
+                    button.disable();
+                    modal.find('#redirect-404-to-select').val(null).trigger('change');
+                    modal.find('#redirect-404-to-input').val('');
+                    modal[0].close();
+                    link.loadRedirects();
+                    if (d.status == 'success') {
+                        xagioNotify("success", "Redirect successfully added in 301 redirects list.");
+                    } else {
+                        xagioNotify("danger", "404 URL not fetched! Please clear log or add this URL from 301 redirects.");
                     }
                 });
-
             });
         },
         export404Log     : function () {

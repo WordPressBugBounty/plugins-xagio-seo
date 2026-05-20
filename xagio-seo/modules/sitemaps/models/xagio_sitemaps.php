@@ -523,6 +523,10 @@ if (!class_exists('XAGIO_MODEL_SITEMAPS')) {
                     'hide_empty' => true,
                 ));
 
+                if (is_wp_error($terms) || !is_array($terms)) {
+                    return null;
+                }
+
                 // sort taxomonies by url length
                 usort($terms, function ($a, $b) {
                     return strlen(get_term_link($a->term_id)) - strlen(get_term_link($b->term_id));

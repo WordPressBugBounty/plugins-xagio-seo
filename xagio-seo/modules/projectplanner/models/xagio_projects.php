@@ -44,15 +44,6 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                 'XAGIO_MODEL_PROJECTS',
                 'getGroups'
             ]);
-            add_action('admin_post_xagio_get_alert_project_id', [
-                'XAGIO_MODEL_PROJECTS',
-                'getAlertProjectID'
-            ]);
-            add_action('admin_post_xagio_remove_alert_project_id', [
-                'XAGIO_MODEL_PROJECTS',
-                'removeAlertProjectID'
-            ]);
-
             add_action('admin_post_xagio_new_project', [
                 'XAGIO_MODEL_PROJECTS',
                 'newProject'
@@ -1586,30 +1577,6 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
 
             wp_send_json(["aaData" => $results]);
         }
-
-
-        public static function getAlertProjectID()
-        {
-            $id = get_option('XAGIO_PROJECT_ALERT_ID');
-            if ($id) {
-                wp_send_json([
-                    "status"     => 'success',
-                    "project_id" => $id
-                ]);
-            } else {
-                wp_send_json([
-                    "status"     => 'success',
-                    "project_id" => ''
-                ]);
-            }
-
-        }
-
-        public static function removeAlertProjectID()
-        {
-            update_option('XAGIO_PROJECT_ALERT_ID', '');
-        }
-
         // Rename Project
         public static function renameProject()
         {

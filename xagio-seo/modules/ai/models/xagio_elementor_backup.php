@@ -26,6 +26,8 @@ if (!class_exists('XAGIO_MODEL_ELEMENTOR_BACKUP')) {
 
             // List backups
             add_action('admin_post_xagio_get_elementor_backups', function () {
+                check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
                 $post_id = isset($_POST['post_id']) ? absint($_POST['post_id']) : 0;
                 if (!$post_id) {
                     wp_send_json_error(['message' => 'Missing post_id']);
@@ -45,6 +47,8 @@ if (!class_exists('XAGIO_MODEL_ELEMENTOR_BACKUP')) {
 
             // Restore by index
             add_action('admin_post_xagio_restore_elementor_backup', function () {
+                check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
                 $post_id = isset($_POST['post_id']) ? absint($_POST['post_id']) : 0;
                 $index   = isset($_POST['index']) ? intval($_POST['index']) : -1;
                 if (!$post_id) {
@@ -66,6 +70,8 @@ if (!class_exists('XAGIO_MODEL_ELEMENTOR_BACKUP')) {
 
             // Delete ONE backup by index
             add_action('admin_post_xagio_delete_elementor_backup', function () {
+                check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
                 $post_id = isset($_POST['post_id']) ? absint($_POST['post_id']) : 0;
                 $index   = isset($_POST['index']) ? intval($_POST['index']) : -1;
                 if (!$post_id) wp_send_json_error(['message' => 'Missing post_id']);
@@ -82,6 +88,8 @@ if (!class_exists('XAGIO_MODEL_ELEMENTOR_BACKUP')) {
 
             // Delete ALL backups (optional)
             add_action('admin_post_xagio_delete_all_elementor_backups', function () {
+                check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
                 $post_id = isset($_POST['post_id']) ? absint($_POST['post_id']) : 0;
                 if (!$post_id) wp_send_json_error(['message' => 'Missing post_id']);
                 if (!current_user_can('edit_post', $post_id)) wp_send_json_error(['message'=>'Permission denied'], 403);

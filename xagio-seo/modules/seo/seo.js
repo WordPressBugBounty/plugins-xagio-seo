@@ -346,10 +346,15 @@ let aiSchemaStatusTimeout = null;
                 // if title/desc/h1 is empty, don't generate content, show error
                 if (title == '' || description == '') {
                     xagioNotify("danger", "Xagio SEO Title & Xagio SEO Description is necessary to be filled in order to generate AI Content.", true);
+
                     // scroll to element
-                    $('html, body').animate({
-                                                scrollTop: $('#prs-title').offset().top
-                                            }, 500);
+                    const $target = $('#prs-title');
+                    if ($target.length) {
+                        $('html, body').animate({
+                            scrollTop: $target.offset().top
+                        }, 500);
+                    }
+
                     return false;
                 }
 

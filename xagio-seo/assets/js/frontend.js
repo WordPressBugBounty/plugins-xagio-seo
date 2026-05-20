@@ -97,7 +97,7 @@ var queue = [];
             '.kb-header-placeholder-wrapper',
             '.kadence-header-row-inner',
             '.wp-block-kadence-navigation',
-            '.wp-block-site-logo',
+            // '.wp-block-site-logo', // REMOVED: Allow logo selection
             '.wp-block-kadence-off-canvas',
             '.kb-off-canvas-overlay',
             '.kb-off-canvas-inner-wrap',
@@ -141,6 +141,17 @@ var queue = [];
         }
         function trimTo150(str) { return (!str || str.length <= 150) ? (str || '') : (str.slice(0,150) + '...'); }
         function getOwnText($el) { return ($el.clone().children().remove().end().text() || '').trim(); }
+
+        // Detect if element is a site logo (Kadence/Gutenberg)
+        function isSiteLogo($el) {
+            // Direct img with custom-logo class
+            if ($el.is('img.custom-logo')) return true;
+            // Inside wp-block-site-logo wrapper
+            if ($el.closest('.wp-block-site-logo').length) return true;
+            // Elementor site logo widget
+            if ($el.closest('.elementor-widget-site-logo, [data-element_type="widget-site-logo"]').length) return true;
+            return false;
+        }
 
         // Gutenberg/Kadence: allow only true text blocks (incl. Kadence components)
         function isGutenbergTextElement($el) {
@@ -225,7 +236,9 @@ var queue = [];
             })
             .on('mouseover.inspector', '*', function (e) {
                 if (isKadenceWrapperSelfTarget(this)) return;
-                if ($(this).closest(IGNORE).length) return;
+                // Allow logo elements even inside ignored areas (like header)
+                const $this = $(this);
+                if (!isSiteLogo($this) && $this.closest(IGNORE).length) return;
                 e.stopPropagation();
                 if (lastHovered && lastHovered !== selectedElement) $(lastHovered).removeClass('inspector-highlight');
                 lastHovered = this;
@@ -233,13 +246,17 @@ var queue = [];
             })
             .on('mouseout.inspector', '*', function (e) {
                 if (isKadenceWrapperSelfTarget(this)) return;
-                if ($(this).closest(IGNORE).length) return;
+                const $this = $(this);
+                // Allow logo elements even inside ignored areas
+                if (!isSiteLogo($this) && $this.closest(IGNORE).length) return;
                 e.stopPropagation();
                 if (this !== selectedElement) $(this).removeClass('inspector-highlight');
             })
             .on('click.inspector', '*', function (e) {
                 if (isKadenceWrapperSelfTarget(this)) return;
-                if ($(this).closest(IGNORE).length) return;
+                const $this = $(this);
+                // Allow logo elements even inside ignored areas
+                if (!isSiteLogo($this) && $this.closest(IGNORE).length) return;
 
                 e.preventDefault();
                 e.stopPropagation();
@@ -330,6 +347,19 @@ var queue = [];
                 }
                 $('#inspector-info').show();
 
+                // If this is a site logo, pre-populate with logo prompt template
+                if (isImage && isSiteLogo($el)) {
+                    // Extract H1 text from the page
+                    const h1Text = $('h1').first().text().trim() || '';
+
+                    // Standard logo prompt with enforced wide horizontal layout
+                    const logoPrompt = h1Text
+                        ? `Make me a transparent logo for my business "${h1Text}", composed in a wide horizontal layout suitable for a 16:9 banner.`
+                        : 'Make me a transparent logo for my business, composed in a wide horizontal layout suitable for a 16:9 banner.';
+
+                    $('#ai-additional-prompt').val(logoPrompt);
+                }
+
                 const processAction = isImage ? 'xagio_ai_process_image' : 'xagio_ai_process_text';
 
 
@@ -353,9 +383,13 @@ var queue = [];
                 }
 
                 if (isImage) {
+                    // Detect if this is a site logo
+                    const isLogo = isSiteLogo($el);
+
                     $.post(xagio_data.wp_post, {
                         action   : 'xagio_ai_get_attachment_id',
-                        image_url: content
+                        image_url: content,
+                        is_logo  : isLogo ? 'true' : 'false'
                     }, function (res) {
                         if (res.status === 'success') {
                             checkStatusAndBindButton({
@@ -363,7 +397,8 @@ var queue = [];
                                 id: res.data.id,
                                 action: processAction,
                                 dataIdGutenberg: gutenbergDataId,
-                                subTarget: subTarget
+                                subTarget: subTarget,
+                                isLogo: isLogo
                             });
                         } else {
                             $('#ai-status').text(`❌ ${res.message}`);
@@ -380,7 +415,7 @@ var queue = [];
                     });
                 }
 
-                function checkStatusAndBindButton({ type, id = null, text = null, action, dataIdGutenberg = null, subTarget = null }) {
+                function checkStatusAndBindButton({ type, id = null, text = null, action, dataIdGutenberg = null, subTarget = null, isLogo = false }) {
                     let elementorDataId = null;
 
                     // Only Elementor text requires data-id
@@ -443,7 +478,8 @@ var queue = [];
                                     page_type: pageType,
                                     post_id: xagio_post_id.value,
                                     data_id  : (pageType === 'gutenberg') ? dataIdGutenberg : null,
-                                    ...(pageType === 'gutenberg' && subTarget ? { sub_target: subTarget } : {})
+                                    ...(pageType === 'gutenberg' && subTarget ? { sub_target: subTarget } : {}),
+                                    ...(isLogo ? { is_logo: 'true' } : {})
                                 }
                                 : {
                                     content  : text,

@@ -1815,12 +1815,15 @@ if (!class_exists('XAGIO_MODEL_AI')) {
             $page_type     = sanitize_text_field($request->get_param('page_type'));
 
             // Mark AI Job as completed
-            $marked = self::markAiImageJobAsComplete('IMAGE_GEN', $post_id, $attachment_id, $xagio_output);
+            $result = self::markAiImageJobAsComplete('IMAGE_GEN', $post_id, $attachment_id, $xagio_output);
 
-            if ( !$marked ) {
+            if ( !$result['success'] ) {
                 // Someone else already processed it, or the row didn't match (bad attachment_id/target_id)
                 return;
             }
+
+            $settings = $result['settings'];
+            $is_logo = isset($settings['is_logo']) && $settings['is_logo'] === true;
 
             // ——— 1) NEW-ATTACHMENT + PAGE-ONLY REPLACEMENT ———
             if ($post_id > 0) {
@@ -1873,10 +1876,16 @@ if (!class_exists('XAGIO_MODEL_AI')) {
                     }
 
                 } else {
-                    $element_id     = sanitize_text_field($request->get_param('data_id'));
-                    $sub_target     = sanitize_text_field($request->get_param('sub_target'));
-                    // Kadence / Gutenberg persist
-                    self::persist_image_to_gutenberg( $post_id, $attachment_id, $new_id, $element_id, $sub_target );
+                    // Check if this is a site logo replacement
+                    if ($is_logo) {
+                        // Kadence header logo - replaces in kadence_header post
+                        self::persist_logo_to_kadence_header($attachment_id, $new_id);
+                    } else {
+                        // Regular Gutenberg/Kadence image in page content
+                        $element_id     = sanitize_text_field($request->get_param('data_id'));
+                        $sub_target     = sanitize_text_field($request->get_param('sub_target'));
+                        self::persist_image_to_gutenberg( $post_id, $attachment_id, $new_id, $element_id, $sub_target );
+                    }
                 }
 
 
@@ -1976,7 +1985,12 @@ if (!class_exists('XAGIO_MODEL_AI')) {
             $original_url = wp_get_attachment_url($attachment_id);
 
             // Mark AI job completed
-            self::markAiImageJobAsComplete('IMAGE_EDIT', $post_id, $attachment_id, $xagio_output);
+            $result = self::markAiImageJobAsComplete('IMAGE_EDIT', $post_id, $attachment_id, $xagio_output);
+            if (!$result['success']) {
+                return;
+            }
+            $settings = $result['settings'];
+            $is_logo = isset($settings['is_logo']) && $settings['is_logo'] === true;
 
             //
             // === NEW-ATTACHMENT BRANCH ===
@@ -2007,13 +2021,19 @@ if (!class_exists('XAGIO_MODEL_AI')) {
 
                     XAGIO_MODEL_OCW::clearElementorCache();
                 } else {
-                    $post = get_post($post_id);
-                    if ($post && strpos($post->post_content, $original_url) !== false) {
-                        $new_content = str_replace($original_url, $new_url, $post->post_content);
-                        wp_update_post([
-                            'ID'           => $post_id,
-                            'post_content' => $new_content
-                        ]);
+                    // Check if this is a site logo replacement for Kadence
+                    if ($is_logo) {
+                        self::persist_logo_to_kadence_header($attachment_id, $new_attachment_id);
+                    } else {
+                        // Fallback: simple post_content swap
+                        $post = get_post($post_id);
+                        if ($post && strpos($post->post_content, $original_url) !== false) {
+                            $new_content = str_replace($original_url, $new_url, $post->post_content);
+                            wp_update_post([
+                                'ID'           => $post_id,
+                                'post_content' => $new_content
+                            ]);
+                        }
                     }
                 }
 
@@ -2089,10 +2109,11 @@ if (!class_exists('XAGIO_MODEL_AI')) {
             );
 
             if (empty($results)) {
-                return false;
+                return ['success' => false, 'settings' => null];
             }
 
             $updated = false;
+            $job_settings = null;
 
             foreach ($results as $row) {
                 $row_id   = intval($row['id']);
@@ -2108,10 +2129,11 @@ if (!class_exists('XAGIO_MODEL_AI')) {
                         ]
                     );
                     $updated = true;
+                    $job_settings = $settings;
                 }
             }
 
-            return $updated;
+            return ['success' => $updated, 'settings' => $job_settings];
         }
 
         public static function elementorReplaceTextById(&$elements, $targetId, $newText)
@@ -2686,6 +2708,179 @@ if (!class_exists('XAGIO_MODEL_AI')) {
             return false;
         }
 
+        /**
+         * Persist logo replacement to Kadence header
+         * Finds the logo attachment and replaces its file and metadata
+         */
+        public static function persist_logo_to_kadence_header( int $old_id, int $new_id ) : bool {
+            global $wpdb;
+
+            // Load required functions
+            if (!function_exists('wp_generate_attachment_metadata')) {
+                require_once ABSPATH . 'wp-admin/includes/image.php';
+                require_once ABSPATH . 'wp-admin/includes/file.php';
+            }
+
+            $new_url = wp_get_attachment_url($new_id);
+            if (!$new_url) return false;
+
+            // Get new attachment file path
+            $new_file_path = get_attached_file($new_id);
+            if (!$new_file_path || !file_exists($new_file_path)) return false;
+
+            // 1) Find the logo attachment by old_id (the original logo attachment)
+            if ($old_id) {
+                $logo_post = get_post($old_id);
+                if ($logo_post && $logo_post->post_type === 'attachment') {
+                    // Get the old attachment file path
+                    $old_file_path = get_attached_file($old_id);
+
+                    // Replace the actual file
+                    if ($old_file_path) {
+                        // Backup original file
+                        if (file_exists($old_file_path)) {
+                            $path_parts = pathinfo($old_file_path);
+                            $backup_path = $path_parts['dirname'] . '/' . $path_parts['filename'] . '-xag-backup.' . $path_parts['extension'];
+                            if (!file_exists($backup_path)) {
+                                copy($old_file_path, $backup_path);
+                            }
+                            // Copy new file to old location
+                            copy($new_file_path, $old_file_path);
+                        }
+
+                        // Regenerate attachment metadata with new file
+                        $new_metadata = wp_generate_attachment_metadata($old_id, $old_file_path);
+                        wp_update_attachment_metadata($old_id, $new_metadata);
+                    }
+
+                    // Update the guid
+                    $old_url = wp_get_attachment_url($old_id);
+                    $wpdb->update(
+                        $wpdb->posts,
+                        ['guid' => $old_url],
+                        ['ID' => $old_id],
+                        ['%s'],
+                        ['%d']
+                    );
+
+                    self::clearKadenceCache();
+                    return true;
+                }
+            }
+
+            // 2) Search for attachment with 'logo' in post_name
+            $logo_post_id = (int) $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT ID
+                     FROM {$wpdb->posts}
+                     WHERE post_type = 'attachment'
+                       AND post_status = 'inherit'
+                       AND post_name LIKE %s
+                     ORDER BY post_date_gmt DESC
+                     LIMIT 1",
+                    '%logo%'
+                )
+            );
+
+            if ($logo_post_id) {
+                $old_file_path = get_attached_file($logo_post_id);
+
+                // Replace the actual file
+                if ($old_file_path) {
+                    if (file_exists($old_file_path)) {
+                        $path_parts = pathinfo($old_file_path);
+                        $backup_path = $path_parts['dirname'] . '/' . $path_parts['filename'] . '-xag-backup.' . $path_parts['extension'];
+                        if (!file_exists($backup_path)) {
+                            copy($old_file_path, $backup_path);
+                        }
+                        copy($new_file_path, $old_file_path);
+                    }
+
+                    // Regenerate metadata
+                    $new_metadata = wp_generate_attachment_metadata($logo_post_id, $old_file_path);
+                    wp_update_attachment_metadata($logo_post_id, $new_metadata);
+                }
+
+                // Update guid
+                $logo_url = wp_get_attachment_url($logo_post_id);
+                $wpdb->update(
+                    $wpdb->posts,
+                    ['guid' => $logo_url],
+                    ['ID' => $logo_post_id],
+                    ['%s'],
+                    ['%d']
+                );
+
+                self::clearKadenceCache();
+                return true;
+            }
+
+            // 3) Fallback: try to find the custom-logo theme mod
+            $custom_logo_id = get_theme_mod('custom_logo');
+            if ($custom_logo_id) {
+                $old_file_path = get_attached_file($custom_logo_id);
+
+                if ($old_file_path) {
+                    if (file_exists($old_file_path)) {
+                        $path_parts = pathinfo($old_file_path);
+                        $backup_path = $path_parts['dirname'] . '/' . $path_parts['filename'] . '-xag-backup.' . $path_parts['extension'];
+                        if (!file_exists($backup_path)) {
+                            copy($old_file_path, $backup_path);
+                        }
+                        copy($new_file_path, $old_file_path);
+                    }
+
+                    $new_metadata = wp_generate_attachment_metadata($custom_logo_id, $old_file_path);
+                    wp_update_attachment_metadata($custom_logo_id, $new_metadata);
+                }
+
+                $logo_url = wp_get_attachment_url($custom_logo_id);
+                $wpdb->update(
+                    $wpdb->posts,
+                    ['guid' => $logo_url],
+                    ['ID' => $custom_logo_id],
+                    ['%s'],
+                    ['%d']
+                );
+
+                self::clearKadenceCache();
+                return true;
+            }
+
+            return false;
+        }
+
+        /**
+         * Clear Kadence theme cache
+         */
+        private static function clearKadenceCache() {
+            // Clear Kadence blocks cache
+            if (function_exists('kadence_clear_cache_all')) {
+                kadence_clear_cache_all();
+            }
+
+            // Clear WordPress object cache
+            wp_cache_flush();
+
+            // Delete theme mod cache transient
+            delete_transient('kadence_theme_settings_cache');
+
+            // Clear post cache for header post
+            global $wpdb;
+            $header_ids = $wpdb->get_col(
+                $wpdb->prepare(
+                    "SELECT ID FROM {$wpdb->posts}
+                     WHERE post_type = %s
+                     AND post_status = 'publish'",
+                    'kadence_header'
+                )
+            );
+
+            foreach ($header_ids as $id) {
+                clean_post_cache($id);
+            }
+        }
+
         public static function getAiFrontEndOutput()
         {
 
@@ -2836,6 +3031,7 @@ if (!class_exists('XAGIO_MODEL_AI')) {
 
             $data_id           = sanitize_text_field(wp_unslash($_POST['data_id']));
             $sub_target        = isset($_POST['sub_target']) && is_string($_POST['sub_target']) ? sanitize_text_field(wp_unslash($_POST['sub_target'])) : null;
+            $is_logo           = isset($_POST['is_logo']) && $_POST['is_logo'] === 'true';
 
             $post_id = 0;
             if (isset($_POST['post_id'])) {
@@ -2872,6 +3068,10 @@ if (!class_exists('XAGIO_MODEL_AI')) {
 
             if ($sub_target) {
                 $settings['sub_target'] = $sub_target;
+            }
+
+            if ($is_logo) {
+                $settings['is_logo'] = true;
             }
 
 
@@ -3138,6 +3338,15 @@ if (!class_exists('XAGIO_MODEL_AI')) {
 	        $cleaned = preg_replace('/,\s*([\]}])/', '$1', $cleaned);
 
 	        $decoded = json_decode($cleaned, $assoc);
+	        if (json_last_error() === JSON_ERROR_NONE) {
+		        return $decoded;
+	        }
+
+	        // Third attempt: fix unescaped inner quotes inside string values
+	        $cleaned = self::fixUnescapedQuotes($json);
+	        $cleaned = preg_replace('/,\s*([\]}])/', '$1', $cleaned);
+
+	        $decoded = json_decode($cleaned, $assoc);
 	        if (json_last_error() !== JSON_ERROR_NONE) {
 		        return NULL;
 	        }
@@ -3206,6 +3415,60 @@ if (!class_exists('XAGIO_MODEL_AI')) {
 
 		    return $result;
 	    }
+
+        public static function fixUnescapedQuotes($json)
+        {
+	        $result   = '';
+	        $inString = false;
+	        $escaped  = false;
+	        $len      = strlen($json);
+
+	        for ($i = 0; $i < $len; $i++) {
+		        $char = $json[$i];
+
+		        if ($escaped) {
+			        $result .= $char;
+			        $escaped = false;
+			        continue;
+		        }
+
+		        if ($char === '\\') {
+			        $result .= $char;
+			        if ($inString) {
+				        $escaped = true;
+			        }
+			        continue;
+		        }
+
+		        if ($char === '"') {
+			        if (!$inString) {
+				        $inString = true;
+				        $result  .= $char;
+			        } else {
+				        // Peek at next non-whitespace character
+				        $j = $i + 1;
+				        while ($j < $len && ($json[$j] === ' ' || $json[$j] === "\t" || $json[$j] === "\n" || $json[$j] === "\r")) {
+					        $j++;
+				        }
+				        $next = ($j < $len) ? $json[$j] : '';
+
+				        if ($next === ',' || $next === ']' || $next === '}' || $next === ':' || $next === '') {
+					        // Structural closing quote
+					        $inString = false;
+					        $result  .= $char;
+				        } else {
+					        // Unescaped inner quote — escape it
+					        $result .= '\\"';
+				        }
+			        }
+			        continue;
+		        }
+
+		        $result .= $char;
+	        }
+
+	        return $result;
+        }
 
         public static function _sendAiRequest($xagio_input = 'PAGE_CONTENT', $prompt_id = 0, $target_id = 0, $xagio_args = [], $additional = [], &$xagio_http_code = 0)
         {

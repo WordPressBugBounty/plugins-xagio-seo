@@ -1339,6 +1339,10 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
         {
             check_ajax_referer('xagio_nonce', '_xagio_nonce');
 
+            if (!current_user_can('manage_options')) {
+                wp_send_json_error(['message' => 'Permission denied'], 403);
+            }
+
             global $wpdb;
             $log["performance"] = [];
             $log["queries"]     = [];
@@ -1537,6 +1541,10 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
         {
             check_ajax_referer('xagio_nonce', '_xagio_nonce');
 
+            if (!current_user_can('manage_options')) {
+                wp_send_json_error(['message' => 'Permission denied'], 403);
+            }
+
             $xagio_backup = null;
 
             if ($preuploaded_file != null) {
@@ -1630,6 +1638,10 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
         {
             check_ajax_referer('xagio_nonce', '_xagio_nonce');
 
+            if (!current_user_can('manage_options')) {
+                wp_send_json_error(['message' => 'Permission denied'], 403);
+            }
+
             $start_time = new DateTime();
             $xagio_backup     = null;
 
@@ -1702,6 +1714,10 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
         public static function restoreFullBackup($preuploaded_file = null)
         {
             check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
+            if (!current_user_can('manage_options')) {
+                wp_send_json_error(['message' => 'Permission denied'], 403);
+            }
 
             $xagio_backup = null;
 

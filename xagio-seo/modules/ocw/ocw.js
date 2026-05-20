@@ -3052,12 +3052,12 @@
                             pageTemplates.forEach(function (template) {
                                 let box_clone = $('.box-template.template').clone().removeClass('template');
 
-                                // New server response: elementor always exists (base row), gutenberg is optional
-                                const hasElementor = true;
+                                const hasElementor = (template.has_elementor === true || template.has_elementor === 1 || template.has_elementor === '1');
                                 const hasGutenberg = (template.has_gutenberg === true || template.has_gutenberg === 1 || template.has_gutenberg === '1');
 
                                 // Build platform badges
-                                const types = ['elementor'];
+                                const types = [];
+                                if (hasElementor) types.push('elementor');
                                 if (hasGutenberg) types.push('gutenberg');
 
                                 const platformBadges = types.map(function (t) {
@@ -3102,9 +3102,14 @@
                                 box_clone.find('.preview-template').remove();
 
                                 if (hasElementor) {
+                                    const previewTitle = hasGutenberg ? 'Preview Template' : 'Preview Elementor Template';
                                     const $el = $previewProto.clone();
-                                    $el.addClass('preview-template-elementor').attr('href', `https://templates.xagio.net/${template.key}`).attr('data-xagio-tooltip', '').attr('data-xagio-title', 'Preview Elementor Template').show();
+                                    $el.addClass('preview-template-elementor').attr('href', `https://templates.xagio.net/${template.key}`).attr('data-xagio-tooltip', '').attr('data-xagio-title', previewTitle).show();
                                     box_clone.find('.buttons').prepend($el);
+                                } else if (hasGutenberg) {
+                                    const $gu = $previewProto.clone();
+                                    $gu.addClass('preview-template-gutenberg').attr('href', `https://gutenberg.xagio.net/${template.key}`).attr('data-xagio-tooltip', '').attr('data-xagio-title', 'Preview Gutenberg Template').show();
+                                    box_clone.find('.buttons').prepend($gu);
                                 }
 
                                 box_clone.attr('data-key', template.key);

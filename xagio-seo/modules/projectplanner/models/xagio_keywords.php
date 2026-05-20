@@ -9,15 +9,6 @@ if (!class_exists('XAGIO_MODEL_KEYWORDS')) {
 
         public static function initialize()
         {
-            add_action('wp_ajax_nopriv_xagio_queued_keywords_completed', [
-                'XAGIO_MODEL_KEYWORDS',
-                'queuedKeywordsCompleted'
-            ]);
-            add_action('wp_ajax_nopriv_xagio_queued_groups_completed', [
-                'XAGIO_MODEL_KEYWORDS',
-                'queuedGroupsCompleted'
-            ]);
-
             if (!XAGIO_HAS_ADMIN_PERMISSIONS)
                 return;
 
@@ -53,10 +44,6 @@ if (!class_exists('XAGIO_MODEL_KEYWORDS')) {
                 'XAGIO_MODEL_KEYWORDS',
                 'keywordChangeGroup'
             ]);
-            add_action('admin_post_xagio_autoGenerateGroups', [
-                'XAGIO_MODEL_KEYWORDS',
-                'autoGenerateGroups'
-            ]);
             add_action('admin_post_xagio_auditWebsite', [
                 'XAGIO_MODEL_KEYWORDS',
                 'auditWebsite'
@@ -73,17 +60,6 @@ if (!class_exists('XAGIO_MODEL_KEYWORDS')) {
                 'XAGIO_MODEL_KEYWORDS',
                 'seedKeywords'
             ]);
-            add_action('admin_post_xagio_resetKeywordNotification', [
-                'XAGIO_MODEL_KEYWORDS',
-                'resetKeywordNotification'
-            ]);
-            add_action('in_admin_header', function () {
-                add_action('admin_notices', [
-                    'XAGIO_MODEL_KEYWORDS',
-                    'KeywordNotification'
-                ]);
-            });
-
             add_action('admin_post_xagio_consolidateKeywords', [
                 'XAGIO_MODEL_KEYWORDS',
                 'consolidateKeywords'
@@ -318,30 +294,6 @@ if (!class_exists('XAGIO_MODEL_KEYWORDS')) {
         //               Functions
         //
         //--------------------------------------------
-
-        public static function resetKeywordNotification()
-        {
-            check_ajax_referer('xagio_nonce', '_xagio_nonce');
-
-            if (!isset($_POST['projectId'])) {
-                wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
-            }
-
-            update_option('XAGIO_PROJECT_ALERT_ID', intval($_POST['projectId']));
-            update_option('XAGIO_KEYWORD_ERROR', '');
-        }
-
-        public static function KeywordNotification()
-        {
-            $XAGIO_KEYWORD_ERROR = get_option('XAGIO_KEYWORD_ERROR');
-            if ($XAGIO_KEYWORD_ERROR) {
-                $class   = 'logo-nag-xagio logo-nag-block-xagio notice notice-error is-dismissible keyword_notification';
-                $message = $XAGIO_KEYWORD_ERROR;
-
-                printf('<div data-id="' . esc_html($message['project_id']) . '" class="' . esc_attr($class) . '"><p><b>Xagio</b> - Auto Generate Groups for the keyword " <b>' . esc_html($message['keyword']) . '</b> " failed.<br> Sorry, but Adwords will not report data to us for this keyword. Please try with another seed keyword.</p></div>');
-            }
-        }
-
         public static function refreshXags()
         {
             $xagio_http_code = 0;
@@ -1657,198 +1609,6 @@ if (!class_exists('XAGIO_MODEL_KEYWORDS')) {
 
 			xagio_json('success', 'Page import completed.', $project_id);
 		}
-
-        public static function autoGenerateGroups()
-        {
-            check_ajax_referer('xagio_nonce', '_xagio_nonce');
-
-            global $wpdb;
-
-            $seed_keyword      = isset($_POST['seed_keyword']) ? sanitize_text_field(wp_unslash($_POST['seed_keyword'])) : '';
-            $projectID         = isset($_POST['project_id']) ? intval($_POST['project_id']) : 0;
-            $min_search_volume = isset($_POST['min_search_volume']) ? sanitize_text_field(wp_unslash($_POST['min_search_volume'])) : '';
-            $min_cpc           = isset($_POST['min_cpc']) ? sanitize_text_field(wp_unslash($_POST['min_cpc'])) : '';
-            $xagio_language          = isset($_POST['language']) ? sanitize_text_field(wp_unslash($_POST['language'])) : '';
-            $xagio_location          = isset($_POST['location']) ? sanitize_text_field(wp_unslash($_POST['location'])) : '';
-            $max_keywords      = isset($_POST['max_keywords']) ? sanitize_text_field(wp_unslash($_POST['max_keywords'])) : '';
-            $cache             = isset($_POST['disable_cache']) ? sanitize_text_field(wp_unslash($_POST['disable_cache'])) : '';
-
-            if (empty($cache)) {
-                $cache = 'off';
-            }
-
-            // Set or retrieve the API key transient
-            $api_key_name      = 'XAGIO_API_TEMP_' . wp_hash(microtime());
-            $api_key_transient = get_transient($api_key_name);
-            if (!$api_key_transient) {
-                $api_key_transient = wp_hash(md5(XAGIO_API::getAPIKey() . microtime())); // Retrieve the API key from wherever it's stored.
-                set_transient($api_key_name, $api_key_transient, DAY_IN_SECONDS); // Set transient for 24 hours
-            }
-
-            $xagio_http_code = 0;
-            $xagio_result    = XAGIO_API::apiRequest($endpoint = 'keywords_generate_groups', $method = 'POST', [
-                'seed_keyword' => $seed_keyword,
-                'max_keywords' => $max_keywords,
-                'language'     => $xagio_language,
-                'location'     => $xagio_location,
-                'callback'     => XAGIO_MODEL_SETTINGS::getApiUrl() . 'api-external/?' . http_build_query([
-                        'class'             => 'XAGIO_MODEL_KEYWORDS',
-                        'function'          => 'queuedGroupsCompleted',
-                        'min_search_volume' => $min_search_volume,
-                        'min_cpc'           => $min_cpc,
-                        'project_id'        => $projectID,
-                        'max_keywords'      => $max_keywords,
-                        'api_key_name'      => $api_key_name,
-                        'api_key_value'     => $api_key_transient
-                    ]),
-                'cache'        => $cache,
-            ], $xagio_http_code);
-
-
-            if ($xagio_http_code == 200) {
-
-                if ($xagio_result['status'] == 'queued') {
-
-                    $wpdb->update('xag_projects', ['status' => 'queued'], ['id' => $projectID]);
-                    xagio_json('success', 'Auto-Generate Groups successfully queued! Please check back later for results.', $xagio_result);
-
-                } else if ($xagio_result['status'] == 'results') {
-
-                    $wpdb->update('xag_projects', ['status' => 'completed'], ['id' => $projectID]);
-                    self::processQueuedGroups($xagio_result['data'], $min_search_volume, $min_cpc, $projectID, $max_keywords);
-
-                } else {
-                    xagio_json('error', $xagio_result['message']);
-                }
-
-            } else {
-                xagio_json('error', $xagio_result);
-            }
-
-        }
-
-        public static function processQueuedGroups($results, $min_search_volume, $min_cpc, $project_id, $max_keywords)
-        {
-            global $wpdb;
-
-            if (empty($project_id) || empty($max_keywords)) {
-                xagio_json('error', 'Something went wrong, please contact support!');
-            }
-
-            $formattedGroupData = [];
-
-            foreach ($results as $d) {
-                if (!isset($formattedGroupData[$d['category']])) {
-                    $formattedGroupData[$d['category']] = [];
-                }
-
-                $volume_value = $d['search_volume'];
-                $cpc_value    = $d['cost_per_click'];
-
-                if ($volume_value < $min_search_volume) {
-                    continue;
-                }
-                if ($cpc_value < $min_cpc) {
-                    continue;
-                }
-
-                $formattedGroupData[$d['category']][] = [
-                    'keyword' => str_replace("'", '', $d['keyword']),
-                    'volume'  => $volume_value,
-                    'cpc'     => $cpc_value,
-                ];
-
-                if (sizeof($formattedGroupData) >= $max_keywords) {
-                    break;
-                }
-            }
-
-            // Remove all keywords from the project
-            $groups = $wpdb->get_results($wpdb->prepare("SELECT * FROM xag_groups WHERE project_id = %d and group_name = '' and title IS NULL;", $project_id), ARRAY_A);
-            if (is_array($groups)) {
-                foreach ($groups as $xagio_group) {
-                    $wpdb->query($wpdb->prepare("DELETE FROM xag_keywords WHERE group_id = %d", $xagio_group['id']));
-                }
-            }
-
-            // Remove all groups from the project
-            $wpdb->query($wpdb->prepare("DELETE FROM xag_groups WHERE project_id = %d;", $project_id));
-
-            $keywords = [];
-            foreach ($formattedGroupData as $groupName => $groupData) {
-                if (sizeof($groupData) < 1) {
-                    continue;
-                }
-
-                $data = [
-                    'project_id' => $project_id,
-                    'group_name' => $groupName,
-                    'title'      => '',
-                    'url'        => self::stripSymbols($groupName),
-                    'h1'         => '',
-                ];
-                $wpdb->insert('xag_groups', $data);
-                $group_id = $wpdb->insert_id;
-
-                foreach ($groupData as $keyword) {
-                    $keyword_data = [
-                        'group_id' => $group_id,
-                        'keyword'  => $keyword['keyword'],
-                        'volume'   => $keyword['volume'],
-                        'cpc'      => number_format($keyword['cpc'], 2),
-                    ];
-                    $wpdb->insert('xag_keywords', $keyword_data);
-                    $keywords[] = $wpdb->insert_id;
-                }
-            }
-
-            // Number of credits to deduct
-            $keyword_credits = sizeof($formattedGroupData);
-
-            if (sizeof($keywords) == 0) {
-                update_option('XAGIO_KEYWORD_ERROR', [
-                    'project_id' => $project_id,
-                    'keyword'    => $results[0]['keyword']
-                ]);
-            }
-
-            xagio_json('success', 'Successfully generated groups from seed keyword.');
-        }
-
-        public static function queuedGroupsCompleted()
-        {
-            check_ajax_referer('xagio_nonce', '_xagio_nonce');
-
-            global $wpdb;
-
-            $min_search_volume = isset($_GET['min_search_volume']) ? sanitize_text_field(wp_unslash($_GET['min_search_volume'])) : '';
-            $min_cpc           = isset($_GET['min_cpc']) ? sanitize_text_field(wp_unslash($_GET['min_cpc'])) : '';
-            $project_id        = isset($_GET['project_id']) ? intval($_GET['project_id']) : 0;
-            $max_keywords      = isset($_GET['max_keywords']) ? sanitize_text_field(wp_unslash($_GET['max_keywords'])) : '';
-            $data              = false;
-
-            if (isset($_POST['data'])) {
-                if (!empty($_POST['data'])) {
-                    $data = map_deep(wp_unslash($_POST['data']), 'sanitize_text_field');
-                }
-            }
-
-            if (isset($_POST['message'])) {
-                update_option('XAGIO_KEYWORD_ERROR', [
-                    'project_id' => $project_id,
-                    'keyword'    => $data[0]['keyword']
-                ]);
-            }
-
-            if (!$data) {
-                xagio_json('error', 'Nothing to see here!');
-            }
-
-            $wpdb->update('xag_projects', ['status' => 'completed'], ['id' => $project_id]);
-
-            self::processQueuedGroups($data, $min_search_volume, $min_cpc, $project_id, $max_keywords);
-        }
-
 
         public static function addKeyword()
         {

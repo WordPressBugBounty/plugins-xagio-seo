@@ -253,7 +253,6 @@ let cf_template = cf_templates[cf_default_template].data;
         actions.loadProject();
         actions.runAgent();
         actions.duplicateProject();
-        actions.removeAlertProjectID();
         actions.backToProjects();
         actions.editGroupSettings();
         actions.initSliders();
@@ -366,14 +365,6 @@ let cf_template = cf_templates[cf_default_template].data;
                 }
             }
         });
-
-        /* Get Alert Project ID*/
-        $.post(xagio_data.wp_post, 'action=xagio_get_alert_project_id', function (d) {
-            if (d.status == 'success') {
-                alertProjectID = d.project_id;
-            }
-        });
-
 
         /*  AI Functions */
         actions.ai.init();
@@ -7452,11 +7443,6 @@ let cf_template = cf_templates[cf_default_template].data;
 
                     xagioNotify(d.status, d.message);
                 });
-            });
-        },
-        removeAlertProjectID: function () {
-            $.post(xagio_data.wp_post, 'action=xagio_remove_alert_project_id', function (d) {
-                // actions.removeAlertProjectID();
             });
         },
         backToProjects      : function () {

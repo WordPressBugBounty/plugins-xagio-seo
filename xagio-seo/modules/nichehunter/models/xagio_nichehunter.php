@@ -190,8 +190,9 @@ if (!class_exists('XAGIO_MODEL_NICHEHUNTER')) {
             );
 
             $OUT = [];
-            if($xagio_output) {
+            if(is_array($xagio_output)) {
                 foreach ($xagio_output as $o) {
+                    if (!is_array($o)) continue;
                     $o['filters'] = unserialize($o['filters']);
                     $OUT[]        = $o;
                 }
