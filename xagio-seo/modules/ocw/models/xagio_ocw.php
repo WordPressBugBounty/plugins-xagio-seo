@@ -205,6 +205,10 @@ if (!class_exists('XAGIO_MODEL_OCW')) {
 
             check_ajax_referer('xagio_nonce', '_xagio_nonce');
 
+            if (!XAGIO_CONNECTED) {
+                wp_send_json_error(['message' => 'Your account is not connected.'], 403);
+            }
+
             if (!isset($_POST['template_id'])) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
@@ -1106,6 +1110,9 @@ if (!class_exists('XAGIO_MODEL_OCW')) {
 
         public static function saveProjectId()
         {
+            if (!XAGIO_CONNECTED) {
+                wp_send_json_error(['message' => 'Your account is not connected.'], 403);
+            }
 
             $project_id = absint(wp_unslash($_POST['project_id']));
 
@@ -1129,6 +1136,9 @@ if (!class_exists('XAGIO_MODEL_OCW')) {
             ];
 
             if (isset($_POST['run_wizard'])) {
+                if (!XAGIO_CONNECTED) {
+                    wp_send_json_error(['message' => 'Your account is not connected.'], 403);
+                }
                 XAGIO_MODEL_OCW::runWizard();
                 xagio_json('success', 'Wizard ran successfully.', get_option('XAGIO_OCW', $default_steps));
             } else {
@@ -1150,6 +1160,10 @@ if (!class_exists('XAGIO_MODEL_OCW')) {
         {
             global $wpdb;
             check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
+            if (!XAGIO_CONNECTED) {
+                wp_send_json_error(['message' => 'Your account is not connected.'], 403);
+            }
 
             $current_step = sanitize_text_field(wp_unslash($_POST['step']));
             $template_key = sanitize_text_field(wp_unslash($_POST['template_key']));

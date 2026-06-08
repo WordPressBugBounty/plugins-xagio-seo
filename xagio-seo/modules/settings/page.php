@@ -63,6 +63,7 @@ if($xagio_default_city_code != null){
         <li><a href="">Location</a></li>
         <li><a href="">Troubleshooting</a></li>
         <li><a href="">System Status</a></li>
+        <li><a href="">Integrations</a></li>
     </ul>
     <div class="xagio-tab-content-holder">
 
@@ -2791,6 +2792,70 @@ if($xagio_default_city_code != null){
                     </table>
                 </div>
             </div>
+        </div>
+
+        <!-- Integrations -->
+        <div class="xagio-tab-content">
+            <?php
+            $is_connected   = XAGIO_RINGROBIN::is_connected();
+            $connected_user = XAGIO_RINGROBIN::get_connected_user();
+
+            $rr_site_domain        = XAGIO_RINGROBIN::detect_site_domain();
+            $rr_is_linked          = $is_connected && XAGIO_RINGROBIN::is_linked();
+            $rr_campaign_id        = (string) get_option(XAGIO_RINGROBIN::OPT_CAMPAIGN_ID, '');
+            $rr_campaign_settings_url = $rr_campaign_id !== ''
+                ? 'https://ringrobin.net/app/campaigns/' . rawurlencode($rr_campaign_id) . '/settings'
+                : '';
+            $rr_campaign_name      = (string) get_option(XAGIO_RINGROBIN::OPT_CAMPAIGN_NAME, '');
+            $rr_domain_name        = (string) get_option(XAGIO_RINGROBIN::OPT_DOMAIN_NAME, '');
+            $rr_is_verified        = (bool) get_option(XAGIO_RINGROBIN::OPT_IS_VERIFIED, false);
+            $rr_last_checked_at    = (int) get_option(XAGIO_RINGROBIN::OPT_LAST_CHECKED_AT, 0);
+            $rr_last_check_status  = (string) get_option(XAGIO_RINGROBIN::OPT_LAST_CHECK_STATUS, '');
+            $rr_last_check_message = (string) get_option(XAGIO_RINGROBIN::OPT_LAST_CHECK_MESSAGE, '');
+            $rr_conflict           = XAGIO_RINGROBIN::has_manual_tracker_in_scripts();
+            $rr_conflict_dismissed = (bool) get_option(XAGIO_RINGROBIN::OPT_CONFLICT_DISMISSED, false);
+            $rr_show_conflict      = $rr_conflict && !$rr_conflict_dismissed;
+            $rr_scripts_tab_url    = admin_url('admin.php?page=xagio-seo');
+
+            $rr_widgets = get_option(XAGIO_RINGROBIN::OPT_WIDGETS, []);
+            if (!is_array($rr_widgets)) { $rr_widgets = []; }
+            $rr_numbers = get_option(XAGIO_RINGROBIN::OPT_NUMBERS, []);
+            if (!is_array($rr_numbers)) { $rr_numbers = []; }
+            $rr_twilio  = $rr_is_linked ? XAGIO_RINGROBIN::twilio_probe() : [
+                'connected'   => false,
+                'connect_url' => 'https://app.ringrobin.net/app/integrations?connect=twilio',
+            ];
+
+            $rr_form_widgets = [];
+            $rr_text_widgets = [];
+            foreach ($rr_widgets as $w) {
+                if (!is_array($w) || empty($w['type'])) { continue; }
+                if ($w['type'] === 'form') { $rr_form_widgets[] = $w; }
+                if ($w['type'] === 'text') { $rr_text_widgets[] = $w; }
+            }
+            ?>
+
+            <div class="xagio-panel">
+
+                <div class="xagio-rr-panel-header xagio-flex-row xagio-space-between xagio-align-center xagio-margin-bottom-medium">
+                    <h5 class="xagio-panel-title" style="margin-bottom:0;">
+                        <?php esc_html_e('RingRobin', 'xagio-seo'); ?>
+                    </h5>
+                    <div id="xagio-rr-panel-header-right">
+                        <?php include XAGIO_PATH . '/modules/settings/parts/connection-section.php'; ?>
+                    </div>
+                </div>
+
+                <p class="xagio-margin-bottom-medium">
+                    <?php esc_html_e('Call tracking, form attribution for your sites.', 'xagio-seo'); ?>
+                </p>
+
+                <div id="xagio-rr-panel-body">
+                    <?php include XAGIO_PATH . '/modules/settings/parts/linked-section.php'; ?>
+                </div>
+
+            </div>
+
         </div>
 
     </div>

@@ -612,7 +612,11 @@ textarea#xagio-llms-preview {
     background: #1f2430;
     color: #cbccc6;
     border-radius: var(--xagio-box-border-radius);
-    font-size: var(--xagio-panel-label-font-size);
+    font-size: var(--xagio-button-font-size);
+}
+
+.xagio-llms-post-types .xagio-slider-container {
+    margin-bottom: 0 !important;
 }
 
 #xagio-llms-rules input.xagio-input-text-mini, #xagio-llms-rules .xagio-input-textarea {

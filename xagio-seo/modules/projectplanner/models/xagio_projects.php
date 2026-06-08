@@ -223,6 +223,10 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
         {
             check_ajax_referer('xagio_nonce', '_xagio_nonce');
 
+            if (!XAGIO_CONNECTED) {
+                wp_send_json_error(['message' => 'Your account is not connected.'], 403);
+            }
+
             if (!isset($_POST['main-keyword']) || !isset($_POST['location']) || !isset($_POST['keyword']) || !isset($_POST['search_engine']) || !isset($_POST['search_engine_text']) || !isset($_POST['search_location']) || !isset($_POST['search_location_text'])) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }

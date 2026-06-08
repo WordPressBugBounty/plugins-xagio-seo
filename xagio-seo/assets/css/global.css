@@ -263,6 +263,9 @@ h3 {
 .xagio-margin-top-remove {
     margin-top: 0 !important;
 }
+.xagio-margin-bottom-remove {
+    margin-bottom: 0 !important;
+}
 
 .xagio-border-right {
     border-right: 1px solid #8fa1ab;
@@ -500,6 +503,9 @@ button.xagio-button.xagio-button-small {
     flex-wrap: wrap;
 }
 .xagio-slider-container:last-child, .xagio-checkbox:last-child {
+    margin-bottom: 0;
+}
+.xagio-ai-crawlers-grid .xagio-slider-container {
     margin-bottom: 0;
 }
 

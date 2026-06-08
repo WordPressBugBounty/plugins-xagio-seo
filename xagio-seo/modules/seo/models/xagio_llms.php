@@ -3,266 +3,341 @@ if (!defined('ABSPATH')) exit;
 
 if (!class_exists('XAGIO_MODEL_LLMS')) {
 
-    class XAGIO_MODEL_LLMS {
+    class XAGIO_MODEL_LLMS
+    {
+        const OPTION_ENABLED    = 'XAGIO_LLMS_ENABLED';
+        const OPTION_INTRO      = 'XAGIO_LLMS_INTRO';
+        const OPTION_POST_TYPES = 'XAGIO_LLMS_POST_TYPES';
+        const OPTION_INCLUDE_SM = 'XAGIO_LLMS_INCLUDE_SITEMAP';
+        const OPTION_MAX_ITEMS  = 'XAGIO_LLMS_MAX_ITEMS';
+        const OPTION_CACHED_TXT = 'XAGIO_LLMS_TXT';
+        const OPTION_REWRITE    = 'XAGIO_LLMS_REWRITE_READY_V2';
+        const OPTION_CLEANED    = 'XAGIO_LLMS_DISK_CLEANED';
+        const QUERY_VAR         = 'xagio_llms';
+        const FILE_NAME         = 'llms.txt';
 
-        const OPTION_CONFIG   = 'XAGIO_LLMS_CONFIG';
-        const OPTION_TEXT     = 'XAGIO_LLMS_TXT';
-        const OPTION_REWRITE  = 'XAGIO_LLMS_REWRITE_READY';
-        const QUERY_VAR       = 'xagio_llms';
-        const FILE_NAME       = 'llms.txt';
+        public static function initialize()
+        {
+            add_action('init', ['XAGIO_MODEL_LLMS', 'addRewrite']);
+            add_filter('query_vars', ['XAGIO_MODEL_LLMS', 'registerQueryVar']);
+            add_action('template_redirect', ['XAGIO_MODEL_LLMS', 'maybeServeLlms']);
 
-        public static function initialize() {
+            if (!XAGIO_HAS_ADMIN_PERMISSIONS) return;
 
-            // Serve /llms.txt via rewrite (works even if we can't write a real file)
-            add_action('init', [__CLASS__, 'add_rewrite']);
-            add_filter('query_vars', [__CLASS__, 'register_query_var']);
-            add_action('template_redirect', [__CLASS__, 'maybe_serve_llms']);
-
-            // AJAX + admin-post for flexibility with your existing xagio_data.wp_post endpoint
-            add_action('wp_ajax_xagio_llms_save', [__CLASS__, 'handle_save']);
-            add_action('admin_post_xagio_llms_save', [__CLASS__, 'handle_save']);
+            add_action('admin_post_xagio_llms_save', ['XAGIO_MODEL_LLMS', 'saveLlmsSettings']);
+            add_action('admin_post_xagio_llms_get',  ['XAGIO_MODEL_LLMS', 'getLlmsContent']);
         }
 
-        /** -----------------------
-         *  Routing / Rewrite
-         *  ----------------------*/
-        public static function add_rewrite() {
+        public static function addRewrite()
+        {
             add_rewrite_rule('^llms\.txt$', 'index.php?' . self::QUERY_VAR . '=1', 'top');
+
+            if (!get_option(self::OPTION_REWRITE)) {
+                flush_rewrite_rules(false);
+                update_option(self::OPTION_REWRITE, 1, false);
+            }
+
+            if (!get_option(self::OPTION_CLEANED)) {
+                self::deleteDiskFile();
+                self::cleanupLegacyOptions();
+                update_option(self::OPTION_CLEANED, 1, false);
+            }
         }
 
-        public static function register_query_var($vars) {
+        private static function cleanupLegacyOptions()
+        {
+            $legacy_txt = get_option(self::OPTION_CACHED_TXT);
+            if (is_string($legacy_txt) && stripos(ltrim($legacy_txt), 'User-Agent:') === 0) {
+                delete_option(self::OPTION_CACHED_TXT);
+            }
+
+            delete_option('XAGIO_LLMS_CONFIG');
+            delete_option('XAGIO_LLMS_REWRITE_READY');
+        }
+
+        public static function diskFilePath()
+        {
+            return trailingslashit(ABSPATH) . self::FILE_NAME;
+        }
+
+        public static function diskFileExists()
+        {
+            return file_exists(self::diskFilePath());
+        }
+
+        public static function deleteDiskFile()
+        {
+            $target = self::diskFilePath();
+            if (!file_exists($target)) return true;
+
+            wp_delete_file($target);
+            return !file_exists($target);
+        }
+
+        public static function registerQueryVar($vars)
+        {
             $vars[] = self::QUERY_VAR;
             return $vars;
         }
 
-        public static function maybe_serve_llms() {
-            if (intval(get_query_var(self::QUERY_VAR)) !== 1) return;
+        public static function maybeServeLlms()
+        {
+            $request_uri = isset($_SERVER['REQUEST_URI']) ? wp_parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) : '';
+            $matched_path = ($request_uri && trim($request_uri, '/') === self::FILE_NAME);
+            $matched_query = (intval(get_query_var(self::QUERY_VAR)) === 1);
 
-            $txt = get_option(self::OPTION_TEXT, '');
-            if ($txt === '') {
-                // fallback – generate on the fly from stored config if text missing
-                $cfg = get_option(self::OPTION_CONFIG, []);
-                $txt = self::generate_text(self::sanitize_config($cfg));
+            if (!$matched_query && !$matched_path) return;
+
+            if (get_option(self::OPTION_ENABLED) !== '1') {
+                global $wp_query;
+                if ($wp_query) $wp_query->set_404();
+                status_header(404);
+                nocache_headers();
+                header('X-Xagio-LLMS: disabled');
+                return;
             }
 
+            $txt = self::generateMarkdown();
+
             nocache_headers();
-            header('Content-Type: text/plain; charset=UTF-8');
-            echo esc_html($txt);
+            status_header(200);
+            header('Content-Type: text/markdown; charset=UTF-8');
+            header('X-Robots-Tag: noindex');
+            header('X-Xagio-LLMS: served');
+            // Output is a raw text/markdown file body. HTML escaping would corrupt markdown syntax
+            // (blockquote '>', URLs with '&'). Input is already sanitized by cleanInline()/esc_url_raw().
+            echo $txt; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
             exit;
         }
 
-        /** -----------------------
-         *  Save / Update
-         *  ----------------------*/
-        public static function handle_save() {
+        public static function getDefaultConfig()
+        {
+            return [
+                'enabled'          => '0',
+                'intro'            => '',
+                'post_types'       => ['page' => 1, 'post' => 1],
+                'include_sitemap'  => '1',
+                'max_items'        => 100,
+            ];
+        }
 
-            // Nonce (accept either the common xagio nonce or a specific llms nonce)
-            if (isset($_POST['_xagio_nonce'])) {
-                check_ajax_referer('xagio_nonce', '_xagio_nonce');
-            } elseif (isset($_POST['xagio_llms_nonce'])) {
-                if (!wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['xagio_llms_nonce'])), 'xagio_llms_save')) {
-                    wp_send_json_error(['message' => 'Invalid nonce.'], 403);
-                }
+        public static function getConfig()
+        {
+            $defaults = self::getDefaultConfig();
+            return [
+                'enabled'         => (string) get_option(self::OPTION_ENABLED, $defaults['enabled']),
+                'intro'           => (string) get_option(self::OPTION_INTRO, $defaults['intro']),
+                'post_types'      => (array)  get_option(self::OPTION_POST_TYPES, $defaults['post_types']),
+                'include_sitemap' => (string) get_option(self::OPTION_INCLUDE_SM, $defaults['include_sitemap']),
+                'max_items'       => (int)    get_option(self::OPTION_MAX_ITEMS, $defaults['max_items']),
+            ];
+        }
+
+        public static function generateMarkdown($cfg = null)
+        {
+            if (!is_array($cfg)) {
+                $cfg = self::getConfig();
             } else {
-                wp_send_json_error(['message' => 'Missing nonce.'], 403);
+                $cfg = array_merge(self::getDefaultConfig(), $cfg);
             }
 
-            // Capability
-            if (!current_user_can('manage_options')) {
-                wp_send_json_error(['message' => 'Unauthorized.'], 403);
+            $site_title = wp_strip_all_tags(get_bloginfo('name'));
+            $tagline    = wp_strip_all_tags(get_bloginfo('description'));
+            $intro      = trim((string) $cfg['intro']);
+            if ($intro === '') {
+                $intro = $tagline;
             }
 
-            // mode: 'update' (save settings only) or 'save' (also publish)
-            $mode = isset($_POST['mode']) ? sanitize_text_field(wp_unslash($_POST['mode'])) : 'update';
-
-            if (!isset($_POST['config'])) {
-                wp_send_json_error(['message' => 'Missing config.'], 400);
-            }
-
-            $raw = json_decode(wp_unslash($_POST['config']), true);
-            if (!is_array($raw)) {
-                wp_send_json_error(['message' => 'Invalid JSON.'], 400);
-            }
-
-            $cfg = self::sanitize_config($raw);
-            $txt = self::generate_text($cfg);
-
-            // Persist settings + generated text
-            update_option(self::OPTION_CONFIG, $cfg, false);
-            update_option(self::OPTION_TEXT, $txt, false);
-
-            $published = false;
-            $publish_msg = '';
-
-            if ($mode === 'save') {
-                // Try to write a physical file first
-                $reason = '';
-                $published = self::write_file($txt, $reason);
-
-                // Ensure rewrite endpoint exists as fallback (and flush once)
-                if (!get_option(self::OPTION_REWRITE)) {
-                    flush_rewrite_rules(false);
-                    update_option(self::OPTION_REWRITE, 1, false);
+            $lines = [];
+            $lines[] = '# ' . $site_title;
+            if ($intro !== '') {
+                foreach (preg_split('/\r\n|\r|\n/', $intro) as $intro_line) {
+                    $lines[] = '> ' . $intro_line;
                 }
+            }
+            $lines[] = '';
 
-                if ($published) {
-                    $publish_msg = sprintf('Published to %s', esc_url(home_url('/' . self::FILE_NAME)));
-                } else {
-                    $publish_msg = sprintf(
-                        'Settings saved. Could not write %1$s (%2$s). It is still served at %3$s.',
-                        esc_html(self::FILE_NAME),
-                        esc_html($reason ?: 'permission denied'),
-                        esc_url(home_url('/' . self::FILE_NAME))
-                    );
+            $max_items = max(1, min(1000, (int) $cfg['max_items']));
+            $post_types = array_keys(array_filter((array) $cfg['post_types']));
+
+            if (!empty($post_types)) {
+                foreach ($post_types as $post_type) {
+                    if (!post_type_exists($post_type)) continue;
+
+                    $items = self::collectPostsForType($post_type, $max_items);
+                    if (empty($items)) continue;
+
+                    $heading = self::postTypeHeading($post_type);
+                    $lines[] = '## ' . $heading;
+
+                    foreach ($items as $item) {
+                        $title = $item['title'] !== '' ? $item['title'] : $item['url'];
+                        $row   = '- [' . self::escapeMarkdownText($title) . '](' . $item['url'] . ')';
+                        if ($item['description'] !== '') {
+                            $row .= ': ' . self::escapeMarkdownText($item['description']);
+                        }
+                        $lines[] = $row;
+                    }
+                    $lines[] = '';
                 }
             }
 
-            wp_send_json_success([
-                'message' => $mode === 'save' ? $publish_msg : 'Settings updated.',
-                'url'     => home_url('/' . self::FILE_NAME),
-                'published' => (bool) $published
+            if ($cfg['include_sitemap'] === '1' && defined('XAGIO_ENABLE_SITEMAPS') && XAGIO_ENABLE_SITEMAPS) {
+                $lines[] = '## Key resources';
+                $lines[] = '- [Sitemap](' . esc_url(home_url('/sitemap-xag.xml')) . ')';
+                $lines[] = '';
+            }
+
+            $output = implode("\n", $lines);
+            $output = preg_replace("/\n{3,}/", "\n\n", $output);
+            $output = rtrim($output) . "\n";
+
+            return $output;
+        }
+
+        private static function collectPostsForType($post_type, $max_items)
+        {
+            $items = [];
+
+            $posts = get_posts([
+                'post_type'      => $post_type,
+                'post_status'    => 'publish',
+                'posts_per_page' => $max_items,
+                'orderby'        => 'menu_order title',
+                'order'          => 'ASC',
+                'suppress_filters' => true,
             ]);
-        }
 
-        /** -----------------------
-         *  Sanitization / Build
-         *  ----------------------*/
-        private static function clean_path_line($line) {
-            $line = trim((string) $line);
-            // Strip CR/LF injection and illegal bytes
-            $line = preg_replace('/[\r\n\x00]/', '', $line);
-            // Keep URL-ish characters
-            $line = preg_replace('#[^A-Za-z0-9\-._~!$&\'()*+,;=:@/\\*]#', '', $line);
-            // Normalize: allow empty, "/", or startswith "/"
-            if ($line !== '' && $line[0] !== '/' && $line[0] !== '*') {
-                $line = '/' . $line;
-            }
-            return $line;
-        }
+            if (empty($posts)) return $items;
 
-        private static function clean_user_agent($xagio_ua) {
-            $xagio_ua = trim((string) $xagio_ua);
-            // Allow readable UA tokens; remove control chars
-            $xagio_ua = preg_replace('/[\r\n\x00]/', '', $xagio_ua);
-            // Strip characters that would break the file
-            $xagio_ua = preg_replace('/[^A-Za-z0-9 \-._*\/]/', '', $xagio_ua);
-            return $xagio_ua;
-        }
+            usort($posts, function ($a, $b) {
+                return strlen(get_permalink($a->ID)) - strlen(get_permalink($b->ID));
+            });
 
-        public static function sanitize_config($raw) {
-            $out = ['rules' => [], 'extra' => ''];
+            foreach ($posts as $post) {
+                $url = get_permalink($post->ID);
+                if (!$url) continue;
 
-            if (isset($raw['rules']) && is_array($raw['rules'])) {
-                $seen = [];
-                foreach ($raw['rules'] as $block) {
-                    $xagio_ua = self::clean_user_agent($block['user_agent'] ?? '');
-                    if ($xagio_ua === '') continue;
-
-                    // Dedup UA blocks – merge if repeated
-                    $xagio_key = strtolower($xagio_ua);
-                    if (!isset($seen[$xagio_key])) {
-                        $seen[$xagio_key] = ['user_agent' => $xagio_ua, 'allow' => [], 'disallow' => []];
-                    }
-
-                    foreach ((array) ($block['allow'] ?? []) as $ln) {
-                        $ln = self::clean_path_line($ln);
-                        if ($ln !== '') $seen[$xagio_key]['allow'][] = $ln;
-                    }
-                    foreach ((array) ($block['disallow'] ?? []) as $ln) {
-                        $ln = self::clean_path_line($ln);
-                        if ($ln !== '') $seen[$xagio_key]['disallow'][] = $ln;
-                    }
-
-                    // unique paths
-                    $seen[$xagio_key]['allow']    = array_values(array_unique($seen[$xagio_key]['allow']));
-                    $seen[$xagio_key]['disallow'] = array_values(array_unique($seen[$xagio_key]['disallow']));
+                $title = get_post_meta($post->ID, 'XAGIO_SEO_TITLE', true);
+                if (!is_string($title) || trim($title) === '') {
+                    $title = $post->post_title;
                 }
-                // reindex
-                $out['rules'] = array_values($seen);
+                $title = self::cleanInline($title);
+
+                $description = get_post_meta($post->ID, 'XAGIO_SEO_DESCRIPTION', true);
+                if (!is_string($description) || trim($description) === '') {
+                    $description = $post->post_excerpt;
+                }
+                if (!is_string($description) || trim($description) === '') {
+                    $description = wp_trim_words(wp_strip_all_tags($post->post_content), 30, '...');
+                }
+                $description = self::cleanInline($description);
+
+                $items[] = [
+                    'url'         => esc_url_raw($url),
+                    'title'       => $title,
+                    'description' => $description,
+                ];
             }
 
-            if (!empty($raw['extra'])) {
-                // Normalize extra: strip CR, keep single \n
-                $extra = str_replace("\r", '', (string) $raw['extra']);
-                $lines = array_map('trim', explode("\n", $extra));
-                $lines = array_filter($lines, function ($l) {
-                    return $l !== '';
-                });
-                // Prevent header/body injections
-                $safe = array_map(function ($l) {
-                    return preg_replace('/[\x00-\x1f\x7f]/', '', $l);
-                }, $lines);
-                $out['extra'] = implode("\n", $safe);
-            }
-
-            return $out;
+            return $items;
         }
 
-        public static function generate_text($cfg) {
-            $buf = [];
+        private static function postTypeHeading($post_type)
+        {
+            $obj = get_post_type_object($post_type);
+            if ($obj && !empty($obj->labels->name)) {
+                return $obj->labels->name;
+            }
+            return ucfirst($post_type);
+        }
 
-            if (!empty($cfg['rules']) && is_array($cfg['rules'])) {
-                foreach ($cfg['rules'] as $block) {
-                    $xagio_ua = self::clean_user_agent($block['user_agent'] ?? '');
-                    if ($xagio_ua === '') continue;
+        private static function cleanInline($text)
+        {
+            $text = wp_strip_all_tags((string) $text);
+            $text = preg_replace('/\s+/u', ' ', $text);
+            return trim($text);
+        }
 
-                    $buf[] = 'User-Agent: ' . $xagio_ua;
+        private static function escapeMarkdownText($text)
+        {
+            $text = (string) $text;
+            $text = str_replace(["\r", "\n"], ' ', $text);
+            $text = str_replace(['[', ']'], ['\[', '\]'], $text);
+            return trim($text);
+        }
 
-                    if (!empty($block['allow'])) {
-                        foreach ($block['allow'] as $xagio_p) {
-                            $xagio_p = self::clean_path_line($xagio_p);
-                            if ($xagio_p !== '') $buf[] = 'Allow: ' . $xagio_p;
-                        }
+        public static function getLlmsContent()
+        {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+            xagio_json('success', '', self::generateMarkdown());
+        }
+
+        public static function saveLlmsSettings()
+        {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
+            $mode = isset($_POST['mode']) ? sanitize_text_field(wp_unslash($_POST['mode'])) : 'save';
+
+            if ($mode === 'reset') {
+                delete_option(self::OPTION_ENABLED);
+                delete_option(self::OPTION_INTRO);
+                delete_option(self::OPTION_POST_TYPES);
+                delete_option(self::OPTION_INCLUDE_SM);
+                delete_option(self::OPTION_MAX_ITEMS);
+                self::deleteDiskFile();
+                $txt = self::generateMarkdown();
+                update_option(self::OPTION_CACHED_TXT, $txt, false);
+                xagio_json('success', 'llms.txt reset to default.', $txt);
+                return;
+            }
+
+            $cfg = self::parsePostedConfig($_POST);
+
+            if ($mode === 'preview') {
+                $txt = self::generateMarkdown($cfg);
+                xagio_json('success', '', $txt);
+                return;
+            }
+
+            update_option(self::OPTION_ENABLED, $cfg['enabled']);
+            update_option(self::OPTION_INTRO, $cfg['intro']);
+            update_option(self::OPTION_POST_TYPES, $cfg['post_types']);
+            update_option(self::OPTION_INCLUDE_SM, $cfg['include_sitemap']);
+            update_option(self::OPTION_MAX_ITEMS, $cfg['max_items']);
+
+            self::deleteDiskFile();
+
+            $txt = self::generateMarkdown($cfg);
+            update_option(self::OPTION_CACHED_TXT, $txt, false);
+
+            xagio_json('success', 'llms.txt settings saved.', $txt);
+        }
+
+        private static function parsePostedConfig($post)
+        {
+            $enabled         = isset($post[self::OPTION_ENABLED]) ? (intval($post[self::OPTION_ENABLED]) ? '1' : '0') : '0';
+            $intro           = isset($post[self::OPTION_INTRO]) ? sanitize_textarea_field(wp_unslash($post[self::OPTION_INTRO])) : '';
+            $include_sitemap = isset($post[self::OPTION_INCLUDE_SM]) ? (intval($post[self::OPTION_INCLUDE_SM]) ? '1' : '0') : '0';
+            $max_items       = isset($post[self::OPTION_MAX_ITEMS]) ? max(1, min(1000, intval($post[self::OPTION_MAX_ITEMS]))) : 100;
+
+            $post_types = [];
+            if (isset($post[self::OPTION_POST_TYPES]) && is_array($post[self::OPTION_POST_TYPES])) {
+                foreach ((array) $post[self::OPTION_POST_TYPES] as $pt => $on) {
+                    $pt_clean = sanitize_key($pt);
+                    if ($pt_clean !== '' && post_type_exists($pt_clean) && intval($on)) {
+                        $post_types[$pt_clean] = 1;
                     }
-                    if (!empty($block['disallow'])) {
-                        foreach ($block['disallow'] as $xagio_p) {
-                            $xagio_p = self::clean_path_line($xagio_p);
-                            if ($xagio_p !== '') $buf[] = 'Disallow: ' . $xagio_p;
-                        }
-                    }
-                    $buf[] = ''; // blank line between blocks
                 }
             }
 
-            if (!empty($cfg['extra'])) {
-                $buf[] = '# Extra rules';
-                $buf[] = trim($cfg['extra']);
-                $buf[] = '';
-            }
-
-            // Ensure trailing newline; collapse repeated blanks
-            $txt = preg_replace("/\n{3,}/", "\n\n", implode("\n", $buf));
-            $txt = rtrim($txt) . "\n";
-
-            return $txt;
-        }
-
-        /** -----------------------
-         *  File write (best effort)
-         *  ----------------------*/
-        private static function write_file($contents, &$reason = '') {
-            $target = trailingslashit(ABSPATH) . self::FILE_NAME;
-
-            // Try WP_Filesystem first
-            if (!function_exists('WP_Filesystem')) {
-                require_once ABSPATH . 'wp-admin/includes/file.php';
-            }
-            $creds = request_filesystem_credentials('', '', false, false, null);
-            WP_Filesystem($creds);
-            global $wp_filesystem;
-
-            if ($wp_filesystem && is_object($wp_filesystem)) {
-                $ok = $wp_filesystem->put_contents($target, $contents, FS_CHMOD_FILE);
-                if ($ok) return true;
-                $reason = 'WP_Filesystem failed';
-            }
-
-            // Fallback to native write
-            $bytes = @file_put_contents($target, $contents);
-            if ($bytes !== false) return true;
-
-            if ($reason === '') $reason = 'file_put_contents failed';
-            return false;
+            return [
+                'enabled'         => $enabled,
+                'intro'           => $intro,
+                'include_sitemap' => $include_sitemap,
+                'max_items'       => $max_items,
+                'post_types'      => $post_types,
+            ];
         }
     }
 }

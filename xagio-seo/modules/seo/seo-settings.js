@@ -341,191 +341,254 @@
         }
     };
 
-    // === LLMs.txt module ===
     let llms = {
-        presets: [
-            'GPTBot',
-            'ChatGPT-User',
-            'Google-Extended',
-            'GoogleOther',
-            'ClaudeBot',
-            'Claude-Web',
-            'PerplexityBot',
-            'CCBot',
-            'Amazonbot',
-            'Meta-ExternalAgent',
-            'FacebookBot',
-            'Bytespider',
-            'DataForSeoBot'
-        ],
+        previewTimer: null,
+        previewInFlight: false,
 
         init: function () {
-            // bail if the panel isn't on this screen
             if (!$('#xagio-llms-form').length) return;
-
-            llms.bindEvents();
-            llms.refreshPreview();
+            llms.bindSave();
+            llms.bindReset();
+            llms.bindLivePreview();
         },
 
-        bindEvents: function () {
-            const $tbody = $('#xagio-llms-rules tbody');
+        bindLivePreview: function () {
+            const $form = $('#xagio-llms-form');
 
-            // Add row
-            $(document).on('click', '#xagio-llms-add-row', function (e) {
-                e.preventDefault();
-                $tbody.append(llms.rowTemplate());
-                llms.refreshPreview();
+            $form.on('input change', 'input, textarea', function (e) {
+                if (e.target && e.target.id === 'xagio-llms-preview') return;
+                llms.schedulePreview();
             });
 
-            // Add presets
-            $(document).on('click', '#xagio-llms-add-presets', function (e) {
-                e.preventDefault();
-                const existing = Array.from($tbody.find('input[name="ua[]"]'))
-                                      .map(i => i.value.trim().toLowerCase());
-                llms.presets.forEach(function (ua) {
-                    if (existing.indexOf(ua.toLowerCase()) === -1) {
-                        $tbody.append(llms.rowTemplate(ua, '/', ''));
-                    }
-                });
-                llms.refreshPreview();
-            });
-
-            // Delete row
-            $(document).on('click', '#xagio-llms-rules .link-delete-row', function (e) {
-                e.preventDefault();
-                $(this).closest('tr').remove();
-                llms.refreshPreview();
-            });
-
-            // Live preview (debounced)
-            let debouncedPreview = llms.debounce(llms.refreshPreview, 250);
-            $(document).on('input change paste', '#xagio-llms-form input, #xagio-llms-form textarea', function () {
-                debouncedPreview();
-            });
-
-            // Update (settings only)
-            $(document).on('click', '#xagio-llms-update', function (e) {
-                e.preventDefault();
-                llms.save('update', $(this));
-            });
-
-            // Save to file
-            $(document).on('click', '#xagio-llms-save', function (e) {
-                e.preventDefault();
-                llms.save('save', $(this));
+            $(document).on('click', '#xagio-llms-form .xagio-slider-button', function () {
+                setTimeout(llms.schedulePreview, 10);
             });
         },
 
-        rowTemplate: function (ua = '', allow = '', disallow = '') {
-            return `
-<tr>
-  <td>
-    <input type="text" name="ua[]" class="xagio-input-text-mini" value="${llms.escape(ua)}" list="xagio-llms-ua" />
-    <div class="xagio-gray-label"></div>
-  </td>
-  <td><textarea placeholder="eg. /my-article/" name="allow[]" rows="4" class="xagio-input-textarea">${llms.escape(allow)}</textarea></td>
-  <td><textarea placeholder="eg. /wp-admin/" name="disallow[]" rows="4" class="xagio-input-textarea">${llms.escape(disallow)}</textarea></td>
-  <td><button type="button" class="link-delete-row" title="Remove">✕</button></td>
-</tr>`;
-        },
-
-        collectConfig: function () {
-            const cfg = {
-                rules: [],
-                extra: ''
-            };
-            $('#xagio-llms-rules tbody tr').each(function () {
-                const $tr = $(this);
-                const ua = ($tr.find('input[name="ua[]"]').val() || '').trim();
-                if (!ua) return;
-                const allow = ($tr.find('textarea[name="allow[]"]').val() || '')
-                    .split('\n').map(v => v.trim()).filter(Boolean);
-                const disallow = ($tr.find('textarea[name="disallow[]"]').val() || '')
-                    .split('\n').map(v => v.trim()).filter(Boolean);
-                cfg.rules.push({
-                                   user_agent: ua,
-                                   allow     : allow,
-                                   disallow  : disallow
-                               });
-            });
-            cfg.extra = ($('#xagio-llms-form textarea[name="extra"]').val() || '').trim();
-            return cfg;
-        },
-
-        generateText: function (cfg) {
-            let out = '';
-            (cfg.rules || []).forEach(function (b) {
-                if (!b.user_agent) return;
-                out += 'User-Agent: ' + b.user_agent + '\n';
-                (b.allow || []).forEach(function (p) {
-                    out += 'Allow: ' + p + '\n';
-                });
-                (b.disallow || []).forEach(function (p) {
-                    out += 'Disallow: ' + p + '\n';
-                });
-                out += '\n';
-            });
-            if (cfg.extra) {
-                out += '# Extra rules\n' + cfg.extra + '\n\n';
-            }
-            return out.replace(/\s+$/, '') + '\n';
+        schedulePreview: function () {
+            if (llms.previewTimer) clearTimeout(llms.previewTimer);
+            llms.previewTimer = setTimeout(llms.refreshPreview, 350);
         },
 
         refreshPreview: function () {
-            const cfg = llms.collectConfig();
-            $('#xagio-llms-preview').val(llms.generateText(cfg));
-        },
+            if (llms.previewInFlight) {
+                llms.schedulePreview();
+                return;
+            }
+            llms.previewInFlight = true;
 
-        save: function (mode, $btn) {
-            const form = document.getElementById('xagio-llms-form');
-            if (!form) return;
+            let data = $('#xagio-llms-form').serialize() + '&mode=preview';
 
-            // Disable both action buttons during save
-            const $buttons = $('#xagio-llms-update, #xagio-llms-save');
-            $buttons.disable('Saving...');
-
-            let fd = new FormData(form);
-            fd.set('action', 'xagio_llms_save');
-            fd.set('mode', mode); // 'update' or 'save'
-            fd.set('config', JSON.stringify(llms.collectConfig()));
-
-            $.ajax({
-                       url        : xagio_data.wp_post,
-                       method     : 'POST',
-                       data       : fd,
-                       processData: false,
-                       contentType: false
-                   }).done(function (d) {
-                setTimeout(function () {
-                    $buttons.disable();
-                    if (d && d.success) {
-                        xagioNotify('success', (d.data && d.data.message) ? d.data.message : 'Saved.');
-                    } else {
-                        let msg = (d && d.data && d.data.message) ? d.data.message : 'Failed to save.';
-                        xagioNotify('danger', msg);
-                    }
-                }, 300);
+            $.post(xagio_data.wp_post, data, function (response) {
+                llms.previewInFlight = false;
+                if (response && response.status === 'success' && typeof response.data === 'string') {
+                    $('#xagio-llms-preview').val(response.data);
+                }
             }).fail(function () {
-                setTimeout(function () {
-                    $buttons.disable();
-                    xagioNotify('danger', 'Request failed.');
-                }, 300);
+                llms.previewInFlight = false;
             });
         },
 
-        // Utilities
-        debounce: function (fn, wait) {
-            let t;
-            return function () {
-                clearTimeout(t);
-                let args = arguments, ctx = this;
-                t = setTimeout(function () {
-                    fn.apply(ctx, args);
-                }, wait);
-            };
+        bindSave: function () {
+            $(document).on('click', '.llms-save', function () {
+                let btn = $(this);
+                btn.disable('Saving...');
+                $.post(xagio_data.wp_post, $('#xagio-llms-form').serialize(), function (response) {
+                    btn.disable();
+                    if (response && response.status === 'success' && typeof response.data === 'string') {
+                        $('#xagio-llms-preview').val(response.data);
+                    }
+                    xagioNotify(response && response.status ? response.status : 'danger', response && response.message ? response.message : 'Failed to save.');
+                }).fail(function () {
+                    btn.disable();
+                    xagioNotify('danger', 'Request failed.');
+                });
+            });
         },
-        escape  : function (s) {
-            return String(s || '').replace(/[&<>"']/g, function (m) {
+
+        bindReset: function () {
+            $(document).on('click', '.llms-reset', function () {
+                xagioModal('Reset to Default', 'Are you sure you want to reset llms.txt settings to default? All custom changes will be lost.', function (confirmed) {
+
+                    if (!confirmed) return;
+
+                    $.post(xagio_data.wp_post, { action: 'xagio_llms_save', mode: 'reset' }, function (response) {
+                        
+                        if (response && response.status === 'success' && typeof response.data === 'string') {
+                            $('#xagio-llms-preview').val(response.data);
+                            $('#XAGIO_LLMS_ENABLED').val(0);
+                            $('.xagio-slider-button[data-element="XAGIO_LLMS_ENABLED"]').removeClass('on');
+                            $('#XAGIO_LLMS_INCLUDE_SITEMAP').val(1);
+                            $('.xagio-slider-button[data-element="XAGIO_LLMS_INCLUDE_SITEMAP"]').addClass('on');
+                            $('#XAGIO_LLMS_INTRO').val('');
+                            $('#XAGIO_LLMS_MAX_ITEMS').val(100);
+
+                            $('input[name^="XAGIO_LLMS_POST_TYPES["]').each(function () {
+                                let $input = $(this);
+                                let name = $input.attr('name') || '';
+                                let match = name.match(/\[([^\]]+)\]/);
+                                let pt = match ? match[1] : '';
+                                let on = (pt === 'page' || pt === 'post');
+                                $input.val(on ? 1 : 0);
+                                let $slider = $('.xagio-slider-button[data-element="' + $input.attr('id') + '"]');
+                                if (on) {
+                                    $slider.addClass('on');
+                                } else {
+                                    $slider.removeClass('on');
+                                }
+                            });
+                        }
+                        xagioNotify(response && response.status ? response.status : 'danger', response && response.message ? response.message : 'Failed to reset.');
+                    }).fail(function () {
+                        xagioNotify('danger', 'Request failed.');
+                    });
+                });
+            });
+        }
+    };
+
+
+    let robots = {
+        previewTimer: null,
+        previewInFlight: false,
+
+        init: function () {
+            robots.save();
+            robots.reset();
+            robots.bindCdnCheck();
+            robots.bindLivePreview();
+        },
+
+        bindLivePreview: function () {
+            $(document).on('click', '.robots .xagio-slider-button', function () {
+                let $btn = $(this);
+                let id = $btn.attr('data-element') || '';
+                if (id.indexOf('XAGIO_AI_') !== 0) return;
+                setTimeout(robots.schedulePreview, 10);
+            });
+        },
+
+        schedulePreview: function () {
+            if (robots.previewTimer) clearTimeout(robots.previewTimer);
+            robots.previewTimer = setTimeout(robots.refreshPreview, 250);
+        },
+
+        refreshPreview: function () {
+            if (robots.previewInFlight) {
+                robots.schedulePreview();
+                return;
+            }
+            robots.previewInFlight = true;
+
+            let data = $('.robots').serialize() + '&mode=preview';
+
+            $.post(xagio_data.wp_post, data, function (response) {
+                robots.previewInFlight = false;
+                if (response && response.status === 'success' && typeof response.data === 'string') {
+                    $('#XAGIO_ROBOTS_TXT_CUSTOM').val(response.data);
+                }
+            }).fail(function () {
+                robots.previewInFlight = false;
+            });
+        },
+
+        save: function () {
+            $(document).on('click', '.robots-save', function () {
+                let btn    = $(this);
+                let content = $('#XAGIO_ROBOTS_TXT_CUSTOM').val();
+
+                if (/^Disallow:\s*\/\s*$/m.test(content)) {
+                    xagioModal(
+                        'Warning',
+                        '<b>Disallow: /</b> blocks search engines from crawling your entire site. Are you sure you want to save this?',
+                        function (confirmed) {
+                            if (confirmed) {
+                                robots.doSave(btn);
+                            }
+                        }
+                    );
+                } else {
+                    robots.doSave(btn);
+                }
+            });
+        },
+
+        reset: function () {
+            $(document).on('click', '.robots-reset', function () {
+                xagioModal('Reset to Default', 'Are you sure you want to reset robots.txt to default? All custom changes will be lost.', function (confirmed) {
+                    if (!confirmed) return;
+
+                    $.post(xagio_data.wp_post, { action: 'xagio_robots_save', mode: 'reset' }, function (response) {
+                        if (response.status === 'success') {
+                            $('#XAGIO_ROBOTS_TXT_CUSTOM').val(response.data);
+                            $('input[data-ai-crawler="1"]').each(function () {
+                                $(this).val(1);
+                                let $slider = $('.xagio-slider-button[data-element="' + $(this).attr('id') + '"]');
+                                $slider.addClass('on');
+                            });
+                        }
+                        xagioNotify(response.status, response.message);
+                    });
+                });
+            });
+        },
+
+        bindCdnCheck: function () {
+            $(document).on('click', '#xagio-robots-cdn-check', function () {
+                let btn = $(this);
+                let $out = $('#xagio-robots-cdn-result');
+                btn.disable('Checking...');
+                $out.empty();
+
+                $.post(xagio_data.wp_post, { action: 'xagio_robots_ai_check' }, function (response) {
+                    btn.disable();
+                    robots.renderCdnResult($out, response);
+                }).fail(function () {
+                    btn.disable();
+                    $out.html('<div class="xagio-alert xagio-alert-danger"><i class="xagio-icon xagio-icon-warning"></i> Request failed.</div>');
+                });
+            });
+        },
+
+        renderCdnResult: function ($out, response) {
+            if (!response) {
+                $out.html('<div class="xagio-alert xagio-alert-danger">No response.</div>');
+                return;
+            }
+
+            let data = response.data || {};
+            let mismatch = Array.isArray(data.mismatch) ? data.mismatch : [];
+            let url = data.url ? robots.escape(data.url) : '';
+            let http = data.http ? parseInt(data.http, 10) : 0;
+            let body = typeof data.body === 'string' ? data.body : '';
+
+            let html = '';
+
+            if (response.status !== 'success') {
+                html += '<div class="xagio-alert xagio-alert-danger"><i class="xagio-icon xagio-icon-warning"></i> ' + robots.escape(response.message || 'Check failed.') + '</div>';
+            } else if (mismatch.length === 0) {
+                html += '<div class="xagio-alert xagio-alert-success"><i class="xagio-icon xagio-icon-check"></i> Live <code>/robots.txt</code> matches your Xagio settings.</div>';
+            } else {
+                html += '<div class="xagio-alert xagio-alert-warning"><i class="xagio-icon xagio-icon-warning"></i> Found ' + mismatch.length + ' mismatch(es) between Xagio and live <code>/robots.txt</code>:</div>';
+                html += '<ul class="xagio-margin-top-small">';
+                mismatch.forEach(function (m) {
+                    html += '<li><strong>' + robots.escape(m.user_agent || '') + '</strong>: ' + robots.escape(m.message || '') + '</li>';
+                });
+                html += '</ul>';
+                html += '<p class="xagio-gray-label">If a CDN (Cloudflare, etc.) is injecting AI bot blocks above WordPress, your Xagio settings cannot override that — you must disable the CDN feature.</p>';
+            }
+
+            if (body) {
+                html += '<details class="xagio-margin-top-medium"><summary>Live response body (' + body.length + ' bytes from ' + url + ')</summary>';
+                html += '<pre class="xagio-input-textarea" style="white-space:pre-wrap;max-height:300px;overflow:auto;">' + robots.escape(body) + '</pre>';
+                html += '</details>';
+            }
+
+            $out.html(html);
+        },
+
+        escape: function (s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) {
                 return ({
                     '&': '&amp;',
                     '<': '&lt;',
@@ -534,9 +597,19 @@
                     "'": '&#039;'
                 })[m];
             });
+        },
+
+        doSave: function (btn) {
+            btn.disable();
+            $.post(xagio_data.wp_post, $('.robots').serialize(), function (response) {
+                btn.disable();
+                if (response && response.status === 'success' && typeof response.data === 'string') {
+                    $('#XAGIO_ROBOTS_TXT_CUSTOM').val(response.data);
+                }
+                xagioNotify(response.status, response.message);
+            });
         }
     };
-
 
     $(document).ready(function () {
 
@@ -557,6 +630,7 @@
         scripts.init();
         profiles.init();
         llms.init();
+        robots.init();
 
     });
 

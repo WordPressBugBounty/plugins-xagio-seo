@@ -481,7 +481,7 @@ function xagioNotify(status, message, instantCloseDialogNotification = false, se
         actions.closeXagioNotify();
 
         $.post(xagio_data.wp_post, 'action=xagio_get_links', function (d) {
-            if (d !== false) {
+            if (d && d.dashboard) {
                 let dashboard_btn = $('.xagio-button-premium-button');
                 if (dashboard_btn.length > 0) {
                     dashboard_btn.text(d.dashboard.text);

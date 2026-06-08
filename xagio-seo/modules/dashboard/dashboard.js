@@ -101,7 +101,7 @@
         });
 
         $.post(xagio_data.wp_post, 'action=xagio_get_links_dashboard', function (d) {
-            if(d !== false) {
+            if(d && d.dashboard) {
                 let dashboard_btn = $('.xagio-button-dashboard-link');
                 dashboard_btn.text(d.dashboard.text);
                 dashboard_btn.attr('data-text',d.dashboard.text);

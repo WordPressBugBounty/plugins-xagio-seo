@@ -58,19 +58,22 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
                 'recaptchaVerify'
             ], 10, 2);
 
-            // Comment Captcha
-            add_action('wp_enqueue_scripts', [
-                'XAGIO_MODEL_SETTINGS',
-                'captchaComment'
-            ]);
-            add_action('comment_form', [
-                'XAGIO_MODEL_SETTINGS',
-                'captchaCommentField'
-            ]);
-            add_filter('preprocess_comment', [
-                'XAGIO_MODEL_SETTINGS',
-                'captchaCommentVerify'
-            ]);
+            // Comment Captcha - only attach these hooks when reCAPTCHA is actually
+            // enabled and configured
+            if (XAGIO_RECAPTCHA && !empty(XAGIO_RECAPTCHA_SITE_KEY) && !empty(XAGIO_RECAPTCHA_SECRET_KEY)) {
+                add_action('wp_enqueue_scripts', [
+                    'XAGIO_MODEL_SETTINGS',
+                    'captchaComment'
+                ]);
+                add_action('comment_form', [
+                    'XAGIO_MODEL_SETTINGS',
+                    'captchaCommentField'
+                ]);
+                add_filter('preprocess_comment', [
+                    'XAGIO_MODEL_SETTINGS',
+                    'captchaCommentVerify'
+                ]);
+            }
 
             XAGIO_MODEL_SETTINGS::disableUploads();
 
@@ -414,31 +417,29 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
 
         public static function captchaCommentVerify($commentdata)
         {
-            check_ajax_referer('xagio_nonce', '_xagio_nonce');
-
-            if (!isset($_POST['recaptcha_response'])) {
-                wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
+            if (!XAGIO_RECAPTCHA || empty(XAGIO_RECAPTCHA_SITE_KEY) || empty(XAGIO_RECAPTCHA_SECRET_KEY)) {
+                return $commentdata;
             }
 
-            if (XAGIO_RECAPTCHA && !empty(XAGIO_RECAPTCHA_SITE_KEY) && !empty(XAGIO_RECAPTCHA_SECRET_KEY)) {
+            // No token (third-party comment form or non-standard submission) — let
+            // WordPress handle the comment rather than rejecting it.
+            if (!isset($_POST['recaptcha_response'])) {
+                return $commentdata;
+            }
 
-                if (isset($_POST['recaptcha_response'])) {
-                    $recaptcha_response = sanitize_text_field(wp_unslash($_POST['recaptcha_response']));
-                    $xagio_response           = wp_remote_post('https://www.google.com/recaptcha/api/siteverify', [
-                        'body' => [
-                            'secret'   => XAGIO_RECAPTCHA_SECRET_KEY,
-                            'response' => $recaptcha_response
-                        ]
-                    ]);
+            $recaptcha_response = sanitize_text_field(wp_unslash($_POST['recaptcha_response']));
+            $xagio_response     = wp_remote_post('https://www.google.com/recaptcha/api/siteverify', [
+                'body' => [
+                    'secret'   => XAGIO_RECAPTCHA_SECRET_KEY,
+                    'response' => $recaptcha_response
+                ]
+            ]);
 
-                    $response_body = wp_remote_retrieve_body($xagio_response);
-                    $xagio_result        = json_decode($response_body);
+            $response_body = wp_remote_retrieve_body($xagio_response);
+            $xagio_result  = json_decode($response_body);
 
-                    if (!$xagio_result->success || $xagio_result->score < 0.5) {
-                        wp_die('<strong>ERROR</strong>: reCAPTCHA verification failed, please try again.');
-                    }
-                }
-
+            if (!$xagio_result || empty($xagio_result->success) || $xagio_result->score < 0.5) {
+                wp_die('<strong>ERROR</strong>: reCAPTCHA verification failed, please try again.');
             }
 
             return $commentdata;
@@ -449,7 +450,6 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
             if (XAGIO_RECAPTCHA && !empty(XAGIO_RECAPTCHA_SITE_KEY) && !empty(XAGIO_RECAPTCHA_SECRET_KEY)) {
 
                 echo '<input type="hidden" name="recaptcha_response" id="recaptchaResponse">';
-                wp_nonce_field('xagio_nonce', '_xagio_nonce');
 
             }
         }

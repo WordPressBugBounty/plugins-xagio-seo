@@ -594,6 +594,11 @@
 
             function processWizard() {
 
+                if (!xagio_data.connected) {
+                    xagioNotify('error', 'Your account is not connected to the Xagio panel. Please connect your account before running Agent X.');
+                    return;
+                }
+
                 let language = $('#getCompetition_languageCode').val()
                 let location = $('#getCompetition_locationCode').val()
 
@@ -666,8 +671,9 @@
             return allValid;
         },
         xagsCostOutput       : function (cost) {
-            let xReview = parseFloat(actions.allowances.xags_allowance.find('.value').html().trim());
-            let xBank = parseFloat(actions.allowances.xags.find('.value').html().trim());
+            let xReview = parseFloat(actions.allowances.xags_allowance.find('.value').html().trim()) || 0;
+            let xBank = parseFloat(actions.allowances.xags.find('.value').html().trim()) || 0;
+            cost = parseFloat(cost) || 0;
 
             let output = "";
             if (cost <= xReview) {
@@ -787,7 +793,7 @@
                     }
                 });
 
-                let aiWizardCost = count_checked * actions.allowances.cost.wizards;
+                let aiWizardCost = count_checked * (actions.allowances.cost.wizards || 0);
 
                 let output = actions.xagsCostOutput(aiWizardCost);
                 $('.ai-wizard-cost-label').find('#xagsCost').html(`This action will cost you ${output}`);
@@ -882,6 +888,11 @@
             $(document).on('click', '.create-project', function (e) {
                 e.preventDefault();
 
+                if (!xagio_data.connected) {
+                    xagioNotify('error', 'Your account is not connected to the Xagio panel. Please connect your account before running Agent X.');
+                    return;
+                }
+
                 // Get all checked checkboxes that belong to the class 'select-website'
                 let selected_websites = $('.top-ten-results input[name="select-website"]:checked');
 
@@ -955,6 +966,11 @@
 
             $(document).on('click', '.search-top-ten', function (e) {
                 e.preventDefault();
+
+                if (!xagio_data.connected) {
+                    xagioNotify('error', 'Your account is not connected to the Xagio panel. Please connect your account before running Agent X.');
+                    return;
+                }
 
                 let btn = $(this);
 
@@ -1060,7 +1076,7 @@
                         html += website_row.html();
                     }
 
-                    let aiWizardCost = count_checked * actions.allowances.cost.wizards;
+                    let aiWizardCost = count_checked * (actions.allowances.cost.wizards || 0);
 
                     let output = actions.xagsCostOutput(aiWizardCost);
                     $('.ai-wizard-cost-label').find('#xagsCost').html(`This action will cost you ${output}`);
@@ -1094,6 +1110,11 @@
             });
 
             $(document).on('click', '.option-picker:not(.disabled)', function () {
+                if (!xagio_data.connected) {
+                    xagioNotify('error', 'Your account is not connected to the Xagio panel. Please connect your account before running Agent X.');
+                    return;
+                }
+
                 let option = $(this).attr('data-type');
                 $('#aiwizard-type').val(option);
 

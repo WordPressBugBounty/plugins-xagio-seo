@@ -69,6 +69,7 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
         <li><a href="">Taxonomies</a></li>
         <li><a href="">Scripts</a></li>
         <li><a href="">LLMs</a></li>
+        <li><a href="">Robots.txt</a></li>
     </ul>
 
     <div class="xagio-tab-content-holder">
@@ -1449,136 +1450,226 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 
         <!-- LLMs.txt -->
         <div class="xagio-tab-content">
-            <div class="xagio-accordion xagio-margin-bottom-medium xagio-accordion-opened">
-                <h3 class="xagio-accordion-title xagio-accordion-panel-title">
-                    <span>LLMs.txt</span>
-                    <i class="xagio-icon xagio-icon-arrow-down"></i>
-                </h3>
-                <div class="xagio-accordion-content">
-                    <div>
-                        <div class="xagio-accordion-panel">
-                            <div class="xagio-alert xagio-alert-primary">
-                                <i class="xagio-icon xagio-icon-info"></i> <kbd>llms.txt</kbd> is a proposed standard file format designed to help large language models (LLMs) better understand and process website content. It's a simple, text-based file (usually Markdown) that sits in the root directory of a website and provides a structured, prioritized overview of the site's most important information.
+
+            <?php
+            $xagio_llms_enabled         = (string) get_option('XAGIO_LLMS_ENABLED', '0');
+            $xagio_llms_intro           = (string) get_option('XAGIO_LLMS_INTRO', '');
+            $xagio_llms_post_types      = (array)  get_option('XAGIO_LLMS_POST_TYPES', ['page' => 1, 'post' => 1]);
+            $xagio_llms_include_sitemap = (string) get_option('XAGIO_LLMS_INCLUDE_SITEMAP', '1');
+            $xagio_llms_max_items       = (int)    get_option('XAGIO_LLMS_MAX_ITEMS', 100);
+            $xagio_llms_preview         = (string) get_option('XAGIO_LLMS_TXT', '');
+            $xagio_llms_post_type_list  = function_exists('get_post_types') ? array_values(array_unique(array_merge(['page', 'post'], get_post_types(['public' => true, '_builtin' => false], 'names')))) : ['page', 'post'];
+            $xagio_llms_disk_path       = trailingslashit(ABSPATH) . 'llms.txt';
+            $xagio_llms_disk_exists     = file_exists($xagio_llms_disk_path);
+            ?>
+
+            <?php if ($xagio_llms_disk_exists) : ?>
+                <div class="xagio-alert xagio-alert-danger m-b-20">
+                    <i class="xagio-icon xagio-icon-warning"></i>
+                    A static <strong>llms.txt</strong> file exists at <code><?php echo esc_html($xagio_llms_disk_path); ?></code>. The web server is serving that file directly, so the settings below are <strong>not</strong> being used. Click <em>Save</em> below to remove it automatically, or delete it manually.
+                </div>
+            <?php endif; ?>
+
+            <form id="xagio-llms-form" class="ts xagio-panel">
+                <h5 class="xagio-panel-title">LLMs</h5>
+
+                <div class="xagio-alert xagio-alert-primary m-b-20">
+                    <i class="xagio-icon xagio-icon-info"></i>
+                    <kbd>llms.txt</kbd> is a Markdown file served at <code>/llms.txt</code> that tells AI engines (ChatGPT, Claude, Perplexity, Gemini) what your site is about and which pages matter. Xagio generates it from your site title, tagline and the SEO data on your chosen post types.
+                </div>
+
+                <input type="hidden" name="action" value="xagio_llms_save"/>
+
+                <div class="xagio-2-column-grid xagio-gap-large xagio-margin-bottom-large">
+                    <div class="xagio-column">
+                        <div class="xagio-margin-bottom-medium">
+                            <h5 class="xagio-panel-title">General</h5>
+
+                            <div class="xagio-slider-container">
+                                <input type="hidden" name="XAGIO_LLMS_ENABLED" id="XAGIO_LLMS_ENABLED"
+                                       value="<?php echo $xagio_llms_enabled === '1' ? 1 : 0; ?>"/>
+                                <div class="xagio-slider-frame">
+                                    <span class="xagio-slider-button <?php echo $xagio_llms_enabled === '1' ? 'on' : ''; ?>"
+                                          data-element="XAGIO_LLMS_ENABLED"></span>
+                                </div>
+                                <p class="xagio-slider-label">Enable <code>/llms.txt</code>
+                                    <i class="xagio-icon xagio-icon-info help-icon" data-xagio-tooltip
+                                       data-xagio-title="When enabled, Xagio serves /llms.txt with an AI-friendly summary of your site."></i>
+                                </p>
                             </div>
 
-                            <?php
-                            // Load & defaults
-                            $XAGIO_LLMS_OPTION = 'XAGIO_LLMS_TXT_CONFIG';
-
-                            $xagio_llms_config = get_option($XAGIO_LLMS_OPTION, [
-                                'rules' => [
-                                    ['user_agent' => '*', 'allow' => [], 'disallow' => ['/wp-admin/']]
-                                ],
-                                'extra' => ''
-                            ]);
-
-                            $xagio_llms_preview = esc_textarea(XAGIO_MODEL_LLMS::generate_text($xagio_llms_config));
-
-                            // Common LLM crawler presets
-                            $xagio_llms_presets = [
-                                'GPTBot'             => 'OpenAI',
-                                'ChatGPT-User'       => 'OpenAI Fetch',
-                                'Google-Extended'    => 'Google Licensing',
-                                'GoogleOther'        => 'Google Non-Search',
-                                'ClaudeBot'          => 'Anthropic',
-                                'Claude-Web'         => 'Anthropic Web',
-                                'PerplexityBot'      => 'Perplexity',
-                                'CCBot'              => 'Common Crawl',
-                                'Amazonbot'          => 'Amazon',
-                                'Meta-ExternalAgent' => 'Meta',
-                                'FacebookBot'        => 'Facebook/Meta',
-                                'Bytespider'         => 'ByteDance',
-                                'DataForSeoBot'      => 'DataForSeo',
-                            ];
-                            ?>
-
-                            <form id="xagio-llms-form" class="ts">
-                                <?php wp_nonce_field('xagio_llms_save', 'xagio_llms_nonce'); ?>
-
-                                <input type="hidden" name="action" value="xagio_llms_save" />
-
-                                <div class="xagio-2-column-grid xagio-gap-large xagio-margin-bottom-large xagio-margin-top-medium">
-                                    <div class="xagio-column">
-                                        <h3 class="pop">Rules</h3>
-                                        <p class="xagio-gray-label">
-                                            Add a row per crawler. Paths are prefixes (like <code>/private/</code>). Use <code>*</code> to target all crawlers.
-                                        </p>
-
-                                        <table class="widefat fixed striped xagio-margin-top-small" id="xagio-llms-rules">
-                                            <thead>
-                                            <tr>
-                                                <th style="width:220px">User-Agent</th>
-                                                <th>Allow (one per line)</th>
-                                                <th>Disallow (one per line)</th>
-                                                <th style="width:40px"></th>
-                                            </tr>
-                                            </thead>
-                                            <tbody>
-                                            <?php foreach (($xagio_llms_config['rules'] ?? []) as $xagio_i => $xagio_r): ?>
-                                                <tr>
-                                                    <td>
-                                                        <input type="text" name="ua[]" class="xagio-input-text-mini" value="<?php echo esc_attr($xagio_r['user_agent'] ?? ''); ?>" list="xagio-llms-ua" />
-                                                        <div class="xagio-gray-label"><?php echo esc_html($xagio_llms_presets[$xagio_r['user_agent'] ?? ''] ?? ''); ?></div>
-                                                    </td>
-                                                    <td>
-                                                        <textarea placeholder="eg. /my-article/" name="allow[]" rows="4" class="xagio-input-textarea"><?php echo esc_textarea(implode("\n", (array)($xagio_r['allow'] ?? []))); ?></textarea>
-                                                    </td>
-                                                    <td>
-                                                        <textarea placeholder="eg. /wp-admin/" name="disallow[]" rows="4" class="xagio-input-textarea"><?php echo esc_textarea(implode("\n", (array)($xagio_r['disallow'] ?? []))); ?></textarea>
-                                                    </td>
-                                                    <td>
-                                                        <button type="button" class="link-delete-row" title="Remove">✕</button>
-                                                    </td>
-                                                </tr>
-                                            <?php endforeach; ?>
-                                            </tbody>
-                                        </table>
-
-                                        <p class="xagio-flex xagio-flex-gap-small xagio-margin-top-small">
-                                            <button type="button" class="xagio-button xagio-button-primary" id="xagio-llms-add-row">+ Add Crawler</button>
-                                            <button type="button" class="xagio-button xagio-button-primary" id="xagio-llms-add-presets">Add Common Presets</button>
-                                        </p>
-
-                                        <datalist id="xagio-llms-ua">
-                                            <option value="*">All crawlers</option>
-                                            <?php foreach ($xagio_llms_presets as $xagio_ua => $xagio_desc): ?>
-                                                <option value="<?php echo esc_attr($xagio_ua); ?>"><?php echo esc_html($xagio_desc); ?></option>
-                                            <?php endforeach; ?>
-                                        </datalist>
-
-                                        <br>
-
-                                        <h3 class="pop xagio-margin-top-large">Extra Rules (Advanced)</h3>
-                                        <textarea name="extra" rows="6" class="xagio-input-textarea" placeholder="# Any additional lines"><?php echo esc_textarea($xagio_llms_config['extra'] ?? ''); ?></textarea>
-
-                                    </div>
-
-                                    <div class="xagio-column">
-                                        <h3 class="pop">Preview</h3>
-                                        <textarea id="xagio-llms-preview" rows="10" class="xagio-input-textarea" readonly><?php echo esc_html($xagio_llms_preview); ?></textarea>
-                                        <p class="xagio-gray-label">This is what will be written into <code>/llms.txt</code>.<br>
-                                            You can view the live preview at <a target="_blank" href="<?php echo esc_url(get_site_url()); ?>/llms.txt"><?php echo esc_url(get_site_url()); ?>/llms.txt</a>.
-                                        </p>
-                                    </div>
+                            <div class="xagio-slider-container xagio-margin-top-small">
+                                <input type="hidden" name="XAGIO_LLMS_INCLUDE_SITEMAP" id="XAGIO_LLMS_INCLUDE_SITEMAP"
+                                       value="<?php echo $xagio_llms_include_sitemap === '1' ? 1 : 0; ?>"/>
+                                <div class="xagio-slider-frame">
+                                    <span class="xagio-slider-button <?php echo $xagio_llms_include_sitemap === '1' ? 'on' : ''; ?>"
+                                          data-element="XAGIO_LLMS_INCLUDE_SITEMAP"></span>
                                 </div>
+                                <p class="xagio-slider-label">Link to the Xagio sitemap
+                                    <i class="xagio-icon xagio-icon-info help-icon" data-xagio-tooltip
+                                       data-xagio-title="Append a Key resources section that points to /sitemap-xag.xml."></i>
+                                </p>
+                            </div>
 
-                                <div class="xagio-flex-right xagio-flex-gap-medium xagio-margin-top-large">
-                                    <button type="button" class="xagio-button xagio-button-primary" id="xagio-llms-update">
-                                        <i class="xagio-icon xagio-icon-check"></i> Update Settings (don’t write file)
-                                    </button>
-                                    <button type="button" class="xagio-button xagio-button-primary" id="xagio-llms-save">
-                                        <i class="xagio-icon xagio-icon-folder-open"></i> Save to /llms.txt
-                                    </button>
-                                </div>
-                            </form>
+                            <label for="XAGIO_LLMS_INTRO" class="xagio-margin-top-medium">
+                                Intro / description
+                                <i class="xagio-icon xagio-icon-info help-icon" data-xagio-tooltip="" data-xagio-title="Rendered as a Markdown blockquote under the site title."></i>
+                            </label>
 
+                            <textarea id="XAGIO_LLMS_INTRO" name="XAGIO_LLMS_INTRO" rows="4" class="xagio-input-textarea xagio-margin-top-small"
+                                      placeholder="Leave blank to use the site tagline."><?php echo esc_textarea($xagio_llms_intro); ?></textarea>
+
+                            <div class="xagio-margin-top-small">
+                                <label for="XAGIO_LLMS_MAX_ITEMS">Max items per post type</label>
+                                <input type="number" min="1" max="1000" id="XAGIO_LLMS_MAX_ITEMS" name="XAGIO_LLMS_MAX_ITEMS"
+                                       class="xagio-input-text-mini xagio-margin-top-medium"
+                                       value="<?php echo esc_attr($xagio_llms_max_items); ?>"/>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h5 class="xagio-panel-title">Included post types</h5>
+                            <p class="xagio-gray-label">Pick which post types Xagio should list in <code>llms.txt</code>. Each post's Xagio SEO title and description (or excerpt fallback) is used.</p>
+
+                            <div class="xagio-3-columns xagio-margin-top-small xagio-llms-post-types">
+                                <?php foreach ($xagio_llms_post_type_list as $xagio_pt):
+                                    $xagio_pt_on = !empty($xagio_llms_post_types[$xagio_pt]); ?>
+                                    <div class="xagio-slider-container">
+                                        <input type="hidden"
+                                               name="XAGIO_LLMS_POST_TYPES[<?php echo esc_attr($xagio_pt); ?>]"
+                                               id="XAGIO_LLMS_PT_<?php echo esc_attr(strtoupper($xagio_pt)); ?>"
+                                               value="<?php echo $xagio_pt_on ? 1 : 0; ?>"/>
+                                        <div class="xagio-slider-frame">
+                                            <span class="xagio-slider-button <?php echo $xagio_pt_on ? 'on' : ''; ?>"
+                                                  data-element="XAGIO_LLMS_PT_<?php echo esc_attr(strtoupper($xagio_pt)); ?>"></span>
+                                        </div>
+                                        <p class="xagio-slider-label"><?php echo esc_html(ucfirst($xagio_pt)); ?></p>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="xagio-column">
+                        <div>
+                            <h5 class="xagio-panel-title">
+                                Preview
+                            </h5>
+                            <textarea id="xagio-llms-preview" rows="22" class="xagio-input-textarea" readonly spellcheck="false"><?php echo esc_textarea($xagio_llms_preview); ?></textarea>
+                            <div class="xagio-flex xagio-flex-align-right xagio-margin-top-small">
+                                <a href="<?php echo esc_url(home_url('/llms.txt')); ?>" target="_blank" rel="noopener"
+                                   class="xagio-button xagio-button-primary">
+                                    <i class="xagio-icon xagio-icon-external-link"></i> Open /llms.txt
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <div class="xagio-flex-row xagio-flex-gap-medium xagio-margin-top-medium">
+                    <button type="button" class="xagio-button xagio-button-outline llms-reset">
+                        <i class="xagio-icon xagio-icon-refresh"></i> Reset to Default
+                    </button>
+                    <button type="button" class="xagio-button xagio-button-primary llms-save">
+                        <i class="xagio-icon xagio-icon-check"></i> Save
+                    </button>
+                </div>
+            </form>
+
+        </div>
+
+        <!-- Robots.txt -->
+        <div class="xagio-tab-content">
+
+            <?php if (file_exists(ABSPATH . 'robots.txt')) : ?>
+            <div class="xagio-alert xagio-alert-danger m-b-20">
+                <i class="xagio-icon xagio-icon-warning"></i>
+                A static <strong>robots.txt</strong> file exists on disk. WordPress serves that file directly, so the robots.txt rules managed by Xagio will <strong>not</strong> apply until the static file is removed.
             </div>
+            <?php endif; ?>
 
+            <?php
+            $robots_content = XAGIO_MODEL_ROBOTS::getEffectiveRobots();
+            $xagio_ai_crawlers = XAGIO_MODEL_ROBOTS::aiCrawlers();
+            $xagio_ai_rules    = XAGIO_MODEL_ROBOTS::getAiRules();
+            ?>
 
+            <form class="robots">
+                <input type="hidden" name="action" value="xagio_robots_save"/>
 
+                <div class="xagio-panel xagio-margin-bottom-medium">
+                    <div class="xagio-flex-space-between">
+                        <h5 class="xagio-panel-title xagio-margin-bottom-remove">Robots.txt Editor</h5>
+                        <a href="<?php echo esc_url(home_url('/robots.txt')); ?>" target="_blank" rel="noopener"
+                           class="xagio-button xagio-button-primary">
+                            <i class="xagio-icon xagio-icon-external-link"></i>
+                            Open /robots.txt
+                        </a>
+                    </div>
+
+                    <div class="xagio-alert xagio-alert-primary m-b-20 xagio-margin-top-medium">
+                        <i class="xagio-icon xagio-icon-info"></i> Edit your site's virtual robots.txt rules below. AI-crawler blocks managed in the panel below are appended automatically.
+                    </div>
+
+                    <textarea name="XAGIO_ROBOTS_TXT_CUSTOM" id="XAGIO_ROBOTS_TXT_CUSTOM" class="xagio-input-textarea" rows="15" spellcheck="false"><?php echo esc_textarea($robots_content); ?></textarea>
+
+                    <div class="xagio-flex-row xagio-margin-top-medium">
+                        <button type="button" class="xagio-button xagio-button-outline robots-reset">
+                            <i class="xagio-icon xagio-icon-refresh"></i>
+                            Reset to Default
+                        </button>
+                        <button type="button" class="xagio-button xagio-button-primary robots-save">
+                            <i class="xagio-icon xagio-icon-check"></i>
+                            Save
+                        </button>
+                    </div>
+                </div>
+
+                <div class="xagio-panel xagio-margin-bottom-medium">
+                    <h5 class="xagio-panel-title">AI Crawlers</h5>
+
+                    <div class="xagio-alert xagio-alert-primary m-b-20">
+                        <i class="xagio-icon xagio-icon-info"></i> Default is <strong>allow</strong> — most sites want AI engines (ChatGPT, Claude, Perplexity, Gemini) to cite their content. Toggle a crawler <strong>off</strong> to write a <code>Disallow: /</code> block for that bot into your robots.txt.
+                    </div>
+
+                    <div class="xagio-3-columns xagio-ai-crawlers-grid">
+                        <?php foreach ($xagio_ai_crawlers as $xagio_ua => $xagio_ua_label):
+                            $xagio_ua_id = 'XAGIO_AI_' . strtoupper(preg_replace('/[^A-Za-z0-9]+/', '_', $xagio_ua));
+                            $xagio_ua_on = ($xagio_ai_rules[$xagio_ua] ?? 'allow') === 'allow';
+                        ?>
+                            <div class="xagio-slider-container">
+                                <input type="hidden"
+                                       name="XAGIO_AI_CRAWLER_RULES[<?php echo esc_attr($xagio_ua); ?>]"
+                                       id="<?php echo esc_attr($xagio_ua_id); ?>"
+                                       value="<?php echo $xagio_ua_on ? 1 : 0; ?>"
+                                       data-ai-crawler="1"/>
+                                <div class="xagio-slider-frame">
+                                    <span class="xagio-slider-button <?php echo $xagio_ua_on ? 'on' : ''; ?>"
+                                          data-element="<?php echo esc_attr($xagio_ua_id); ?>"></span>
+                                </div>
+                                <p class="xagio-slider-label"><?php echo esc_html($xagio_ua_label); ?></p>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
+                <div class="xagio-panel">
+                    <h5 class="xagio-panel-title">CDN / Upstream Diagnostic</h5>
+
+                    <div class="xagio-alert xagio-alert-primary m-b-20">
+                        <i class="xagio-icon xagio-icon-info"></i> Many sites are silently AI-blocked at the CDN layer (e.g. Cloudflare's "Block AI bots"). This check fetches your live <code>/robots.txt</code> and compares with Xagio settings.
+                    </div>
+
+                    <div class="xagio-flex-row xagio-margin-bottom-medium">
+                        <button type="button" class="xagio-button xagio-button-primary" id="xagio-robots-cdn-check">
+                            <i class="xagio-icon xagio-icon-refresh"></i>
+                            Check live robots.txt
+                        </button>
+                    </div>
+
+                    <div id="xagio-robots-cdn-result"></div>
+                </div>
+            </form>
 
         </div>
 

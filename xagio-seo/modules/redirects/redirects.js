@@ -171,8 +171,9 @@ let selected_refs = 0;
                         bSortable: false,
                         bSearchable: true,
                         mRender: function (data, type, row) {
-                            let label = row.old ? '/' + row.old : 'Homepage';
-                            return '<a target="_blank" href="/' + row.old + '">' + label + '</a>';
+                            let clean = row.old ? row.old.replace(/^\/+/, '') : '';
+                            let label = clean ? '/' + clean : 'Homepage';
+                            return '<a target="_blank" href="/' + clean + '">' + label + '</a>';
                         }
                     },
                     {
@@ -181,7 +182,7 @@ let selected_refs = 0;
                         bSortable: false,
                         bSearchable: true,
                         mRender: function (data, type, row) {
-                            let url = row.new.match(/^http/) ? row.new : '/' + row.new;
+                            let url = row.new.match(/^https?:\/\//) ? row.new : '/' + row.new.replace(/^\/+/, '');
                             return '<a target="_blank" href="' + url + '">' + url + '</a>';
                         }
                     },
@@ -346,8 +347,8 @@ let selected_refs = 0;
                 let modal = $("#redirectToModal");
 
                 modal.find('.xagio-modal-title span').text(coldURL);
-                modal.find('#editing-new-url').val(cnewURL).trigger('change');
-                modal.find('#edit_new_url').val(cnewURL ? `/${cnewURL}/` : '');
+                modal.find('#editing-new-url').val(cnewURL ? cnewURL.replace(/^\/+|\/+$/g, '') : '').trigger('change');
+                modal.find('#edit_new_url').val(cnewURL ? `/${cnewURL.replace(/^\/+|\/+$/g, '')}/` : '');
                 modal.find('.submit-edit-url').attr('data-old-url', coldURL).attr('data-id', redirect_id);
 
                 modal[0].showModal();
@@ -364,7 +365,7 @@ let selected_refs = 0;
             $(document).on('change', '#editing-new-url', function (e) {
                 let value = $(this).val();
 
-                $("#redirectToModal").find('#edit_new_url').val(value ? `/${value}/` : '');
+                $("#redirectToModal").find('#edit_new_url').val(value ? `/${value.replace(/^\/+|\/+$/g, '')}/` : '');
             })
 
             $(document).on('change', '#redirect-to-select', function (e) {

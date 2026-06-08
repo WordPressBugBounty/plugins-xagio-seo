@@ -1397,7 +1397,7 @@ let cf_template = cf_templates[cf_default_template].data;
         },
         getXagioLinks       : function () {
             $.post(xagio_data.wp_post, 'action=xagio_get_links', function (d) {
-                if (d !== false) {
+                if (d && d.projectplanner) {
                     let projectplanner_btn = $('.xagio-button-dashboard-link');
                     projectplanner_btn.html(`<i class="xagio-icon xagio-icon-store"></i> ${d.projectplanner.text}`);
                     projectplanner_btn.attr('href', d.projectplanner.url);
@@ -7396,6 +7396,11 @@ let cf_template = cf_templates[cf_default_template].data;
         runAgent            : function () {
             $(document).on('click', '.run_agent', function (e) {
                 e.preventDefault();
+
+                if (!xagio_data.connected) {
+                    xagioNotify('error', 'Your account is not connected to the Xagio panel. Please connect your account before running Agent X.');
+                    return;
+                }
 
                 let ProjectID = $(this).data('id');
 

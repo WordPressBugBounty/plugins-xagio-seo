@@ -96,6 +96,11 @@ if (!class_exists('XAGIO_CORE')) {
         {
             // Update tables
             XAGIO_CORE::loadModels('removeTable');
+
+            // Clean up RingRobin integration options
+            if (class_exists('XAGIO_RINGROBIN')) {
+                XAGIO_RINGROBIN::removeTable();
+            }
         }
 
         // Create Menu Pages

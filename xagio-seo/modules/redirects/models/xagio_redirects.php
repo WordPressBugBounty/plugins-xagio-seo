@@ -127,6 +127,9 @@ if (!class_exists('XAGIO_MODEL_REDIRECTS')) {
             $oldURL = sanitize_text_field(wp_unslash($_POST['oldURL']));
             $newURL = sanitize_text_field(wp_unslash($_POST['newURL']));
 
+            $oldURL = trim($oldURL, '/');
+            $newURL = trim($newURL, '/');
+
             $wpdb->update(
                 'xag_redirects', [
                 'old' => $oldURL,
@@ -216,8 +219,9 @@ if (!class_exists('XAGIO_MODEL_REDIRECTS')) {
             global $wpdb;
 
             // Paging
-            $start  = isset($_POST['iDisplayStart']) ? absint($_POST['iDisplayStart']) : 0;
-            $length = isset($_POST['iDisplayLength']) ? absint($_POST['iDisplayLength']) : 3000;
+            $start      = isset($_POST['iDisplayStart']) ? absint($_POST['iDisplayStart']) : 0;
+            $raw_length = isset($_POST['iDisplayLength']) ? intval($_POST['iDisplayLength']) : 3000;
+            $length     = ($raw_length < 0) ? 3000 : $raw_length;
 
             if ($length < 1) {
                 $length = 3000;

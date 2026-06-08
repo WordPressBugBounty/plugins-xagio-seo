@@ -30,6 +30,13 @@ define('XAGIO_CURRENT_VERSION', $xagio_version['Version']);
 define('XAGIO_DOMAIN', preg_replace('/^www\./', '', wp_parse_url(get_site_url(), PHP_URL_HOST)));
 
 /**
+ * RingRobin API Base URL
+ */
+if (!defined('XAGIO_RINGROBIN_API_BASE')) {
+    define('XAGIO_RINGROBIN_API_BASE', 'https://api.ringrobin.net/v1');
+}
+
+/**
  * Include helpers
  */
 
