@@ -1035,9 +1035,9 @@ if (!function_exists('xagio_get_city_by_code')) {
 if (!function_exists('mb_convert_encoding')) {
     function mb_convert_encoding($string, $to_encoding, $from_encoding = null) {
         if (strtoupper($to_encoding) === 'UTF-8') {
-            return utf8_encode($string);
+            return iconv('ISO-8859-1', 'UTF-8', $string);
         } elseif (strtoupper($from_encoding) === 'UTF-8') {
-            return utf8_decode($string);
+            return iconv('UTF-8', 'ISO-8859-1', $string);
         }
         // You can extend this logic with more encoding cases if needed
         return $string; // fallback

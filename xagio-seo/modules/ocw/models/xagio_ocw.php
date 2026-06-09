@@ -2384,7 +2384,7 @@ if (!class_exists('XAGIO_MODEL_OCW')) {
                 if ($url === '') return '';
 
                 // Keep anchors as-is
-                if ($url === '#' || str_starts_with($url, '#')) return $url;
+                if ($url === '#' || strpos($url, '#') === 0) return $url;
 
                 if (function_exists('wp_make_link_relative')) {
                     $url = wp_make_link_relative($url);

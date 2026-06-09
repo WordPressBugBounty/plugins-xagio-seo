@@ -614,7 +614,7 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
                 $term_meta = map_deep(wp_unslash($_POST['meta']), 'sanitize_text_field');
                 foreach ($term_meta as $xagio_key => $xagio_value) {
-                    if (str_contains($xagio_key, 'XAGIO')) {
+                    if (strpos($xagio_key, 'XAGIO') !== false) {
                         update_term_meta($term_id, $xagio_key, $xagio_value);
                     }
                 }

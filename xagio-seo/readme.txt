@@ -1,10 +1,10 @@
 === Xagio SEO - AI Powered SEO ===
 Contributors: xagio
 Tags: SEO, Schema, XML Sitemap, Google Search Console, Redirection
-Requires at least: 5.4
+Requires at least: 5.6
 Tested up to: 7.0
 Requires PHP: 7.0
-Stable tag: 7.1.0.39
+Stable tag: 7.1.0.40
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -195,6 +195,9 @@ Xagio AI **eliminates complexity**, giving you the **fastest, easiest way to ran
 3. Projects
 
 == Changelog ==
+= 7.1.0.40 =
+* 🐞 Fixed compatibility errors for WordPress Plugin Check (deprecated function calls).
+
 = 7.1.0.39 =
 * ⚙️ Robots.txt feature added in SEO Settings.
 * ⚙️ LLMs.txt feature improvements.
