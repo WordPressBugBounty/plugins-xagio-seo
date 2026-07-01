@@ -47,7 +47,11 @@ if (!class_exists('XAGIO_MODEL_DASHBOARD')) {
             ]);
 
 			if (XAGIO_CONNECTED) {
-		        if (!get_option('XAGIO_ACCOUNT_DETAILS')) {
+		        $account_details = get_option('XAGIO_ACCOUNT_DETAILS');
+		        $has_placeholder = is_array($account_details) &&
+		            (strtolower((string) ($account_details['first_name'] ?? '')) === 'n/a' ||
+		             strtolower((string) ($account_details['last_name']  ?? '')) === 'n/a');
+		        if (!$account_details || $has_placeholder) {
 			        XAGIO_SYNC::getMembershipInfo();
 		        }
 			}

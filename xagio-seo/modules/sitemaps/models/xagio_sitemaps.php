@@ -23,6 +23,9 @@ if (!class_exists('XAGIO_MODEL_SITEMAPS')) {
             if (get_option('XAGIO_ENABLE_SITEMAPS') == true) {
                 add_filter('wp_sitemaps_enabled', '__return_false');
 
+                // Advertise the sitemap via a Link header so header-scanning agents find it without parsing HTML.
+                add_action('send_headers', ['XAGIO_MODEL_SITEMAPS', 'sendSitemapLinkHeader']);
+
                 // Content changes -> invalidate sitemap cache
                 add_action('save_post', ['XAGIO_MODEL_SITEMAPS', 'onSavePostInvalidate'], 20, 3);
                 add_action('transition_post_status', ['XAGIO_MODEL_SITEMAPS', 'onTransitionPostStatusInvalidate'], 10, 3);
@@ -45,6 +48,15 @@ if (!class_exists('XAGIO_MODEL_SITEMAPS')) {
             add_action('admin_post_xagio_sitemaps_settings', ['XAGIO_MODEL_SITEMAPS', 'saveSitemapSettings']);
             add_action('admin_post_xagio_content_settings', ['XAGIO_MODEL_SITEMAPS', 'saveContentSettings']);
             add_action('admin_post_xagio_get_sitemaps', ['XAGIO_MODEL_SITEMAPS', 'getSitemaps']);
+        }
+
+        public static function sendSitemapLinkHeader()
+        {
+            if (is_admin() || is_feed() || is_robots()) return;
+            if (headers_sent()) return;
+
+            $url = esc_url_raw(home_url('/sitemap-xag.xml'));
+            header('Link: <' . $url . '>; rel="sitemap"', false);
         }
 
         public static function invalidateSitemaps()

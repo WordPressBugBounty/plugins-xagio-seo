@@ -21,6 +21,7 @@ if (!class_exists('XAGIO_MODEL_LLMS')) {
             add_action('init', ['XAGIO_MODEL_LLMS', 'addRewrite']);
             add_filter('query_vars', ['XAGIO_MODEL_LLMS', 'registerQueryVar']);
             add_action('template_redirect', ['XAGIO_MODEL_LLMS', 'maybeServeLlms']);
+            add_action('send_headers', ['XAGIO_MODEL_LLMS', 'sendLinkHeader']);
 
             if (!XAGIO_HAS_ADMIN_PERMISSIONS) return;
 
@@ -78,6 +79,22 @@ if (!class_exists('XAGIO_MODEL_LLMS')) {
         {
             $vars[] = self::QUERY_VAR;
             return $vars;
+        }
+
+        public static function sendLinkHeader()
+        {
+            if (is_admin() || is_feed() || is_robots()) return;
+            if (headers_sent()) return;
+            if (get_option(self::OPTION_ENABLED) !== '1') return;
+
+            // Don't advertise llms.txt on the llms.txt response itself.
+            $request_uri = isset($_SERVER['REQUEST_URI'])
+                ? wp_parse_url(wp_unslash($_SERVER['REQUEST_URI']), PHP_URL_PATH)
+                : '';
+            if (is_string($request_uri) && trim($request_uri, '/') === self::FILE_NAME) return;
+
+            $url = esc_url_raw(home_url('/' . self::FILE_NAME));
+            header('Link: <' . $url . '>; rel="describedby"; type="text/markdown"', false);
         }
 
         public static function maybeServeLlms()

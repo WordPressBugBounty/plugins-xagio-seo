@@ -44,6 +44,9 @@ if (!class_exists('XAGIO_SYNC')) {
 
         public static function getMembershipInfo()
         {
+            if (!XAGIO_LICENSE::isLicenseSet()) {
+                return;
+            }
 
             $xagio_http_code = 0;
             $xagio_result    = XAGIO_API::apiRequest(

@@ -257,6 +257,10 @@ if (!class_exists('XAGIO_CORE')) {
         // Create/Modify Tables on new Update
         public static function checkVersion()
         {
+            if (get_transient('xagio_deactivating')) {
+                return;
+            }
+
             $current_version = xagio_get_version();
 
             if (get_option('XAGIO_CURRENT_VERSION') != $current_version) {

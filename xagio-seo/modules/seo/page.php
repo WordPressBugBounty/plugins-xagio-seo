@@ -68,8 +68,9 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
         <li><a href="">Open Graph</a></li>
         <li><a href="">Taxonomies</a></li>
         <li><a href="">Scripts</a></li>
-        <li><a href="">LLMs</a></li>
+        <li><a href="">LLMs.txt</a></li>
         <li><a href="">Robots.txt</a></li>
+        <li><a href="">OKF</a></li>
     </ul>
 
     <div class="xagio-tab-content-holder">
@@ -1471,7 +1472,7 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
             <?php endif; ?>
 
             <form id="xagio-llms-form" class="ts xagio-panel">
-                <h5 class="xagio-panel-title">LLMs</h5>
+                <h5 class="xagio-panel-title">LLMs.txt</h5>
 
                 <div class="xagio-alert xagio-alert-primary m-b-20">
                     <i class="xagio-icon xagio-icon-info"></i>
@@ -1592,6 +1593,13 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
             $robots_content = XAGIO_MODEL_ROBOTS::getEffectiveRobots();
             $xagio_ai_crawlers = XAGIO_MODEL_ROBOTS::aiCrawlers();
             $xagio_ai_rules    = XAGIO_MODEL_ROBOTS::getAiRules();
+            $xagio_cs_keys     = XAGIO_MODEL_ROBOTS::contentSignalKeys();
+            $xagio_cs          = XAGIO_MODEL_ROBOTS::getContentSignal();
+            $xagio_cs_ids      = [
+                'search'   => 'XAGIO_CS_SEARCH',
+                'ai-input' => 'XAGIO_CS_AI_INPUT',
+                'ai-train' => 'XAGIO_CS_AI_TRAIN',
+            ];
             ?>
 
             <form class="robots">
@@ -1629,7 +1637,7 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                     <h5 class="xagio-panel-title">AI Crawlers</h5>
 
                     <div class="xagio-alert xagio-alert-primary m-b-20">
-                        <i class="xagio-icon xagio-icon-info"></i> Default is <strong>allow</strong> — most sites want AI engines (ChatGPT, Claude, Perplexity, Gemini) to cite their content. Toggle a crawler <strong>off</strong> to write a <code>Disallow: /</code> block for that bot into your robots.txt.
+                        <i class="xagio-icon xagio-icon-info"></i> Default is allow - most sites want AI engines (ChatGPT, Claude, Perplexity, Gemini) to cite their content. Toggle a crawler <strong>off</strong> to write a <code>Disallow: /</code> block for that bot into your robots.txt.
                     </div>
 
                     <div class="xagio-3-columns xagio-ai-crawlers-grid">
@@ -1653,6 +1661,57 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                     </div>
                 </div>
 
+                <div class="xagio-panel xagio-margin-bottom-medium">
+                    <h5 class="xagio-panel-title">Content Signal</h5>
+
+                    <div class="xagio-alert xagio-alert-primary m-b-20">
+                        <i class="xagio-icon xagio-icon-info"></i> The <a href="https://contentsignals.org" target="_blank" rel="noopener noreferrer"><code>Content-Signal</code></a> directive (Cloudflare-backed) lets you say <strong>how</strong> AI may use content it's allowed to read - separately from whether it can crawl. Most publishers allow search and citation but opt out of model training.
+                    </div>
+
+                    <div class="xagio-slider-container xagio-margin-bottom-medium">
+                        <input type="hidden" name="<?php echo esc_attr(XAGIO_MODEL_ROBOTS::OPTION_CS_ENABLED); ?>"
+                               id="<?php echo esc_attr(XAGIO_MODEL_ROBOTS::OPTION_CS_ENABLED); ?>"
+                               value="<?php echo $xagio_cs['enabled'] === '1' ? 1 : 0; ?>"/>
+                        <div class="xagio-slider-frame">
+                            <span class="xagio-slider-button <?php echo $xagio_cs['enabled'] === '1' ? 'on' : ''; ?>"
+                                  data-element="<?php echo esc_attr(XAGIO_MODEL_ROBOTS::OPTION_CS_ENABLED); ?>"></span>
+                        </div>
+                        <p class="xagio-slider-label">Add Content-Signal to robots.txt
+                            <i class="xagio-icon xagio-icon-info"
+                               data-xagio-tooltip data-xagio-title="When enabled, a single Content-Signal line is written into your robots.txt User-agent: * group."></i>
+                        </p>
+                    </div>
+
+                    <div class="xagio-3-columns xagio-content-signal-grid">
+                        <?php
+                        $xagio_cs_help = [
+                            'search'   => 'Allow appearing in AI-powered search results and being linked.',
+                            'ai-input' => 'Allow your content to be used as input/grounding for AI answers (with citation).',
+                            'ai-train' => 'Allow your content to be used to train AI models. Most publishers turn this OFF.',
+                        ];
+                        foreach ($xagio_cs_keys as $xagio_cs_key => $xagio_cs_label):
+                            $xagio_cs_id = $xagio_cs_ids[$xagio_cs_key] ?? ('XAGIO_CS_' . strtoupper(preg_replace('/[^A-Za-z0-9]+/', '_', $xagio_cs_key)));
+                            $xagio_cs_on = (($xagio_cs['signals'][$xagio_cs_key] ?? 'no') === 'yes');
+                        ?>
+                            <div class="xagio-slider-container">
+                                <input type="hidden"
+                                       name="<?php echo esc_attr(XAGIO_MODEL_ROBOTS::OPTION_CS_SIGNALS); ?>[<?php echo esc_attr($xagio_cs_key); ?>]"
+                                       id="<?php echo esc_attr($xagio_cs_id); ?>"
+                                       value="<?php echo $xagio_cs_on ? 1 : 0; ?>"
+                                       data-content-signal="1"/>
+                                <div class="xagio-slider-frame">
+                                    <span class="xagio-slider-button <?php echo $xagio_cs_on ? 'on' : ''; ?>"
+                                          data-element="<?php echo esc_attr($xagio_cs_id); ?>"></span>
+                                </div>
+                                <p class="xagio-slider-label"><?php echo esc_html($xagio_cs_label); ?>
+                                    <i class="xagio-icon xagio-icon-info"
+                                       data-xagio-tooltip data-xagio-title="<?php echo esc_attr($xagio_cs_help[$xagio_cs_key] ?? ''); ?>"></i>
+                                </p>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+
                 <div class="xagio-panel">
                     <h5 class="xagio-panel-title">CDN / Upstream Diagnostic</h5>
 
@@ -1668,6 +1727,102 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                     </div>
 
                     <div id="xagio-robots-cdn-result"></div>
+                </div>
+            </form>
+
+        </div>
+
+        <!-- OKF -->
+        <div class="xagio-tab-content">
+
+            <?php
+            $xagio_okf_enabled        = (string) get_option('XAGIO_OKF_ENABLED', '0');
+            $xagio_okf_post_types     = (array)  get_option('XAGIO_OKF_POST_TYPES', ['page' => 1, 'post' => 1]);
+            $xagio_okf_bundle         = get_option('XAGIO_OKF_BUNDLE');
+            $xagio_okf_count          = (is_array($xagio_okf_bundle) && isset($xagio_okf_bundle['files'])) ? count($xagio_okf_bundle['files']) : 0;
+            $xagio_okf_built          = (is_array($xagio_okf_bundle) && !empty($xagio_okf_bundle['built'])) ? date_i18n('Y-m-d H:i', (int) $xagio_okf_bundle['built']) : '';
+            $xagio_okf_post_type_list = function_exists('get_post_types') ? array_values(array_unique(array_merge(['page', 'post'], get_post_types(['public' => true, '_builtin' => false], 'names')))) : ['page', 'post'];
+            ?>
+
+            <form id="xagio-okf-form" class="ts xagio-panel">
+                <h5 class="xagio-panel-title">OKF (Open Knowledge Format)</h5>
+
+                <div class="xagio-alert xagio-alert-primary m-b-20">
+                    <i class="xagio-icon xagio-icon-info"></i>
+                    <kbd>OKF</kbd> publishes each page as clean Markdown under <code>/okf/</code> with a per-page link graph, so AI engines can read your content directly instead of parsing HTML. The index lives at <code>/okf/</code> and each page at <code>/okf/&lt;slug&gt;.md</code>. Up to 1,000 most-recent published items are included.
+                </div>
+
+                <input type="hidden" name="action" value="xagio_okf_save"/>
+
+                <div class="xagio-2-column-grid xagio-gap-large xagio-margin-bottom-large">
+                    <div class="xagio-column">
+                        <div class="xagio-margin-bottom-medium">
+                            <h5 class="xagio-panel-title">General</h5>
+
+                            <div class="xagio-slider-container">
+                                <input type="hidden" name="XAGIO_OKF_ENABLED" id="XAGIO_OKF_ENABLED"
+                                       value="<?php echo $xagio_okf_enabled === '1' ? 1 : 0; ?>"/>
+                                <div class="xagio-slider-frame">
+                                    <span class="xagio-slider-button <?php echo $xagio_okf_enabled === '1' ? 'on' : ''; ?>"
+                                          data-element="XAGIO_OKF_ENABLED"></span>
+                                </div>
+                                <p class="xagio-slider-label">Enable <code>/okf/</code>
+                                    <i class="xagio-icon xagio-icon-info help-icon" data-xagio-tooltip
+                                       data-xagio-title="When enabled, Xagio serves the OKF Markdown bundle at /okf/ and rebuilds it automatically when content changes."></i>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h5 class="xagio-panel-title">Included post types</h5>
+                            <p class="xagio-gray-label">Pick which post types Xagio renders into the OKF bundle. Each page uses its Xagio SEO title and description (or excerpt fallback).</p>
+
+                            <div class="xagio-3-columns xagio-margin-top-small xagio-okf-post-types">
+                                <?php foreach ($xagio_okf_post_type_list as $xagio_okf_pt):
+                                    $xagio_okf_pt_on = !empty($xagio_okf_post_types[$xagio_okf_pt]); ?>
+                                    <div class="xagio-slider-container">
+                                        <input type="hidden"
+                                               name="XAGIO_OKF_POST_TYPES[<?php echo esc_attr($xagio_okf_pt); ?>]"
+                                               id="XAGIO_OKF_PT_<?php echo esc_attr(strtoupper($xagio_okf_pt)); ?>"
+                                               value="<?php echo $xagio_okf_pt_on ? 1 : 0; ?>"/>
+                                        <div class="xagio-slider-frame">
+                                            <span class="xagio-slider-button <?php echo $xagio_okf_pt_on ? 'on' : ''; ?>"
+                                                  data-element="XAGIO_OKF_PT_<?php echo esc_attr(strtoupper($xagio_okf_pt)); ?>"></span>
+                                        </div>
+                                        <p class="xagio-slider-label"><?php echo esc_html(ucfirst($xagio_okf_pt)); ?></p>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="xagio-column">
+                        <div>
+                            <h5 class="xagio-panel-title">Bundle status</h5>
+                            <p class="xagio-gray-label">
+                                Documents in bundle: <strong id="xagio-okf-count"><?php echo esc_html($xagio_okf_count); ?></strong><br/>
+                                Last built: <strong id="xagio-okf-built"><?php echo $xagio_okf_built !== '' ? esc_html($xagio_okf_built) : '&mdash;'; ?></strong>
+                            </p>
+                            <div class="xagio-flex xagio-flex-gap-medium xagio-margin-top-small">
+                                <a href="<?php echo esc_url(home_url('/okf/')); ?>" target="_blank" rel="noopener"
+                                   class="xagio-button xagio-button-primary">
+                                    <i class="xagio-icon xagio-icon-external-link"></i> Open /okf/
+                                </a>
+                                <button type="button" class="xagio-button xagio-button-outline okf-rebuild">
+                                    <i class="xagio-icon xagio-icon-refresh"></i> Rebuild now
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="xagio-flex-row xagio-flex-gap-medium xagio-margin-top-medium">
+                    <button type="button" class="xagio-button xagio-button-outline okf-reset">
+                        <i class="xagio-icon xagio-icon-refresh"></i> Reset to Default
+                    </button>
+                    <button type="button" class="xagio-button xagio-button-primary okf-save">
+                        <i class="xagio-icon xagio-icon-check"></i> Save
+                    </button>
                 </div>
             </form>
 

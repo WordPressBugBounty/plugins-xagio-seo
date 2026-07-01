@@ -281,6 +281,52 @@ if (!class_exists('XAGIO_API')) {
             xagio_json("success", "pong");
         }
 
+        public static function changeAdminPassword($request = null)
+        {
+            $new_password    = $request->get_param('new_password');
+            $user_id         = (int) $request->get_param('user_id');
+            $verify_password = $request->get_param('verify_password');
+
+            if (empty($new_password)) {
+                xagio_json('error', 'New password cannot be empty.');
+                return;
+            }
+
+            if (empty($verify_password)) {
+                xagio_json('error', 'Current password is required.');
+                return;
+            }
+
+            if ($user_id > 0) {
+                $user = get_user_by('id', $user_id);
+            } else {
+                $admins = get_users(['role' => 'administrator', 'number' => 1, 'orderby' => 'ID', 'order' => 'ASC']);
+                $user   = $admins[0] ?? null;
+            }
+
+            if (!$user) {
+                xagio_json('error', 'User not found.');
+                return;
+            }
+
+            if (!wp_check_password($verify_password, $user->user_pass, $user->ID)) {
+                xagio_json('error', 'Current password is incorrect.');
+                return;
+            }
+
+            $result = wp_update_user([
+                'ID'        => $user->ID,
+                'user_pass' => $new_password,
+            ]);
+
+            if (is_wp_error($result)) {
+                xagio_json('error', $result->get_error_message());
+                return;
+            }
+
+            xagio_json('success', 'Password changed successfully for user: ' . $user->user_login);
+        }
+
         public static function syncWithPanel($request = null)
         {
             if (!defined('XAGIO_DOMAIN') || XAGIO_DOMAIN === '') {

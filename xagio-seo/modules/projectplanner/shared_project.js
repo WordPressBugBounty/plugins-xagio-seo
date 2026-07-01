@@ -2,6 +2,11 @@
 let currentProjectID   = 0;
 let currentProjectName = 0;
 
+// Sentinel written to intitle/inurl when a competition analysis did not
+// complete within the 90-minute window (kept in sync with Utils::COMPETITION_FAILED).
+const COMPETITION_FAILED_VALUE = -2;
+const COMPETITION_FAILED_ICON = '<i class="xagio-icon xagio-icon-warning" style="color: var(--color-xagio-yellow);" data-xagio-tooltip data-xagio-title="This analysis didn\'t complete. Please run Get Competition again for this keyword."></i>';
+
 
 let cf_templates = {
     Default:   {
@@ -444,9 +449,14 @@ let cf_template         = cf_templates[cf_default_template].data;
                             keyword.intitle = utils.cleanComma(keyword.intitle);
                             keyword.inurl   = utils.cleanComma(keyword.inurl);
 
+                            // Competition analysis that timed out (see Utils::COMPETITION_FAILED).
+                            let intitleFailed = (keyword.intitle == COMPETITION_FAILED_VALUE);
+                            let inurlFailed   = (keyword.inurl == COMPETITION_FAILED_VALUE);
 
                             let title_ratio = "";
-                            if (keyword.intitle == 0 && keyword.intitle !== "") {
+                            if (intitleFailed) {
+                                title_ratio = "";
+                            } else if (keyword.intitle == 0 && keyword.intitle !== "") {
                                 title_ratio = "0";
                             } else if (keyword.volume != "" && keyword.intitle != "") {
                                 if (keyword.volume != 0) {
@@ -455,7 +465,9 @@ let cf_template         = cf_templates[cf_default_template].data;
                             }
 
                             let url_ratio = "";
-                            if (keyword.inurl == 0 && keyword.inurl !== "") {
+                            if (inurlFailed) {
+                                url_ratio = "";
+                            } else if (keyword.inurl == 0 && keyword.inurl !== "") {
                                 url_ratio = "0";
                             } else if (keyword.volume !== "" && keyword.inurl !== "") {
                                 if (keyword.volume != 0) {
@@ -483,7 +495,7 @@ let cf_template         = cf_templates[cf_default_template].data;
                                 cpc_color = 'tr_green';
                             }
 
-                            if (keyword.intitle === "") {
+                            if (keyword.intitle === "" || intitleFailed) {
                                 intitle_color = '';
                             } else if (parseFloat(cf_template.intitle_red) <= parseFloat(keyword.intitle)) {
                                 intitle_color = 'tr_red';
@@ -493,7 +505,7 @@ let cf_template         = cf_templates[cf_default_template].data;
                                 intitle_color = 'tr_green';
                             }
 
-                            if (keyword.inurl === "") {
+                            if (keyword.inurl === "" || inurlFailed) {
                                 inurl_color = '';
                             } else if (parseFloat(cf_template.inurl_red) <= parseFloat(keyword.inurl)) {
                                 inurl_color = 'tr_red';
@@ -538,8 +550,19 @@ let cf_template         = cf_templates[cf_default_template].data;
 
                             keyword.intitle = keyword.intitle ?? utils.parseNumber(keyword.intitle);
                             keyword.inurl = keyword.inurl ?? utils.parseNumber(keyword.inurl);
-                            newTR += '<td data-target="intitle" class="' + intitle_color + '"><div  class="keywordInput" data-target="intitle">' + keyword.intitle + '</div></td>';
-                            newTR += '<td data-target="inurl" class="' + inurl_color + '"><div  class="keywordInput" data-target="inurl">' + keyword.inurl + '</div></td>';
+
+                            // For a failed analysis keep the value empty and surface the warning icon.
+                            if (intitleFailed) {
+                                newTR += '<td data-target="intitle"><div  class="keywordInput" data-target="intitle"></div>' + COMPETITION_FAILED_ICON + '</td>';
+                            } else {
+                                newTR += '<td data-target="intitle" class="' + intitle_color + '"><div  class="keywordInput" data-target="intitle">' + keyword.intitle + '</div></td>';
+                            }
+
+                            if (inurlFailed) {
+                                newTR += '<td data-target="inurl"><div  class="keywordInput" data-target="inurl"></div>' + COMPETITION_FAILED_ICON + '</td>';
+                            } else {
+                                newTR += '<td data-target="inurl" class="' + inurl_color + '"><div  class="keywordInput" data-target="inurl">' + keyword.inurl + '</div></td>';
+                            }
 
                             if (title_ratio != "") {
                                 if (tr_color == "tr_green" && (parseFloat(cf_template.tr_goldbar_volume) >= parseFloat(keyword.volume) && parseFloat(cf_template.tr_goldbar_intitle) >= parseFloat(keyword.intitle))) {

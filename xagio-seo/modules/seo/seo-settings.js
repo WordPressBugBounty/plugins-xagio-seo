@@ -448,6 +448,93 @@
     };
 
 
+    let okf = {
+        init: function () {
+            if (!$('#xagio-okf-form').length) return;
+            okf.bindSave();
+            okf.bindReset();
+            okf.bindRebuild();
+        },
+
+        updateState: function (data) {
+            if (data && typeof data === 'object') {
+                if (typeof data.count !== 'undefined') $('#xagio-okf-count').text(data.count);
+                if (data.built_human) $('#xagio-okf-built').text(data.built_human);
+            }
+        },
+
+        bindSave: function () {
+            $(document).on('click', '.okf-save', function () {
+                let btn = $(this);
+                btn.disable('Saving...');
+                $.post(xagio_data.wp_post, $('#xagio-okf-form').serialize(), function (response) {
+                    btn.disable();
+                    if (response && response.status === 'success') {
+                        okf.updateState(response.data);
+                    }
+                    xagioNotify(response && response.status ? response.status : 'danger', response && response.message ? response.message : 'Failed to save.');
+                }).fail(function () {
+                    btn.disable();
+                    xagioNotify('danger', 'Request failed.');
+                });
+            });
+        },
+
+        bindRebuild: function () {
+            $(document).on('click', '.okf-rebuild', function () {
+                let btn = $(this);
+                btn.disable('Rebuilding...');
+                $.post(xagio_data.wp_post, { action: 'xagio_okf_save', mode: 'rebuild' }, function (response) {
+                    btn.disable();
+                    if (response && response.status === 'success') {
+                        okf.updateState(response.data);
+                    }
+                    xagioNotify(response && response.status ? response.status : 'danger', response && response.message ? response.message : 'Failed to rebuild.');
+                }).fail(function () {
+                    btn.disable();
+                    xagioNotify('danger', 'Request failed.');
+                });
+            });
+        },
+
+        bindReset: function () {
+            $(document).on('click', '.okf-reset', function () {
+                xagioModal('Reset to Default', 'Are you sure you want to reset OKF settings to default? This disables /okf/ and restores the default post types.', function (confirmed) {
+
+                    if (!confirmed) return;
+
+                    $.post(xagio_data.wp_post, { action: 'xagio_okf_save', mode: 'reset' }, function (response) {
+
+                        if (response && response.status === 'success') {
+                            okf.updateState(response.data);
+                            $('#XAGIO_OKF_ENABLED').val(0);
+                            $('.xagio-slider-button[data-element="XAGIO_OKF_ENABLED"]').removeClass('on');
+
+                            $('input[name^="XAGIO_OKF_POST_TYPES["]').each(function () {
+                                let $input = $(this);
+                                let name = $input.attr('name') || '';
+                                let match = name.match(/\[([^\]]+)\]/);
+                                let pt = match ? match[1] : '';
+                                let on = (pt === 'page' || pt === 'post');
+                                $input.val(on ? 1 : 0);
+                                let $slider = $('.xagio-slider-button[data-element="' + $input.attr('id') + '"]');
+                                if (on) {
+                                    $slider.addClass('on');
+                                } else {
+                                    $slider.removeClass('on');
+                                }
+                            });
+                        }
+                        xagioNotify(response && response.status ? response.status : 'danger', response && response.message ? response.message : 'Failed to reset.');
+                    }).fail(function () {
+                        xagioNotify('danger', 'Request failed.');
+                    });
+                });
+            });
+        }
+    };
+
+
     let robots = {
         previewTimer: null,
         previewInFlight: false,
@@ -463,7 +550,9 @@
             $(document).on('click', '.robots .xagio-slider-button', function () {
                 let $btn = $(this);
                 let id = $btn.attr('data-element') || '';
-                if (id.indexOf('XAGIO_AI_') !== 0) return;
+                let isAi = id.indexOf('XAGIO_AI_') === 0;
+                let isCs = id.indexOf('XAGIO_CS_') === 0 || id === 'XAGIO_CONTENT_SIGNAL_ENABLED';
+                if (!isAi && !isCs) return;
                 setTimeout(robots.schedulePreview, 10);
             });
         },
@@ -525,6 +614,18 @@
                                 $(this).val(1);
                                 let $slider = $('.xagio-slider-button[data-element="' + $(this).attr('id') + '"]');
                                 $slider.addClass('on');
+                            });
+                            // Content Signal back to defaults: disabled, search=yes, ai-input=yes, ai-train=no.
+                            let csReset = {
+                                'XAGIO_CONTENT_SIGNAL_ENABLED': 0,
+                                'XAGIO_CS_SEARCH': 1,
+                                'XAGIO_CS_AI_INPUT': 1,
+                                'XAGIO_CS_AI_TRAIN': 0
+                            };
+                            $.each(csReset, function (id, val) {
+                                $('#' + id).val(val);
+                                let $slider = $('.xagio-slider-button[data-element="' + id + '"]');
+                                if (val) { $slider.addClass('on'); } else { $slider.removeClass('on'); }
                             });
                         }
                         xagioNotify(response.status, response.message);
@@ -631,6 +732,7 @@
         profiles.init();
         llms.init();
         robots.init();
+        okf.init();
 
     });
 

@@ -8,6 +8,11 @@ let NICHE_HUNTER_COST = "";
 let COMPETITION_COST = "";
 let nicheCompetitionBatchCron;
 
+// Sentinel written to intitle/inurl when a competition analysis did not
+// complete within the 90-minute window (kept in sync with Utils::COMPETITION_FAILED).
+const COMPETITION_FAILED_VALUE = -2;
+const COMPETITION_FAILED_ICON = '<i class="xagio-icon xagio-icon-warning" style="color: var(--color-xagio-yellow);" data-xagio-tooltip data-xagio-title="This analysis didn\'t complete. Please run Get Competition again for this keyword."></i>';
+
 let cf_templates = {
     Default  : {
         name: "Default",
@@ -994,6 +999,9 @@ let cf_template = cf_templates[cf_default_template].data;
                         "bSortable": true,
                         "mRender": function (data, type, row) {
                             if (row.status === 'completed' && row.intitle != null) {
+                                if (row.intitle == COMPETITION_FAILED_VALUE) {
+                                    return COMPETITION_FAILED_ICON;
+                                }
                                 return row.intitle;
                             } else if (row.status === 'queued') {
                                 return `<i class="xagio-icon xagio-icon-sync xagio-icon-spin" data-xagio-tooltip data-xagio-title="This value is currently under analysis. Please check back later to see the results."></i>`
@@ -1007,6 +1015,9 @@ let cf_template = cf_templates[cf_default_template].data;
                         "bSortable": true,
                         "mRender": function (data, type, row) {
                             if (row.status === 'completed' && row.inurl != null) {
+                                if (row.inurl == COMPETITION_FAILED_VALUE) {
+                                    return COMPETITION_FAILED_ICON;
+                                }
                                 return row.inurl;
                             } else if (row.status === 'queued') {
                                 return `<i class="xagio-icon xagio-icon-sync xagio-icon-spin" data-xagio-tooltip data-xagio-title="This value is currently under analysis. Please check back later to see the results."></i>`
@@ -1024,6 +1035,10 @@ let cf_template = cf_templates[cf_default_template].data;
                                 let inTitle = row.intitle;
                                 let searchVol = row.search_volume;
                                 let title_ratio = "";
+
+                                if (row.status === 'completed' && inTitle == COMPETITION_FAILED_VALUE) {
+                                    return '-';
+                                }
 
                                 if (row.status === 'completed' && inTitle != null) {
                                     if (inTitle == 0 && inTitle !== "") {
@@ -1088,6 +1103,10 @@ let cf_template = cf_templates[cf_default_template].data;
                                 let inURL = row.inurl;
                                 let searchVol = row.search_volume;
                                 let url_ratio = "";
+
+                                if (row.status === 'completed' && inURL == COMPETITION_FAILED_VALUE) {
+                                    return '-';
+                                }
 
                                 if (row.status === 'completed' && inURL != null) {
                                     if (inURL == 0 && inURL !== "") {
