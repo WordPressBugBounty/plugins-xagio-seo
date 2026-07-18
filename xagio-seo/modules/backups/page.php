@@ -9,7 +9,7 @@
  * Icon: /assets/img/logo-menu-xagio.webp
  * JavaScript: xagio_backup
  * Css: xagio_backup
- * Position: 11
+ * Position: 12
  * Version: 1.0.0
  */
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly

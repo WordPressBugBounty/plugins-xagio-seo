@@ -179,6 +179,45 @@ if (!class_exists('XAGIO_MODEL_ROBOTS')) {
             return rtrim(substr($content, 0, $pos));
         }
 
+        /**
+         * Remove the managed discovery comment lines (LLM guide + OKF bundle) from robots
+         * content. These are Xagio-managed, so they must never be persisted as user content
+         * or they'd linger after a feature is disabled.
+         */
+        private static function stripDiscoveryComments($content)
+        {
+            if (!is_string($content) || $content === '') return $content;
+
+            $content = preg_replace('~^[ \t]*#[ \t]*LLM knowledge map:.*$~mi', '', $content);
+            $content = preg_replace('~^[ \t]*#[ \t]*Open Knowledge Format:.*$~mi', '', $content);
+            $content = preg_replace("/\n{3,}/", "\n\n", $content);
+
+            return $content;
+        }
+
+        /**
+         * Append informational (comment-only) discovery lines for the LLM guide and the
+         * Open Knowledge Format bundle when those features are enabled. These are comments,
+         * not crawl directives — they just advertise the resources to anyone reading robots.txt.
+         * Strips any prior managed lines first, so disabling a feature drops its line and we
+         * never duplicate.
+         */
+        private static function appendDiscoveryComments($output)
+        {
+            $output = self::stripDiscoveryComments($output);
+
+            $comments = [];
+            if (get_option('XAGIO_LLMS_ENABLED') === '1') {
+                $comments[] = '# LLM knowledge map: ' . esc_url(home_url('/llms.txt'));
+            }
+            if (get_option('XAGIO_OKF_ENABLED') === '1') {
+                $comments[] = '# Open Knowledge Format: ' . esc_url(home_url('/okf/'));
+            }
+            if (empty($comments)) return rtrim($output) . "\n";
+
+            return rtrim($output) . "\n\n" . implode("\n", $comments) . "\n";
+        }
+
         public static function fixRobotsTxt($output, $public)
         {
             if (!$public) return $output;
@@ -199,6 +238,8 @@ if (!class_exists('XAGIO_MODEL_ROBOTS')) {
                     $output = rtrim($output) . "\n\nSitemap: " . esc_url($sitemap) . "\n";
                 }
             }
+
+            $output = self::appendDiscoveryComments($output);
 
             $ai_blocks = self::buildAiBlocks();
             if ($ai_blocks !== '') {
@@ -239,6 +280,7 @@ if (!class_exists('XAGIO_MODEL_ROBOTS')) {
                 $content = sanitize_textarea_field(wp_unslash($_POST['XAGIO_ROBOTS_TXT_CUSTOM']));
                 $content = self::stripManagedAiBlocks($content);
                 $content = self::stripContentSignal($content);
+                $content = self::stripDiscoveryComments($content);
                 update_option('XAGIO_ROBOTS_TXT_CUSTOM', $content);
             }
 
@@ -309,6 +351,8 @@ if (!class_exists('XAGIO_MODEL_ROBOTS')) {
                     $output = rtrim($output) . "\n\nSitemap: " . esc_url($sitemap) . "\n";
                 }
             }
+
+            $output = self::appendDiscoveryComments($output);
 
             $posted_rules = [];
             if (isset($post[self::OPTION_AI_RULES]) && is_array($post[self::OPTION_AI_RULES])) {

@@ -9,13 +9,43 @@
  * Icon: /assets/img/logo-menu-xagio.webp
  * JavaScript: xagio_tagsinput,xagio_sitemaps
  * Css: xagio_animate,xagio_sitemaps
- * Position: 6
+ * Position: 7
  * Version: 1.0.0
  */
 if (!defined('ABSPATH'))
     exit; // Exit if accessed directly
 
 $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
+
+// /sitemap.xml root-claim state (refresh detection at most twice a day).
+$XAGIO_CLAIM_ROOT  = (get_option('XAGIO_SITEMAP_CLAIM_ROOT') === '1');
+$XAGIO_ROOT_STATUS = false;
+if (defined('XAGIO_ENABLE_SITEMAPS') && XAGIO_ENABLE_SITEMAPS) {
+    $XAGIO_ROOT_STATUS = XAGIO_MODEL_SITEMAPS::maybeProbeRootSitemap();
+}
+
+// Live signals (named plugin + plugin-agnostic rewrite scan) plus the cached probe
+// result decide the "foreign owner" state — so ANY SEO plugin is detected, not just
+// the named few.
+$xagio_active = (defined('XAGIO_ENABLE_SITEMAPS') && XAGIO_ENABLE_SITEMAPS);
+// These are cheap, synchronous signals — compute them even when sitemaps are disabled so
+// the Crawler Compatibility panel (always visible) is accurate the moment the user enables
+// sitemaps and the JS un-greys its toggle. Only the HTTP probe stays gated.
+$xagio_known_plugin = XAGIO_MODEL_SITEMAPS::knownSitemapPluginActive();
+$xagio_foreign_rewrite = XAGIO_MODEL_SITEMAPS::foreignSitemapRewrite();
+$XAGIO_ROOT_FOREIGN = ($xagio_known_plugin !== '')
+    || $xagio_foreign_rewrite
+    || (is_array($XAGIO_ROOT_STATUS) && ($XAGIO_ROOT_STATUS['owner'] ?? '') === 'foreign');
+$XAGIO_ROOT_PLUGIN = $xagio_known_plugin !== ''
+    ? $xagio_known_plugin
+    : ((is_array($XAGIO_ROOT_STATUS) && !empty($XAGIO_ROOT_STATUS['plugin'])) ? $XAGIO_ROOT_STATUS['plugin'] : 'another plugin');
+
+// Two state-accurate hints. The JS toggle swaps between them instantly; PHP picks the
+// correct one on load. "On" = Xagio claims /sitemap.xml; "Off" depends on who owns it.
+$XAGIO_HINT_ON  = 'Xagio is the primary /sitemap.xml — crawlers requesting it are redirected (301) to your Xagio sitemap index.';
+$XAGIO_HINT_OFF = $XAGIO_ROOT_FOREIGN
+    ? 'Another sitemap (' . $XAGIO_ROOT_PLUGIN . ') currently controls /sitemap.xml. Turn this on to make Xagio the primary sitemap instead.'
+    : 'No other plugin owns /sitemap.xml, so Xagio already redirects it to your sitemap index automatically.';
 ?>
 <div class="xagio-main-header xagio-main-header-big-gaps">
     <img class="logo-image repo-xagio" src="<?php echo esc_url(XAGIO_URL); ?>assets/img/logo-xagio.webp"/>
@@ -118,6 +148,46 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                     </div>
                 </div>
             </form>
+
+            <div class="xagio-panel xagio-margin-top-medium claim-root">
+                <h5 class="xagio-panel-title">Crawler Compatibility</h5>
+
+                <?php if ($XAGIO_ROOT_FOREIGN): ?>
+                    <div id="xagio-root-foreign-alert" class="xagio-alert xagio-alert-danger xagio-margin-bottom-medium"
+                         style="<?php echo ($xagio_active && !$XAGIO_CLAIM_ROOT) ? '' : 'display:none;'; ?>">
+                        Xagio detected an existing sitemap at <code>/sitemap.xml</code> (controlled by <?php echo esc_html($XAGIO_ROOT_PLUGIN); ?>).
+                        Your Xagio sitemap remains available at
+                        <a href="<?php echo esc_url(home_url('/sitemap-xag.xml')); ?>" target="_blank"><code><?php echo esc_html(home_url('/sitemap-xag.xml')); ?></code></a>
+                        and has been declared in robots.txt. You may optionally make Xagio the primary sitemap using the toggle below.
+                    </div>
+                <?php endif; ?>
+
+                <div class="xagio-slider-container claim-root-toggle" style="<?php echo $xagio_active ? '' : 'opacity:0.5;pointer-events:none;'; ?>">
+                    <input type="hidden" name="XAGIO_SITEMAP_CLAIM_ROOT" id="XAGIO_SITEMAP_CLAIM_ROOT"
+                           value="<?php echo $XAGIO_CLAIM_ROOT ? 1 : 0; ?>"/>
+                    <div class="xagio-slider-frame">
+                        <span class="xagio-slider-button <?php echo $XAGIO_CLAIM_ROOT ? 'on' : ''; ?>"
+                              data-element="XAGIO_SITEMAP_CLAIM_ROOT"></span>
+                    </div>
+                    <p class="xagio-slider-label">Make Xagio the primary /sitemap.xml
+                        <i class="xagio-icon xagio-icon-info" data-xagio-tooltip
+                           data-xagio-title="Most crawlers look for /sitemap.xml. This 301-redirects it to your Xagio sitemap index. When off, Xagio only claims /sitemap.xml if no other plugin owns it. Turn on to take over the endpoint even if another SEO plugin currently controls it."></i>
+                    </p>
+                </div>
+
+                <p id="xagio-root-hint-disabled" class="xagio-margin-top-small xagio-margin-bottom-remove"
+                   style="<?php echo $xagio_active ? 'display:none;' : ''; ?>">
+                    Enable sitemaps above to control the <code>/sitemap.xml</code> endpoint.
+                </p>
+                <p id="xagio-root-hint-on" class="xagio-margin-top-small xagio-margin-bottom-remove"
+                   style="<?php echo ($xagio_active && $XAGIO_CLAIM_ROOT) ? '' : 'display:none;'; ?>">
+                    <?php echo esc_html($XAGIO_HINT_ON); ?>
+                </p>
+                <p id="xagio-root-hint-off" class="xagio-margin-top-small xagio-margin-bottom-remove"
+                   style="<?php echo ($xagio_active && !$XAGIO_CLAIM_ROOT) ? '' : 'display:none;'; ?>">
+                    <?php echo esc_html($XAGIO_HINT_OFF); ?>
+                </p>
+            </div>
 
         </div>
 

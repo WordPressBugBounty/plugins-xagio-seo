@@ -1,40 +1,51 @@
-=== Xagio SEO - AI Powered SEO ===
+=== Xagio SEO & AEO - AI SEO for Google Rankings & AI Visibility ===
 Contributors: xagio
-Tags: SEO, Schema, XML Sitemap, Google Search Console, Redirection
+Tags: seo, ai seo, aeo, schema, rank tracker
 Requires at least: 5.6
 Tested up to: 7.0
 Requires PHP: 7.0
-Stable tag: 7.1.0.41
+Stable tag: 7.1.0.42
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Xagio is the only WordPress SEO plugin built with AI to help you rank fast, rank higher, and optimize for SEO using advanced AI for insane SEO results.
+AI powered meta, clustering, content, schema & rank tracking, plus an AI website builder - the AI SEO weapon most WordPress users haven't found yet.
 
 == Description ==
-### Xagio SEO takes an entirely new approach to SEO by combining keyword & competition research, clustering & optimization, content & schema and all of it is powered by AI!
 
-Forget endless checklists and manual optimizations - **Xagio AI handles it for you** while the **Project Planner centralizes your entire SEO workflow**.
+### The AI SEO weapon most WordPress users haven't found yet.
 
-**✅AI-Powered SEO**
-Instantly generate **WordPress SEO titles, meta descriptions, content, and schema** with AI.
+Insane results & reviews - Xagio has both. While everyone else is still filling out SEO checklists, Xagio's AI is writing your titles, meta, content and schema, researching and clustering your keywords, tracking your rankings, and building launch-ready sites for you with **Agent X**.
 
-**✅Project Planner**
-Optimize your entire website **from a single dashboard** instead of jumping between tools.
+One plugin. Your whole SEO workflow. **Done for you.**
 
-**✅Built-in Features**
-Everything you need for WordPress SEO **without requiring extra plugins or upgrades**.
+Xagio SEO takes a new approach to WordPress SEO by combining **keyword research, competition analysis, keyword clustering, on-page optimization, content and schema** - all powered by AI.
 
-**✅Xagio includes AI-powered optimizations at no cost - no hidden paywalls, just smarter SEO.**
+Forget endless SEO checklists and manual optimization. **Xagio AI does the work for you** while the **Project Planner centralizes your entire SEO workflow** in one dashboard.
 
-With **AI-driven automation** and **a structured workflow**, Xagio makes **powerful SEO simple, fast, and effective.**
+**✅ AI-Powered SEO**
+Instantly generate **WordPress SEO titles, meta descriptions, content, and schema markup** with AI.
+
+**✅ Project Planner**
+Optimize your entire website's SEO **from a single dashboard** instead of jumping between tools.
+
+**✅ Built-in SEO Features**
+Everything you need for WordPress SEO - sitemaps, redirects, schema, rank tracking - **without extra plugins or upgrades**.
+
+**✅ Agent X - AI Website Builder Built In**
+Enter your niche and let **Agent X** build a launch-ready, SEO-optimized site - keyword research, topical clustering, content, schema, and design, all done for you. _(Agent X website builds run on credits.)_
+
+**✅ Free AI SEO**
+Xagio includes AI-powered SEO optimization at no cost - no hidden paywalls, just smarter SEO.
+
+With **AI-driven automation** and a **structured SEO workflow**, Xagio makes powerful SEO simple, fast, and effective.
 
 [youtube https://www.youtube.com/watch?v=W95Ka2Y8nws]
 
 ---
 
-###🎯 Is Xagio the Right WordPress SEO Plugin for You?
+### 🎯 Is Xagio the Right WordPress SEO Plugin for You?
 
-Xagio is built for **everyone**, from solo website owners to large agencies managing multiple clients.
+Xagio is built for **everyone**, from solo website owners to large agencies managing multiple client sites.
 
 **✅ For Beginners**
 No experience? No problem. Xagio AI automates keyword research, meta optimization, and schema generation - so you get **fast SEO results without the learning curve**.
@@ -43,46 +54,46 @@ No experience? No problem. Xagio AI automates keyword research, meta optimizatio
 Rank higher and drive traffic **without hiring an SEO expert**. Xagio **handles technical SEO** while you focus on growing your business.
 
 **⚡ For SEO Professionals & Agencies**
-Xagio **automates, centralizes, and optimizes** your workflow, from **sales & onboarding to fulfillment & reporting**. Replace multiple tools, reduce inefficiencies, and **maximize client retention and profitability**.
+Xagio **automates, centralizes, and optimizes** your SEO workflow, from **onboarding to fulfillment and reporting**. Replace multiple tools, cut inefficiency, and **improve client retention and profitability**.
 
 **🔗 For Affiliates**
 Optimize niche sites, product reviews, and landing pages with **AI-powered SEO** - increase rankings and **earn more commissions with less effort**.
 
 **🏗️ For PBN Managers**
-Xagio **Network Management tools** simplify the process of maintaining **large private blog networks**, helping you **organize, update, and optimize multiple sites in one place**.
+Xagio **network management tools** simplify maintaining **large private blog networks** - organize, update, and optimize multiple sites in one place.
 
-**📍For Local SEO Experts**
-Dominate local rankings with **AI-optimized metadata, schema, and structured content** - boosting visibility for **Google Maps and local searches**.
+**📍 For Local SEO**
+Win local rankings with **AI-optimized metadata, schema, and structured content** - boosting visibility in **Google Maps and local search**.
 
 **🛒 For eCommerce Stores**
-Enhance **product pages, categories, and descriptions** with AI-driven SEO - **improve rankings, click-through rates, and sales** effortlessly.
+Enhance **product pages, categories, and descriptions** with AI-driven SEO - improve rankings, click-through rates, and sales.
 
 ---
 
-### **The Project Planner - Optimize & Edit Your Entire Site from One Dashboard**
-_â€œThe most valuable asset any SEO has is time, and with Xagio Project Planner, you'll get it back.â€_
+### The Project Planner - Optimize Your Entire Site's SEO from One Dashboard
+_"The most valuable asset any SEO has is time, and with the Xagio Project Planner, you'll get it back."_
 
-The **Project Planner is the command center for your SEO strategy**. Instead of switching between tools, Xagio **organizes all SEO data by page** - including keywords, rankings, competition, and CPC - so you can **optimize faster and make smarter decisions**.
+The **Project Planner is the command center for your SEO strategy**. Instead of switching between tools, Xagio **organizes all SEO data by page** - keywords, rankings, competition, and CPC - so you can **optimize faster and make smarter decisions**.
 
 **✅ AI-Powered Bulk Optimization**
 Apply **AI-generated titles, meta descriptions, and H1s** across multiple pages at once - saving hours of manual work.
 
 **✅ Instant Site & Keyword Onboarding**
-**Import all pages, keywords, and rankings in one step**, streamlining optimization.
+**Import all pages, keywords, and rankings in one step** and start optimizing immediately.
 
 **✅ Full-Site SEO, Organized by Page**
-View **keywords, rankings, competition, CPC - grouped per page** for **faster, smarter optimization workflows**.
+View **keywords, rankings, competition, and CPC grouped per page** for faster, smarter optimization.
 
 **✅ Bring Your Own Data**
 Already have keyword research? **Import your keyword list instantly** and let Xagio's AI handle the rest.
 
 **✅ Advanced Keyword Clustering**
-Group **thousands of keywords** into **highly relevant, structured groups** - helping you create **better-targeted content**.
+Group **thousands of keywords** into **relevant, structured clusters** - helping you plan better-targeted content.
 
 **✅ Seeding for Precision Targeting**
-Search for **specific words or patterns** across all keyword groups and **pull them into a single focused group** for precise content planning.
+Search for **specific words or patterns** across all keyword groups and **pull them into one focused group** for precise content planning.
 
-**✅ With Xagio AI-driven workflows**, you can **optimize entire websites faster, eliminate guesswork, and make data-driven SEO decisions - all from one dashboard**. 🚀
+Optimize entire websites faster, eliminate guesswork, and make **data-driven SEO decisions - all from one dashboard**. 🚀
 
 ---
 
@@ -92,52 +103,72 @@ Xagio combines **AI-powered SEO** with essential site management tools, so you c
 
 [youtube https://www.youtube.com/watch?v=Hwnn9WovaKQ]
 
-###🚀 AI-Powered SEO Optimization
+### 🚀 AI-Powered SEO Optimization
 - **AI Meta Optimization** - Instantly generate SEO-friendly titles, descriptions, and headers.
 - **AI Content** - Create structured, search-optimized content in a single click.
-- **AI Schema** - Automatically generate structured data for rich snippets & better SERP visibility.
+- **AI Schema** - Automatically generate structured data for rich snippets and better SERP visibility.
 
-###📊 Project Planning & Keyword Management
-- **The Project Planner** - Manage & optimize your entire site from one dashboard.
-- **Keyword Import & Clustering** - Organize keywords into strategic groups for better content planning.
+### 📊 Keyword Research & Project Planning
+- **The Project Planner** - Manage and optimize your entire site's SEO from one dashboard.
+- **Keyword Research, Import & Clustering** - Discover and organize keywords into strategic groups for better content planning.
 - **Seeding for Precision Targeting** - Pull specific keywords from multiple groups into a single focus group.
 - **Automatic Site Audit (Ranking Keywords Per Page)** - Instantly discover which keywords your pages rank for.
 
-###⚙️ On-Page SEO
-- **Edit H1, Title, and Meta Descriptions in the page editor** - Optimize directly while creating content.
-- **Centralized H1, Title, and Meta Description management** - Edit and update in one place for better efficiency.
+### 🔎 Rank Tracking
+- **Per-page keyword rank tracking** - Monitor your Google rankings over time, right inside WordPress.
+- **Competition & CPC data** - See difficulty and value for every keyword you target.
 
-###🔀 301 & 404 Management
-- **Create unlimited 301 redirects** - Redirect old URLs to maintain SEO value.
-- **404 monitoring for high-traffic pages** - Identify and fix broken links before they hurt your rankings.
+### 🤖 AI Visibility - Get Found in AI Search (AEO/GEO)
+People are searching inside ChatGPT, Microsoft Copilot, Perplexity, Google Gemini, Claude, and Google AI Overviews. Xagio makes your site ready to be read and cited by them.
+- **LLMs.txt generation** - Publish the LLMs.txt file for AI crawlers, straight from WordPress.
+- **OKF (Open Knowledge Format)** - Generate an OKF knowledge bundle so AI engines can read your content in a structured format.
+- **Robots.txt management** - Edit and control your robots.txt directly from WordPress, no file access needed.
 
-###🏗️ Content Silo Management
-- **Physical Silos via Pages** - Strengthen SEO by structuring content hierarchically.
-- **Virtual Silos via Links** - Improve internal linking without changing your site structure.
-- **Organize Blogs with Tags & Categories** - Keep content structured for better discoverability.
+### ✍️ Front-End AI Assistant
+- **Edit any page by asking** - Change a headline, swap an image, or rewrite copy by telling the AI what you want, live on the page. No editor, no code.
 
-###🔗 Link Management
+### 📞 RingRobin Call Tracking (Free Integration)
+- **Built-in call tracking** - RingRobin is a free call-tracking tool from the Xagio team that shows which keywords and pages drive real phone calls. Connect it in one click to tie your SEO work directly to leads.
+
+### ⚙️ On-Page SEO
+- **Edit H1, Title, and Meta Descriptions in the page editor** - Optimize while you create content.
+- **Centralized H1, Title, and Meta Description management** - Edit and update everything in one place.
+
+### 🗺️ XML Sitemaps & Search Console
+- **Automatic XML sitemaps** - Keep search engines crawling every important page.
+- **Google Search Console integration** - Connect your SEO data to Google directly.
+
+### 🔀 301 & 404 Redirect Management
+- **Create unlimited 301 redirects** - Preserve SEO value when URLs change.
+- **404 monitoring for high-traffic pages** - Find and fix broken links before they hurt rankings.
+
+### 🏗️ Content Silo Management
+- **Physical Silos via Pages** - Strengthen SEO with hierarchical content structure.
+- **Virtual Silos via Links** - Improve internal linking without changing site structure.
+- **Organize Blogs with Tags & Categories** - Keep content structured and discoverable.
+
+### 🔗 Link Management
 - **Track Image & Text Links** - Monitor performance and engagement.
-- **Link Impressions, Clicks & Conversion Stats** - Gain insights into link performance.
-- **Use Shortcodes for Internal Links** - Simplify internal linking across your site.
+- **Link Impressions, Clicks & Conversion Stats** - Understand link performance.
+- **Shortcodes for Internal Links** - Simplify internal linking across your site.
 - **Masked Links for External Use** - Keep external URLs clean and trackable.
 
-###⭐ Customer Reviews
-- **Fully Customizable Review Design & Fields** - Collect and display reviews the way you want.
-- **Collect Reviews, Ratings, or Both** - Build trust and credibility with user-generated content.
-- **Global or Per Page Review Functionality** - Control where and how reviews appear.
-- **Automatic Aggregate Rating Calculation & Schema Injection** - Boost SEO with structured review data.
+### ⭐ Customer Reviews & Review Schema
+- **Fully Customizable Review Design & Fields** - Collect and display reviews your way.
+- **Collect Reviews, Ratings, or Both** - Build trust with user-generated content.
+- **Global or Per-Page Review Functionality** - Control where reviews appear.
+- **Automatic Aggregate Rating & Schema Injection** - Boost SEO with structured review data.
 
-###💾 Fully Automated Backup & Restore
+### 💾 Fully Automated Backup & Restore
 - **Save Backups Locally or to Cloud** - Keep your data secure.
-- **Set Up Automated Backup Schedules** - Never lose important site information.
+- **Automated Backup Schedules** - Never lose important site information.
 - **1-Click Restore from Backups** - Recover lost data instantly.
 
-###🔁 WordPress Cloning
-- **Clone WordPress Site from URL** - Quickly duplicate entire sites.
+### 🔁 WordPress Cloning
+- **Clone a WordPress Site from URL** - Quickly duplicate entire sites.
 - **Backup Source & Target Domains Before Cloning** - Ensure safe migrations.
 
-###🛠️ Rescue Center
+### 🛠️ Rescue Center
 - **Easy & Advanced Restore Modes** - Roll back changes effortlessly.
 - **Fix Broken Plugins & Themes** - Repair corrupted installations.
 - **Scan Media Library for Malware** - Protect your site from security threats.
@@ -148,46 +179,55 @@ Xagio combines **AI-powered SEO** with essential site management tools, so you c
 
 Traditional SEO is **slow, expensive, and frustrating**.
 
-Xagio AI **eliminates complexity**, giving you the **fastest, easiest way to rank higher and drive more traffic**.
+Xagio AI **removes the complexity**, giving you the **fastest, easiest way to rank higher and drive more traffic**.
 
-**Stop wasting time with outdated methods - install Xagio today and start ranking smarter.** 🚀
+**Stop wasting time with outdated methods - install Xagio and start ranking smarter.** 🚀
 
 == Installation ==
 1. **Upload the `xagio-seo` folder** to the `/wp-content/plugins/` directory.
-2. **Activate the plugin** through the â€˜Plugins' menu in WordPress.
-3. **Access the Xagio SEO dashboard** from the WordPress admin area to begin configuring your SEO settings.
+2. **Activate the plugin** through the 'Plugins' menu in WordPress.
+3. **Open the Xagio SEO dashboard** from the WordPress admin area to begin configuring your SEO settings.
 
 == Frequently Asked Questions ==
 
-#### Q: Why is Xagio free if it is so awesome?
-**A:** Like many great tools, Xagio follows a **freemium model** - offering powerful features for free while giving users the option to unlock even deeper capabilities with paid upgrades. This allows anyone to experience **AI-powered SEO** without upfront costs, while advanced users who need **more data, enhanced AI processing, or bulk actions** can choose to upgrade. It's a win-win: you get real SEO value for free, and if you ever need more, the option is there.
+#### Q: Why is Xagio free if it is so good?
+**A:** Xagio follows a **freemium model** - powerful SEO features for free, with the option to unlock deeper capabilities through paid upgrades. Anyone can experience **AI-powered SEO** without upfront cost, and advanced users who need **more data, enhanced AI processing, or bulk actions** can upgrade. You get real SEO value for free, and more when you need it.
 
 #### Q: Do I need SEO experience to use Xagio?
-**A:** No! Xagio is designed for **both beginners and experts**. The **AI automates** complex SEO tasks, so you can focus on what matters - whether that's growing your business or scaling your agency.
+**A:** No. Xagio is designed for **both beginners and experts**. The **AI automates** complex SEO tasks so you can focus on what matters - growing your business or scaling your agency.
 
 #### Q: What makes Xagio different from other SEO plugins?
-**A:** Most SEO plugins provide **checklists and recommendations**, leaving you to figure out **how** to optimize your site. Xagio is different - it doesn't just suggest optimizations, **it does the work for you** with AI-powered meta optimization, content generation, and structured data creation. It also includes **Project Planner**, a central dashboard that **streamlines optimization across your entire site**.
+**A:** Most SEO plugins hand you **checklists and recommendations**, then leave you to figure out **how** to optimize. Xagio is different - it **does the work for you** with AI-powered meta optimization, content generation, and schema. It also includes **keyword research, clustering, and the Project Planner** for full-site SEO management.
+
+#### Q: Can Xagio help my site show up in ChatGPT, Copilot and other AI search?
+**A:** Yes. As people move from Google search to asking **ChatGPT, Microsoft Copilot, Perplexity, Google Gemini, Claude, and Google AI Overviews**, Xagio helps your site get read and cited by them. It generates an **LLMs.txt** file for AI crawlers, an **OKF (Open Knowledge Format)** knowledge bundle, and gives you full **robots.txt** control - plus AI-structured content and schema - so your pages are ready for AI answer engines, not just traditional search.
+
+#### Q: What is Agent X?
+**A:** Agent X is Xagio's **AI website builder**. Enter your niche and it builds a launch-ready, SEO-optimized site for you - keyword research, topical clustering, content, schema, and design. Agent X website builds run on **credits**, while the core SEO features of the plugin are free to use.
+
+#### Q: What is RingRobin?
+**A:** RingRobin is a **free call-tracking tool built by the Xagio team**. It shows which keywords and pages are driving real phone calls, so you can connect your SEO work directly to leads. The RingRobin account is free and connects to Xagio in one click.
 
 #### Q: Does Xagio replace my current SEO plugin?
-**A:** Yes! Xagio **does everything a traditional SEO plugin does - and more**. It **handles metadata, Open Graph, redirects, sitemaps, and schema** while also providing AI-powered optimizations, a keyword clustering tool, and a centralized **Project Planner** for full-site management.
+**A:** Yes. Xagio **does everything a traditional SEO plugin does - and more**. It handles **metadata, Open Graph, redirects, XML sitemaps, and schema**, plus AI optimization, keyword research and clustering, rank tracking, and a centralized **Project Planner**.
 
 #### Q: Will Xagio slow down my site?
-**A:** No! Xagio is designed for **performance and efficiency**. Unlike bloated SEO plugins that load unnecessary scripts, Xagio keeps your site **fast and optimized**.
+**A:** No. Xagio is built for **performance**. Unlike bloated SEO plugins that load unnecessary scripts, Xagio keeps your site **fast and optimized**.
 
 #### Q: Is Xagio compatible with my theme and other plugins?
-**A:** Yes! Xagio is built to **work seamlessly** with most WordPress themes and plugins. It follows **WordPress best practices**, ensuring maximum compatibility.
+**A:** Yes. Xagio is built to **work seamlessly** with most WordPress themes and plugins, following **WordPress best practices** for maximum compatibility.
 
 #### Q: Can I import my existing keyword research?
-**A:** Yes! You can **import your own keyword lists** into Xagio and **group them with Clustering & Seeding** for better optimization workflows.
+**A:** Yes. **Import your own keyword lists** into Xagio and **group them with Clustering & Seeding** for better optimization workflows.
 
 #### Q: Does Xagio generate content?
-**A:** Yes! Xagio's AI-powered content feature can **generate structured, SEO-friendly content** based on your site's metadata and optimization goals.
+**A:** Yes. Xagio's AI can **generate structured, SEO-friendly content** based on your site's metadata and optimization goals.
 
 #### Q: Can I use Xagio on multiple sites?
-**A:** Yes! You can install and use Xagio on **as many sites as you want**.
+**A:** Yes. Install and use Xagio on **as many sites as you want**.
 
 #### Q: How often is Xagio updated?
-**A:** We release updates **regularly** to improve performance, add new features, and ensure compatibility with the latest WordPress versions.
+**A:** We release updates **regularly** to improve performance, add features, and keep compatibility with the latest WordPress versions.
 
 == Screenshots ==
 1. Dashboard
@@ -195,6 +235,12 @@ Xagio AI **eliminates complexity**, giving you the **fastest, easiest way to ran
 3. Projects
 
 == Changelog ==
+= 7.1.0.42 =
+* ⚙️ New AI Settings page to manage LLMs.txt and OKF in one place.
+* ⚙️ Improved OKF knowledge pages with cleaner, better structured content.
+* ⚙️ Added OKF quality checks.
+* ⚙️ Smarter /sitemap.xml handling that safely points to the Xagio sitemap.
+
 = 7.1.0.41 =
 * ⚙️ Robots.txt and LLMs.txt feature improvements.
 * ⚙️ OKF (Open Knowledge Format) feature added in SEO Settings.
@@ -364,7 +410,7 @@ Xagio AI **eliminates complexity**, giving you the **fastest, easiest way to ran
 * 🐞 Minor fixes for plugin settings panel.
 
 = 7.1.0.0 =
-* 🧠 NEW: Agent X AI Assistant introduced – intelligent on-page SEO suggestions.
+* 🧠 NEW: Agent X AI Assistant introduced - intelligent on-page SEO suggestions.
 * 📌 Improved accuracy of AI-generated meta and content.
 * 🛠️ Major performance boost to large-scale project handling.
 

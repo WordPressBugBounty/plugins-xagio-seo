@@ -9,7 +9,7 @@
  * Icon: /assets/img/logo-menu-xagio.webp
  * JavaScript: jquery-ui-core,xagio_trends,xagio_select2,xagio_chart,xagio_datatables,xagio_nichehunter
  * Css: xagio_select2,xagio_datatables,xagio_nichehunter
- * Position: 5
+ * Position: 6
  * Version: 1.0.0
  */
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly

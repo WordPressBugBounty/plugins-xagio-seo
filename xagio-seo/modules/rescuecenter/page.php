@@ -9,7 +9,7 @@
  * Icon: /assets/img/logo-menu-xagio.webp
  * JavaScript: xagio_jstree,xagio_rescuecenter
  * Css: xagio_jstree,xagio_rescuecenter
- * Position: 13
+ * Position: 14
  * Version: 1.0.0
  */
 if (!defined('ABSPATH'))

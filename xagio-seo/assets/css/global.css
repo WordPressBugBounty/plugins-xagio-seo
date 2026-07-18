@@ -927,6 +927,11 @@ input.xagio-input-text-mini:focus-visible, .xagio-input-textarea:focus-visible, 
     border-color: #f43443;
     color: black;
 }
+.xagio-alert.xagio-alert-success {
+    background: #b7e4c7;
+    border-color: #2d9d5b;
+    color: black;
+}
 .xagio-alert.xagio-alert-ghost {
     background: #f5f7fb;
     border: none;

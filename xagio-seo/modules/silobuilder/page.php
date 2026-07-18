@@ -9,7 +9,7 @@
  * Icon: /assets/img/logo-menu-xagio.webp
  * JavaScript: xagio_datatables,jquery-ui-core,jquery-ui-sortable,jquery-ui-draggable,xagio_tablesorter,xagio_jstree,xagio_select2,xagio_tagsinput,jquery-ui-core,xagio_jquery_sortable,xagio_multisortable,xagio_jqcloud,xagio_panzoom,xagio_mousewheel,xagio_flowchart,xagio_selectables,xagio_silobuilder
  * Css: xagio_multi_draggable,xagio_datatables,xagio_jstree,xagio_select2,xagio_tagsinput,xagio_jqcloud,xagio_flowchart,xagio_selectables,xagio_projectplanner,xagio_silobuilder
- * Position: 8
+ * Position: 9
  * Version: 1.0.0
  */
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
