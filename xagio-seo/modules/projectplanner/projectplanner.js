@@ -8,6 +8,7 @@ let currentSiloGroups = [];
 let siloInitialized = false;
 let currentProjectID = 0;
 let currentProjectName = 0;
+let currentGroupSort = 'asc';
 let nextProjectID = 0;
 let nextProjectName = 0;
 let modal_block = '';
@@ -1677,41 +1678,19 @@ let cf_template = cf_templates[cf_default_template].data;
             }
 
             $(document).ready(function () {
-                $(document).on('click', '.sort-groups-asc', function (e) {
-                    $(this).hide();
-                    $('.sort-groups-desc').show();
+                $(document).on('click', '.sort-groups-asc, .sort-groups-desc', function (e) {
+                    e.preventDefault();
 
-                    let groups = $('.project-groups .xagio-group');
+                    currentGroupSort = $(this).hasClass('sort-groups-desc') ? 'desc' : 'asc';
 
-                    let sortedGroups = groups.toArray().sort(function (a, b) {
-                        let valueA = $(a).find('input[name="group_name"]').val().toLowerCase().trim();
-                        let valueB = $(b).find('input[name="group_name"]').val().toLowerCase().trim();
+                    actions.setGroupSortButtons(currentGroupSort);
+                    actions.applyGroupSort(currentGroupSort);
 
-                        return valueA.localeCompare(valueB);
-                    });
-
-                    $('.project-groups .data').empty().append(sortedGroups);
-
-                    actions.updateGrid();
-                    actions.updateElements();
-                });
-
-                $(document).on('click', '.sort-groups-desc', function (e) {
-                    $(this).hide();
-                    $('.sort-groups-asc').show();
-
-                    let groups = $('.project-groups .xagio-group');
-
-                    let sortedGroups = groups.toArray().sort(function (a, b) {
-                        let valueA = $(a).find('input[name="group_name"]').val().toLowerCase().trim();
-                        let valueB = $(b).find('input[name="group_name"]').val().toLowerCase().trim();
-                        return valueB.localeCompare(valueA);
-                    });
-
-                    $('.project-groups .data').empty().append(sortedGroups);
-
-                    actions.updateGrid();
-                    actions.updateElements();
+                    if (currentProjectID != 0) {
+                        $.post(xagio_data.wp_post,
+                               'action=xagio_save_group_sort&project_id=' + currentProjectID +
+                               '&sort=' + currentGroupSort);
+                    }
                 });
 
                 $(document).on('click', '.select-all-recommended-websites', function () {
@@ -6861,29 +6840,13 @@ let cf_template = cf_templates[cf_default_template].data;
                     button.disable();
                 }
 
-                d.sort((a, b) => {
-                    if (a.group_name == null) a.group_name = '';
-                    if (b.group_name == null) b.group_name = '';
-                    let aa = a.group_name.toLowerCase(),
-                        bb = b.group_name.toLowerCase();
+                // The saved sort direction arrives with the groups it orders, so the first
+                // paint is already in the right order. Project-level value, so any row
+                // carries it; default to asc when the project has no groups.
+                currentGroupSort = (d.length > 0 && d[0].group_sort === 'desc') ? 'desc' : 'asc';
+                actions.setGroupSortButtons(currentGroupSort);
 
-                    let matchA = aa.match(/^(\d+)\.\s*(.+)/);
-                    let matchB = bb.match(/^(\d+)\.\s*(.+)/);
-
-                    if (matchA && matchB) {
-                        let numA = parseInt(matchA[1], 10);
-                        let numB = parseInt(matchB[1], 10);
-
-                        if (numA === numB) {
-                            let alphaA = matchA[2];
-                            let alphaB = matchB[2];
-                            return alphaA.localeCompare(alphaB);
-                        }
-                        return numA - numB;
-                    }
-
-                    return aa.localeCompare(bb);
-                });
+                d.sort((a, b) => actions.compareGroupNames(a.group_name, b.group_name, currentGroupSort));
 
 
                 let projects_table = $('.projects-table');
@@ -7445,6 +7408,61 @@ let cf_template = cf_templates[cf_default_template].data;
 
             });
         },
+        // Compare two group names for sorting. `dir` is 'asc' or 'desc'.
+        //
+        // Names that start with a number ordinal ("1. foo", "10. bar") sort by that
+        // number first, so "10." follows "9." instead of landing beside "1.". This is
+        // the comparator the initial render has always used; the sort buttons now use
+        // it too, so clicking a-z reproduces the load order exactly and z-a is its
+        // exact reverse.
+        compareGroupNames   : function (a, b, dir) {
+            let valueA = (a == null ? '' : a).toString().toLowerCase().trim();
+            let valueB = (b == null ? '' : b).toString().toLowerCase().trim();
+
+            let matchA = valueA.match(/^(\d+)\.\s*(.+)/);
+            let matchB = valueB.match(/^(\d+)\.\s*(.+)/);
+
+            let result;
+
+            if (matchA && matchB) {
+                let numA = parseInt(matchA[1], 10);
+                let numB = parseInt(matchB[1], 10);
+
+                result = (numA === numB) ? matchA[2].localeCompare(matchB[2]) : (numA - numB);
+            } else {
+                result = valueA.localeCompare(valueB);
+            }
+
+            return (dir === 'desc') ? -result : result;
+        },
+
+        // Show whichever sort button represents the action the user can take next.
+        setGroupSortButtons : function (dir) {
+            if (dir === 'desc') {
+                $('.sort-groups-desc').hide();
+                $('.sort-groups-asc').show();
+            } else {
+                $('.sort-groups-asc').hide();
+                $('.sort-groups-desc').show();
+            }
+        },
+
+        // Re-order the already rendered groups in the DOM.
+        applyGroupSort      : function (dir) {
+            let sortedGroups = $('.project-groups .xagio-group').not('.template').toArray().sort(function (a, b) {
+                return actions.compareGroupNames(
+                    $(a).find('input[name="group_name"]').val(),
+                    $(b).find('input[name="group_name"]').val(),
+                    dir
+                );
+            });
+
+            $('.project-groups .data').append(sortedGroups);
+
+            actions.updateGrid();
+            actions.updateElements();
+        },
+
         loadProject         : function () {
             $(document).on('click', '.load_project', function (e) {
                 e.preventDefault();
@@ -7454,8 +7472,7 @@ let cf_template = cf_templates[cf_default_template].data;
                 let button = $(this);
                 button.disable();
 
-                $('.sort-groups-asc').removeClass('uk-active').hide();
-                $('.uk-active').removeClass('uk-active').addClass('uk-active').show();
+                // Button state is set from the saved order once the groups load.
 
                 $('.logo-paragraph.uk-block-xagio').slideUp();
                 actions.importKeywordPlanner();

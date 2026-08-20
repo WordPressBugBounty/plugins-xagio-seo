@@ -705,7 +705,9 @@ let cf_template = cf_templates[cf_default_template].data;
 
                         if (nData.available) {
                             availableDomain = "Yes";
-                            registerDomain = `<div class="xagio-flex"><a href="https://shareasale.com/r.cfm?b=518802&u=1233639&m=46483&urllink=https://www.namecheap.com/domains/registration/results.aspx?domain=${nData.domain}&afftrack=kws" target="_blank" class="xagio-button xagio-button-warning"><i class="xagio-icon xagio-icon-check"></i> Buy Now!</a></div>`;
+                            let ncDest = encodeURIComponent(`https://www.namecheap.com/domains/registration/results/?domain=${nData.domain}`);
+                            let buyUrl = `https://namecheap.pxf.io/c/5896078/408750/5618?subId1=${encodeURIComponent(nData.domain)}&sharedid=xagio&u=${ncDest}`;
+                            registerDomain = `<div class="xagio-flex"><a href="${buyUrl}" target="_blank" class="xagio-button xagio-button-warning"><i class="xagio-icon xagio-icon-check"></i> Buy Now!</a></div>`;
                         }
 
                         html += `<tr>

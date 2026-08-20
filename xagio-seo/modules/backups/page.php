@@ -950,7 +950,7 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
         </span>
                             <span class="backup-grade">
             <?php
-            $xagio_grade = $xagio_bs['grade'];
+            $xagio_grade = is_array($xagio_bs) && isset($xagio_bs['grade']) ? (int) $xagio_bs['grade'] : 0;
             for ($xagio_i = 1; $xagio_i <= 10; $xagio_i++) {
                 if ($xagio_i <= $xagio_grade) {
                     echo '<span class="star">★</span>';

@@ -1275,7 +1275,10 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
                 }
             } else {
-                if (is_search()) {
+                if (is_front_page() || is_home()) {
+                    $xagio_robots = XAGIO_MODEL_SEO::getRobotsHomepage();
+
+                } else if (is_search()) {
                     $xagio_robots = XAGIO_MODEL_SEO::getRobotsMisc();
 
                 } else if (is_author()) {
@@ -1457,6 +1460,17 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             }
         }
 
+        public static function getRobotsHomepage()
+        {
+            $xagio_post_types = get_option('XAGIO_SEO_DEFAULT_POST_TYPES');
+
+            if (!empty($xagio_post_types['homepage']['XAGIO_SEO_ROBOTS'])) {
+                return 'noindex,follow';
+            }
+
+            return FALSE;
+        }
+
         public static function getRobotsMisc()
         {
             $xagio_miscellaneous = get_option('XAGIO_SEO_DEFAULT_MISCELLANEOUS');
@@ -1608,6 +1622,11 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 $type     = $xagio_object->taxonomy;
                 $xagio_meta     = xagio_get_term_meta($xagio_object->term_id);
                 $defaults = get_option('XAGIO_SEO_DEFAULT_TAXONOMIES');
+            } // If Blog Homepage - "Your homepage displays your latest posts", there is no queried object
+            else if (is_front_page() || is_home()) {
+                $type     = 'homepage';
+                $defaults = get_option('XAGIO_SEO_DEFAULT_POST_TYPES');
+                $xagio_meta = $defaults[$type] ?? [];
             } // If Misc
             else if ($currentMisc = self::detectSpecialPages()) {
                 $defaults = get_option('XAGIO_SEO_DEFAULT_MISCELLANEOUS');
@@ -1649,30 +1668,49 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
         }
 
+        private static function resolveOGType($xagio_object)
+        {
+            if (is_front_page() || is_home()) {
+                return 'homepage';
+            }
+
+            if ($xagio_object instanceof WP_Post) {
+                return ($xagio_object->ID == get_option('page_on_front')) ? 'homepage' : $xagio_object->post_type;
+            }
+
+            if ($xagio_object instanceof WP_Term) {
+                return $xagio_object->taxonomy;
+            }
+
+            return self::detectSpecialPages() ?: '';
+        }
+
         public static function getOG()
         {
             $xagio_object = $GLOBALS['wp_query']->get_queried_object();
-            if (is_object($xagio_object) && isset($xagio_object->ID)) {
+
+            // Only posts and pages carry their own OG meta, everything else uses the global defaults
+            $post_id = ($xagio_object instanceof WP_Post) ? $xagio_object->ID : 0;
+            $type    = self::resolveOGType($xagio_object);
+
+            if ($type !== '') {
 
                 $defaults = get_option('XAGIO_SEO_DEFAULT_OG');
-                $xagio_meta     = XAGIO_MODEL_SEO::formatMetaVariables(get_post_meta($xagio_object->ID));
+                $xagio_meta     = $post_id ? XAGIO_MODEL_SEO::formatMetaVariables(get_post_meta($post_id)) : [];
 
-                if (is_front_page() || is_home() || $xagio_object->ID == get_option('page_on_front')) {
-                    $type = 'homepage';
-                } else {
-                    $type = $xagio_object->post_type ?? $xagio_object->query_var;
-                }
+                if ($post_id) {
 
-                if (isset($xagio_meta['XAGIO_SEO']) && !$xagio_meta['XAGIO_SEO']) {
-                    return FALSE;
-                }
-
-                // If meta does not exist XAGIO_SEO_SOCIAL_ENABLE is turned on by default
-                if (metadata_exists('post', $xagio_object->ID, 'XAGIO_SEO_SOCIAL_ENABLE')) {
-                    // If metadata exists we are checking if it's empty string(TURNED OFF) or 1(TUNED ON)
-                    $XAGIO_SEO_SOCIAL_ENABLE = get_post_meta($xagio_object->ID, 'XAGIO_SEO_SOCIAL_ENABLE', TRUE);
-                    if ($XAGIO_SEO_SOCIAL_ENABLE === "") {
+                    if (isset($xagio_meta['XAGIO_SEO']) && !$xagio_meta['XAGIO_SEO']) {
                         return FALSE;
+                    }
+
+                    // If meta does not exist XAGIO_SEO_SOCIAL_ENABLE is turned on by default
+                    if (metadata_exists('post', $post_id, 'XAGIO_SEO_SOCIAL_ENABLE')) {
+                        // If metadata exists we are checking if it's empty string(TURNED OFF) or 1(TUNED ON)
+                        $XAGIO_SEO_SOCIAL_ENABLE = get_post_meta($post_id, 'XAGIO_SEO_SOCIAL_ENABLE', TRUE);
+                        if ($XAGIO_SEO_SOCIAL_ENABLE === "") {
+                            return FALSE;
+                        }
                     }
                 }
 
@@ -1682,8 +1720,11 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                     wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
                 }
 
+                // Only actual posts and pages are articles, everything else is a website
+                $og_type = ($xagio_object instanceof WP_Post && $type !== 'homepage') ? 'article' : 'website';
+
                 $xagio_og .= '<meta property="og:locale" content="' . esc_attr(get_locale()) . '"/>' . "\n";
-                $xagio_og .= '<meta property="og:type" content="article"/>' . "\n";
+                $xagio_og .= '<meta property="og:type" content="' . esc_attr($og_type) . '"/>' . "\n";
                 $xagio_og .= '<meta property="og:url" content="' . get_site_url() . sanitize_text_field(wp_unslash($_SERVER['REQUEST_URI'])) . '"/>' . "\n";
                 $xagio_og .= '<meta property="og:site_name" content="' . get_bloginfo('name') . '"/>' . "\n";
 
@@ -1722,7 +1763,7 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 		            $fbTitle = self::getMeta( 'XAGIO_SEO_TITLE' );
 	            }
 	            $fbTitle = self::replaceVars(xagio_spintax($fbTitle));
-                $xagio_og      .= '<meta property="og:title" content="' . $fbTitle . '"/>' . "\n";
+                $xagio_og      .= '<meta property="og:title" content="' . esc_attr($fbTitle) . '"/>' . "\n";
 
 	            /**
 	             *   Facebook Description
@@ -1737,7 +1778,7 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 	             *   Facebook Image
 	             */
 	            if ( xagio_parse_bool( $xagio_meta['XAGIO_SEO_FACEBOOK_USE_FEATURED_IMAGE'] ?? false ) || empty( $fbImg ) ) {
-		            $attachment_id = get_post_meta( $xagio_object->ID ?? 0, '_thumbnail_id', true );
+		            $attachment_id = get_post_meta( $post_id, '_thumbnail_id', true );
 		            $fbImg         = wp_get_attachment_image_src( $attachment_id, 'full' );
 		            $fbImg         = is_array( $fbImg ) ? $fbImg[0] : '';
 	            }
@@ -1762,8 +1803,6 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 		            $twImg = $defaults[ $type ]['XAGIO_SEO_TWITTER_IMAGE'] ?? '';
 	            }
 
-	            $xagio_og .= '<meta name="twitter:card" content="summary"/>' . "\n";
-
 	            /**
 	             *   Twitter Title
 	             */
@@ -1786,14 +1825,19 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 	             *   Twitter Image
 	             */
 	            if ( xagio_parse_bool( $xagio_meta['XAGIO_SEO_TWITTER_USE_FEATURED_IMAGE'] ?? false ) || empty( $twImg ) ) {
-		            $attachment_id = get_post_meta( $xagio_object->ID ?? 0, '_thumbnail_id', true );
+		            $attachment_id = get_post_meta( $post_id, '_thumbnail_id', true );
 		            $twImg         = wp_get_attachment_image_src( $attachment_id, 'full' );
 		            $twImg         = is_array( $twImg ) ? $twImg[0] : '';
 	            }
 	            $twImg = self::replaceVars( $twImg );
 	            if ( ! empty( $twImg ) ) {
-		            $xagio_og .= '<meta name="twitter:image" content="' . esc_url( $twImg ) . '"/>';
+		            $xagio_og .= '<meta name="twitter:image" content="' . esc_url( $twImg ) . '"/>' . "\n";
 	            }
+
+	            /**
+	             *   Twitter Card - only claim a large image when there actually is one
+	             */
+	            $xagio_og .= '<meta name="twitter:card" content="' . ( ! empty( $twImg ) ? 'summary_large_image' : 'summary' ) . '"/>';
 
 	            return $xagio_og;
             }

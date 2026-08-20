@@ -1032,6 +1032,12 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
             $results     = $wpdb->get_results($wpdb->prepare("SELECT * FROM xag_groups WHERE project_id = %d", $project_id), ARRAY_A);
             $outputArray = [];
 
+            // The project's saved group sort direction travels with the groups it orders,
+            // so the planner can render them in the right order on first paint instead of
+            // sorting once and then re-sorting when a second request lands.
+            $saved_sort = $wpdb->get_var($wpdb->prepare("SELECT group_sort FROM xag_projects WHERE id = %d", $project_id));
+            $group_sort = ($saved_sort === 'desc') ? 'desc' : 'asc';
+
             $group_ai_status = [];
 
             $ai_optimized_groups = $wpdb->get_results("SELECT target_id, status, input FROM xag_ai WHERE input = 'SEO_SUGGESTIONS' OR input = 'SEO_SUGGESTIONS_MAIN_KW'", ARRAY_A);
@@ -1125,6 +1131,10 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
 
                     $results[$xagio_i]['keywords']  = $keywords;
                     $results[$xagio_i]['post_type'] = $group_post_type;
+
+                    // Project-level value, repeated per row so the client can read it off
+                    // any group without a second request.
+                    $results[$xagio_i]['group_sort'] = $group_sort;
 
                     $results[$xagio_i]['h1_sh']          = xagio_spintax($results[$xagio_i]['h1']);
                     $results[$xagio_i]['title_sh']       = xagio_spintax($results[$xagio_i]['title']);

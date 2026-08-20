@@ -227,6 +227,16 @@ let cf_template         = cf_templates[cf_default_template].data;
                 $('.sort-groups-asc').show();
             });
 
+            // Show the button matching the owner's saved order, so the visible button is
+            // the action the viewer can take next rather than always defaulting to a-z.
+            if (xagio_shared_data.group_sort === 'desc') {
+                $('.sort-groups-desc').hide();
+                $('.sort-groups-asc').show();
+            } else {
+                $('.sort-groups-asc').hide();
+                $('.sort-groups-desc').show();
+            }
+
             $.tablesorter.addParser({
                 id:     "fancyNumber",
                 is:     function (s) {
@@ -297,17 +307,29 @@ let cf_template         = cf_templates[cf_default_template].data;
 
             project_dashboard.show();
 
-            d.sort((a, b) => {
-                let aa = a.group_name.toString().toLowerCase(),
-                    bb = b.group_name.toString().toLowerCase();
+            // Render in the order the project owner saved in the planner. Names starting
+            // with a number ordinal ("10. foo") sort by that number, matching the planner.
+            let group_sort = (xagio_shared_data.group_sort === 'desc') ? 'desc' : 'asc';
 
-                if (aa < bb) {
-                    return -1;
+            d.sort((a, b) => {
+                let aa = (a.group_name == null ? '' : a.group_name).toString().toLowerCase().trim(),
+                    bb = (b.group_name == null ? '' : b.group_name).toString().toLowerCase().trim();
+
+                let matchA = aa.match(/^(\d+)\.\s*(.+)/);
+                let matchB = bb.match(/^(\d+)\.\s*(.+)/);
+
+                let result;
+
+                if (matchA && matchB) {
+                    let numA = parseInt(matchA[1], 10);
+                    let numB = parseInt(matchB[1], 10);
+
+                    result = (numA === numB) ? matchA[2].localeCompare(matchB[2]) : (numA - numB);
+                } else {
+                    result = aa.localeCompare(bb);
                 }
-                if (aa > bb) {
-                    return 1;
-                }
-                return 0;
+
+                return (group_sort === 'desc') ? -result : result;
             });
 
 

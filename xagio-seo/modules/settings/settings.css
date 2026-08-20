@@ -190,13 +190,6 @@ p.xagio-slider-label a {
     color: black;
 }
 
-.btn-save-changes.perform-easy-setup {
-    position: absolute;
-    top: 0;
-    right: 0;
-    transform: translateY(calc(-100% - 20px));
-}
-
 table.xagio-system-status-table {
     width: 100%;
     font-size: var(--xagio-panel-label-font-size);
@@ -450,10 +443,6 @@ li.select2-selection__choice {
 
 .search-engine-holder .select2-container {
     padding: 3.5px 25px !important;
-}
-
-.xagio-tab.xagio-settings {
-    max-width: 81%;
 }
 
 @media (max-width: 1150px) {

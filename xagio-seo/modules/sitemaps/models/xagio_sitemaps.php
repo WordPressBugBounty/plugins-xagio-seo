@@ -832,7 +832,17 @@ if (!class_exists('XAGIO_MODEL_SITEMAPS')) {
                     return strlen(get_term_link($a->term_id)) - strlen(get_term_link($b->term_id));
                 });
 
+                if (!empty($settings['exclusions'])) {
+                    $settings['exclusions'] = array_map('intval', array_filter(array_map('trim', explode(',', $settings['exclusions'])), 'strlen'));
+                } else {
+                    $settings['exclusions'] = [];
+                }
+
                 foreach ($terms as $term) {
+                    if (in_array((int)$term->term_id, $settings['exclusions'], TRUE)) {
+                        continue;
+                    }
+
                     $sitemap_data[] = array(
                         'loc'        => get_term_link($term),
                         'priority'   => $settings['priority'] ?? "",

@@ -164,6 +164,11 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                 'XAGIO_MODEL_PROJECTS',
                 'getProjectInfo'
             ]);
+
+            add_action('admin_post_xagio_save_group_sort', [
+                'XAGIO_MODEL_PROJECTS',
+                'saveGroupSort'
+            ]);
         }
 
         public static function getProjectInfo()
@@ -207,6 +212,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                     `project_name` varchar(255),
                     `status` varchar(255),
                     `shared` varchar(255),
+                    `group_sort` varchar(255),
                     `date_created` datetime,
                     PRIMARY KEY  (`id`)
                 ) ' . $charset_collate . ';';
@@ -1600,6 +1606,34 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
             ], [
                 'id' => $project_id,
             ]);
+        }
+
+        // Save the group sort direction (a-z / z-a) for a project so the planner
+        // reopens it in the same order.
+        public static function saveGroupSort()
+        {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
+            global $wpdb;
+
+            if (!isset($_POST['project_id']) || !isset($_POST['sort'])) {
+                wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
+            }
+
+            $project_id = intval($_POST['project_id']);
+            $sort       = sanitize_text_field(wp_unslash($_POST['sort'])) === 'desc' ? 'desc' : 'asc';
+
+            if ($project_id <= 0) {
+                xagio_json('error', 'Missing project.');
+            }
+
+            $wpdb->update('xag_projects', [
+                'group_sort' => $sort,
+            ], [
+                'id' => $project_id,
+            ]);
+
+            xagio_json('success', 'Sort order saved.');
         }
 
         // Create new Project

@@ -315,6 +315,10 @@ if($xagio_default_city_code != null){
                         </div>
                     </div>
                     <div class="xagio-column-2">
+                        <div class="xagio-flex-right xagio-flex-gap-medium xagio-margin-bottom-medium">
+                            <button type="button" class="xagio-button xagio-button-primary btn-save-changes perform-easy-setup"><i class="xagio-icon xagio-icon-draw"></i> Run Easy WP Setup</button>
+                        </div>
+
                         <div class="xagio-panel xagio-margin-bottom-medium xagio-relative">
                             <h5 class="xagio-panel-title">Install Plugins</h5>
 
@@ -330,8 +334,6 @@ if($xagio_default_city_code != null){
 
                             <!-- Plugin tags -->
                             <input name="fs_plugins" id="plugins" value=""/>
-
-                            <button type="button" class="xagio-button xagio-button-primary btn-save-changes perform-easy-setup"><i class="xagio-icon xagio-icon-draw"></i> Run Easy WP Setup</button>
                         </div>
                         <div class="xagio-panel">
                             <h5 class="xagio-panel-title">Install Themes</h5>
@@ -356,7 +358,7 @@ if($xagio_default_city_code != null){
                     <i class="xagio-icon xagio-icon-info"></i> Following backup has been generated:
                     <span class="easy-setup-backup"></span><br>
                     If you started Easy WP Setup by mistake, use the backup from above to restore your website to the original state.
-                    To restore the backup, navigate to <a href="/wp-admin/admin.php?page=xagio-clone-backup" style="text-decoration: underline;">Clone & Backup</a> page.
+                    To restore the backup, navigate to <a href="/wp-admin/admin.php?page=xagio-backups" style="text-decoration: underline;">Clone & Backup</a> page.
                 </p>
 
             </form>

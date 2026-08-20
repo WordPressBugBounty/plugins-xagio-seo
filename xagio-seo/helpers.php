@@ -393,12 +393,21 @@ if (!function_exists('xagio_backup_speed')) {
 
         // Create a 10 MB file
         if (!$wp_filesystem->put_contents($filePath, str_repeat('A', 1024 * 1024 * 10), FS_CHMOD_FILE)) {
-            return "Could not create the file.";
+            return [
+                'time_taken' => 0,
+                'grade'      => 0,
+                'error'      => 'Could not create the file.'
+            ];
         }
 
         $zip = new ZipArchive();
         if ($zip->open($zipFilePath, ZipArchive::CREATE) !== TRUE) {
-            return "Could not create zip file.";
+            $wp_filesystem->delete($filePath);
+            return [
+                'time_taken' => 0,
+                'grade'      => 0,
+                'error'      => 'Could not create zip file.'
+            ];
         }
 
         $zip->addFile($filePath, basename($filePath));

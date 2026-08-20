@@ -93,9 +93,13 @@ if (!class_exists('XAGIO_MODEL_SHARED_PROJECT')) {
             $project_name = $results['project_name'];
             $groups       = self::getSharedGroups($project_id);
 
+            // Render the shared copy in the order the project owner saved in the planner.
+            $group_sort = (isset($results['group_sort']) && $results['group_sort'] === 'desc') ? 'desc' : 'asc';
+
             wp_localize_script('xagio-shared-project', 'xagio_shared_data', [
                 'groups'        => esc_html(base64_encode(wp_json_encode($groups))),
                 'project_name'  => esc_html($project_name),
+                'group_sort'    => esc_html($group_sort),
                 'plugins_url'   => esc_url(XAGIO_URL),
                 'user_details'  => $user_details
             ]);

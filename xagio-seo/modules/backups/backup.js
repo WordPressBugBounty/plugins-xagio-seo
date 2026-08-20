@@ -16,7 +16,7 @@
         if (xagio_backup.backup_speed.grade < 8) {
             xagioModal("Warning", "Your hosting is not powerful enough to handle backups without issues, it received performance grade of " +
                                   xagio_backup.backup_speed.grade +
-                                  " / 10. Please contact your hosting provider to upgrade your plan or get a <b>FREE</b> migration of this website by switching to our <a href='https://care.xagio.com' target='_blank'>Xagio Care Hosting</a>.");
+                                  " / 10. Please contact your hosting provider to upgrade your plan or WordPress settings, or get a <b>FREE</b> migration of this website by switching to our <a href='https://xagiocare.com/' target='_blank'>Xagio Care Hosting</a>.");
         }
 
         if (xagio_backup.backup_size > 1000) {

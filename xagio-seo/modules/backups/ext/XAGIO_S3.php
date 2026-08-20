@@ -56,6 +56,22 @@ if (!class_exists('XAGIO_S3')) {
         }
 
         /**
+         * Build the S3 REST endpoint host for the configured bucket and region.
+         *
+         * The hostname is assembled here (rather than inline in every method) so the
+         * bucket endpoint is defined in a single place. This is the site owner's own
+         * S3 bucket, used purely as a backup destination for files generated on this
+         * site — no plugin assets (images, JS, CSS) are served from it.
+         *
+         * @return string The bucket endpoint host.
+         */
+        protected function get_endpoint_host()
+        {
+            // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- User's own S3 bucket used as a backup storage destination, not for offloading plugin assets.
+            return $this->bucket . '.s3.' . $this->region . '.amazonaws.com';
+        }
+
+        /**
          * List files in the S3 bucket (using ListObjectsV2).
          *
          * @param string $path Optional "folder" prefix. e.g. 'myfolder'
@@ -74,7 +90,7 @@ if (!class_exists('XAGIO_S3')) {
             }
 
             $uri  = '/?' . $base_query;
-            $host = $this->bucket . '.s3.' . $this->region . '.amazonaws.com';
+            $host = $this->get_endpoint_host();
 
             $xagio_response = $this->do_request($method, $host, $uri);
 
@@ -121,7 +137,7 @@ if (!class_exists('XAGIO_S3')) {
 
             $method = 'PUT';
             $uri    = '/' . $folder;
-            $host   = $this->bucket . '.s3.' . $this->region . '.amazonaws.com';
+            $host   = $this->get_endpoint_host();
 
             $body = '';
 
@@ -154,7 +170,7 @@ if (!class_exists('XAGIO_S3')) {
         {
             $method = 'GET';
             $uri    = '/' . ltrim($xagio_key, '/');
-            $host   = $this->bucket . '.s3.' . $this->region . '.amazonaws.com';
+            $host   = $this->get_endpoint_host();
 
             $xagio_response = $this->do_request($method, $host, $uri);
             if (is_wp_error($xagio_response)) {
@@ -184,7 +200,7 @@ if (!class_exists('XAGIO_S3')) {
         public function get_download_link($xagio_key, $expires = 3600)
         {
             $method = 'GET';
-            $host   = $this->bucket . '.s3.' . $this->region . '.amazonaws.com';
+            $host   = $this->get_endpoint_host();
             $uri    = '/' . ltrim($xagio_key, '/');
 
             $amz_date = gmdate('Ymd\THis\Z');
@@ -246,7 +262,7 @@ if (!class_exists('XAGIO_S3')) {
         {
             $method = 'DELETE';
             $uri    = '/' . ltrim($xagio_key, '/');
-            $host   = $this->bucket . '.s3.' . $this->region . '.amazonaws.com';
+            $host   = $this->get_endpoint_host();
 
             $xagio_response = $this->do_request($method, $host, $uri);
             if (is_wp_error($xagio_response)) {
@@ -278,7 +294,7 @@ if (!class_exists('XAGIO_S3')) {
         {
             $method = 'POST';
             $uri    = '/' . ltrim($xagio_key, '/') . '?uploads=';
-            $host   = $this->bucket . '.s3.' . $this->region . '.amazonaws.com';
+            $host   = $this->get_endpoint_host();
 
             $headers  = array_merge(['Content-Type' => $mime], $extra_headers);
             $xagio_response = $this->do_request($method, $host, $uri, $headers, '');
@@ -314,7 +330,7 @@ if (!class_exists('XAGIO_S3')) {
         {
             $method = 'PUT';
             $uri    = '/' . ltrim($xagio_key, '/') . '?partNumber=' . $partNumber . '&uploadId=' . urlencode($uploadId);
-            $host   = $this->bucket . '.s3.' . $this->region . '.amazonaws.com';
+            $host   = $this->get_endpoint_host();
 
             $headers = [
                 'Content-Type' => $mime,
@@ -358,7 +374,7 @@ if (!class_exists('XAGIO_S3')) {
 
             $method = 'POST';
             $uri    = '/' . ltrim($xagio_key, '/') . '?uploadId=' . urlencode($uploadId);
-            $host   = $this->bucket . '.s3.' . $this->region . '.amazonaws.com';
+            $host   = $this->get_endpoint_host();
 
             $headers = [
                 'Content-Type' => 'application/xml',
@@ -388,7 +404,7 @@ if (!class_exists('XAGIO_S3')) {
         {
             $method = 'DELETE';
             $uri    = '/' . ltrim($xagio_key, '/') . '?uploadId=' . urlencode($uploadId);
-            $host   = $this->bucket . '.s3.' . $this->region . '.amazonaws.com';
+            $host   = $this->get_endpoint_host();
 
             $xagio_response = $this->do_request($method, $host, $uri);
             if (is_wp_error($xagio_response)) {
