@@ -41,10 +41,6 @@ if (!class_exists('XAGIO_MODEL_SCHEMA')) {
                 'XAGIO_MODEL_SCHEMA',
                 'getRemoteSchemaGroups'
             ]);
-            add_action('admin_post_xagio_save_schema', [
-                'XAGIO_MODEL_SCHEMA',
-                'saveSchema'
-            ]);
             add_action('admin_post_xagio_schema_wizard', [
                 'XAGIO_MODEL_SCHEMA',
                 'schemaWizard'
@@ -248,6 +244,8 @@ if (!class_exists('XAGIO_MODEL_SCHEMA')) {
 
         public static function getRemoteSchemaGroups()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             $license_email = '';
             $license_key   = '';
             if (!$license_set = XAGIO_LICENSE::isLicenseSet($license_email, $license_key)) {

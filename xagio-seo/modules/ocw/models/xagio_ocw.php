@@ -630,10 +630,6 @@ if (!class_exists('XAGIO_MODEL_OCW')) {
                         }
                     }
 
-                    if(empty($posts_without_homepage)) {
-                        $posts_without_homepage = $posts;
-                    }
-
                     self::xagio_add_service_links($posts_without_homepage);
                 } else {
                     // Add new pages to menu under 'Service', excluding homepage
@@ -1110,6 +1106,8 @@ if (!class_exists('XAGIO_MODEL_OCW')) {
 
         public static function saveProjectId()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             if (!XAGIO_CONNECTED) {
                 wp_send_json_error(['message' => 'Your account is not connected.'], 403);
             }
@@ -1337,6 +1335,8 @@ if (!class_exists('XAGIO_MODEL_OCW')) {
         }
 
         public static function installKadenceImport() {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             global $wp_filesystem;
             if ( ! $wp_filesystem ) {
                 require_once ABSPATH . 'wp-admin/includes/file.php';
@@ -1480,6 +1480,8 @@ if (!class_exists('XAGIO_MODEL_OCW')) {
         }
 
         public static function installKadence() {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             // Ensure the current user can install plugins.
             // Ensure the current user can install plugins/themes
             if (!current_user_can('install_plugins')) {
@@ -1601,6 +1603,8 @@ if (!class_exists('XAGIO_MODEL_OCW')) {
 
         public static function installElementor()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             // Ensure the current user can install plugins.
             if (!current_user_can('install_plugins')) {
                 xagio_json('error', 'Insufficient permissions to install plugins.');

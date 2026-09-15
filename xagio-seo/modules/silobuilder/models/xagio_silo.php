@@ -585,6 +585,8 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
 
         public static function generateSiloLinks()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             sleep(1);
 
             $links = [];
@@ -1537,6 +1539,8 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
 
         public static function resetParentsCategoriesTags()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             //			$pages = get_pages();
             //			$posts = get_posts();
             //
@@ -2064,6 +2068,8 @@ if (!class_exists('XAGIO_MODEL_SILO')) {
 
         public static function loadSiloNames()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             $option_pages = get_option('XAGIO_SILO_PAGES');
             $option_posts = get_option('XAGIO_SILO_POSTS');
             $option_links = get_option('xagio_silo_links');

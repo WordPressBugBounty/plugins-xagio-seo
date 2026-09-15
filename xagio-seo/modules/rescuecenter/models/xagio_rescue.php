@@ -75,6 +75,8 @@ if (!class_exists('XAGIO_MODEL_RESCUE')) {
 
         public static function scanUploads()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
 
             // Give user some experience
             sleep(3);
@@ -207,11 +209,15 @@ if (!class_exists('XAGIO_MODEL_RESCUE')) {
 
         public static function scanPluginsThemes()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             xagio_json('success', 'Retrieved data.', XAGIO_MODEL_RESCUE::getPluginsThemes());
         }
 
         public static function removeOldCoreFiles()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             // Remove the WordPress core files
             XAGIO_MODEL_RESCUE::deleteFolder(XAGIO_PATH . '/tmp/wordpress');
         }

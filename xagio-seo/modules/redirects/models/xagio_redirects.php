@@ -206,6 +206,8 @@ if (!class_exists('XAGIO_MODEL_REDIRECTS')) {
 
         public static function deleteAllRedirects()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             global $wpdb;
             $wpdb->query('TRUNCATE TABLE xag_redirects');
 

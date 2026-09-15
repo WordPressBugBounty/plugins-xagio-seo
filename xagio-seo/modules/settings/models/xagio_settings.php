@@ -341,6 +341,8 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
 
         public static function getDefaultCountry()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             $data = get_option('XAGIO_LOCATION_DEFAULT_COUNTRY');
             xagio_json('success', 'Default Country retrieved.', $data);
         }
@@ -368,6 +370,8 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
 
         public static function getDefaultLocation()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             $data = get_option('XAGIO_LOCATION_DEFAULT_CITY');
             xagio_json('success', 'Default City retrieved.', $data);
         }
@@ -396,6 +400,8 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
 
         public static function getDefaultSearchEngine($return = false)
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             $data = get_option('XAGIO_LOCATION_DEFAULT_SEARCH_ENGINE');
             if($return) {
                 return $data;
@@ -831,6 +837,8 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
 
         public static function fixCommonIssues()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             // updateAPIKeys
             XAGIO_SYNC::getAPIKeys();
             // updateSharedScripts
@@ -850,17 +858,23 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
 
         public static function updateBackupSettings()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             XAGIO_SYNC::getBackupSettings();
             xagio_json('success', "Successfully updated Backup settings on this website!");
         }
 
         public static function createBackup()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             xagio_jsonc(XAGIO_MODEL_BACKUPS::doBackup());
         }
 
         public static function exportOptions()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             // Set headers for plain text and JSON download
             header("Content-type: text/plain");
             header('Content-Disposition: attachment; filename=Xagio_Export_Settings_' . gmdate('Y-m-d_H:i:s') . '.psexp');

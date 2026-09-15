@@ -211,6 +211,8 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
         public static function checkSpeed()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             update_option('XAGIO_BACKUP_SPEED', xagio_backup_speed());
         }
 

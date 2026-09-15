@@ -801,7 +801,8 @@ let elementorVersion = 'free';
                 e.preventDefault();
                 var button = $(this);
                 var target = button.data('target');
-                window.location = xagio_data.wp_post + '?action=' + target;
+                window.location = xagio_data.wp_post + '?action=' + target +
+                                  '&_xagio_nonce=' + xagio_data.nonce;
             });
 
             let default_engine = $('#search_engine').attr('data-default');

@@ -54,6 +54,8 @@ if (!class_exists('XAGIO_MODEL_MIGRATION')) {
 
         public static function migration_RANKMATH()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             global $wpdb;
             $results = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}postmeta WHERE meta_key LIKE '%rank_math_%'", ARRAY_A);
             foreach ($results as $xagio_r) {
@@ -93,6 +95,8 @@ if (!class_exists('XAGIO_MODEL_MIGRATION')) {
 
         public static function migration_YOAST()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             global $wpdb;
             $results = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}postmeta WHERE meta_key LIKE '%_yoast_wpseo_%'", ARRAY_A);
 
@@ -224,6 +228,8 @@ if (!class_exists('XAGIO_MODEL_MIGRATION')) {
 
         public static function migration_AIO()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             global $wpdb;
             $results = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}postmeta WHERE meta_key LIKE '%_aioseo%'", ARRAY_A);
             foreach ($results as $xagio_r) {

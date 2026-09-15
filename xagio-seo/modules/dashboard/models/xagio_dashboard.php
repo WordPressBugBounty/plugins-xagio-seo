@@ -153,6 +153,8 @@ if (!class_exists('XAGIO_MODEL_DASHBOARD')) {
 
         public static function disconnectAccount()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             $disconnect = XAGIO_API::apiRequest(
                 $apiEndpoint = 'license', $method = 'DELETE', $xagio_args = [], $xagio_http_code, $without_license = FALSE
             );
@@ -173,6 +175,8 @@ if (!class_exists('XAGIO_MODEL_DASHBOARD')) {
 
         public static function xagioFixRequirement()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             $action = sanitize_text_field(wp_unslash($_POST['fix_action']));
 
             $requirements_array = [
@@ -218,6 +222,8 @@ if (!class_exists('XAGIO_MODEL_DASHBOARD')) {
 
         public static function getXagioLinksDashboard()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             $xagio_result = XAGIO_API::apiRequest($endpoint = 'info', $method = 'GET', [
                 'type' => 'xagio_links',
             ], $xagio_http_code);
@@ -231,6 +237,8 @@ if (!class_exists('XAGIO_MODEL_DASHBOARD')) {
 
         public static function getXagioLinks()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             $transient_key = 'xagio_links_transient';
             $cached_result = get_transient($transient_key);
 
@@ -254,6 +262,8 @@ if (!class_exists('XAGIO_MODEL_DASHBOARD')) {
 
         public static function getAnnouncements()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             $announcements = XAGIO_API::apiRequest(
                 $apiEndpoint = 'announcements', $method = 'GET', $xagio_args = [], $xagio_http_code, $without_license = TRUE
             );

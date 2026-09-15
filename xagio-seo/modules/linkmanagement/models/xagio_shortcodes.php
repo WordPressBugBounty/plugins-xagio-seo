@@ -49,10 +49,6 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                 'XAGIO_MODEL_SHORTCODES',
                 'loadShortcodes'
             ]);
-            add_action('admin_post_xagio_getTrackingBoxes', [
-                'XAGIO_MODEL_SHORTCODES',
-                'getTrackingBoxes'
-            ]);
             add_action('admin_post_xagio_getTrackingCharts', [
                 'XAGIO_MODEL_SHORTCODES',
                 'getTrackingCharts'

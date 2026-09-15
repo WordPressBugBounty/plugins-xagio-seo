@@ -4,7 +4,7 @@ Tags: seo, ai seo, aeo, schema, rank tracker
 Requires at least: 5.6
 Tested up to: 7.0
 Requires PHP: 7.0
-Stable tag: 7.1.0.43
+Stable tag: 7.1.0.44
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -235,6 +235,9 @@ Xagio AI **removes the complexity**, giving you the **fastest, easiest way to ra
 3. Projects
 
 == Changelog ==
+= 7.1.0.44 =
+* ⚙️ Stability improvements and vulnerability fixes.
+
 = 7.1.0.43 =
 * ⚙️ Stability improvements.
 * ⚙️ Added sticky project planner sorting.

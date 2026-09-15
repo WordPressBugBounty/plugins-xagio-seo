@@ -1197,6 +1197,8 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
 
         public static function getCfTemplates()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             if (!get_option('XAGIO_CF_TEMPLATES')) {
                 wp_send_json([
                     'status'  => 'error',

@@ -111,6 +111,8 @@ if (!class_exists('XAGIO_MODEL_AI')) {
 
         public static function copyTemplatePage()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             global $wpdb;
 
             $xagio_page_id    = intval($_POST['page_id']);
@@ -118,10 +120,10 @@ if (!class_exists('XAGIO_MODEL_AI')) {
             $title      = get_post_meta($xagio_page_id, 'XAGIO_SEO_TITLE', true);
 
             if (empty($title)) {
-                return [
+                xagio_jsonc([
                     'status'  => 'error',
                     'message' => 'SEO Title is missing',
-                ];
+                ]);
             }
 
             $page_type = 'Service';
@@ -210,6 +212,8 @@ if (!class_exists('XAGIO_MODEL_AI')) {
 
         public static function getAveragePrices()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             $xagio_output = XAGIO_API::apiRequest('ai', 'POST', [], $xagio_http_code);
             if ($xagio_http_code == 203) {
                 xagio_jsonc([
@@ -903,6 +907,8 @@ if (!class_exists('XAGIO_MODEL_AI')) {
 
         public static function undoAiContentTemplate()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             global $wpdb;
 
             $post_id = intval($_POST['post_id']);
@@ -950,6 +956,8 @@ if (!class_exists('XAGIO_MODEL_AI')) {
 
         public static function useAiContentTemplate()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             global $wpdb;
 
             $post_id = intval($_POST['post_id']);

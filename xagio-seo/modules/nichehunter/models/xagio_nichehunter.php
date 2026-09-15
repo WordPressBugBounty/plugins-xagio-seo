@@ -185,6 +185,8 @@ if (!class_exists('XAGIO_MODEL_NICHEHUNTER')) {
 
         public static function getHistory()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             $xagio_output = XAGIO_API::apiRequest(
                 $apiEndpoint = 'live_database', $method = 'GET', $xagio_args = ['type' => 'get_history'], $xagio_http_code, $without_license = FALSE
             );
@@ -239,6 +241,8 @@ if (!class_exists('XAGIO_MODEL_NICHEHUNTER')) {
 
         public static function getGoogleSearchWindows()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             $data = [
                 'broad'   => filter_var(get_option('XAGIO_GOOGLE_SEARCH_WINDOW_BROAD'), FILTER_VALIDATE_BOOLEAN),
                 'phrase'  => filter_var(get_option('XAGIO_GOOGLE_SEARCH_WINDOW_PHRASE'), FILTER_VALIDATE_BOOLEAN),

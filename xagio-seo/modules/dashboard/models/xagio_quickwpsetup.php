@@ -23,6 +23,8 @@ if (!class_exists('XAGIO_MODEL_QUICKWPSETUP')) {
 
         public static function performFreshStart()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             // Sanitize and process input data
             $options = [
                 'fs_remove_pages'                     => sanitize_text_field(filter_input(INPUT_POST, 'fs_remove_pages', FILTER_VALIDATE_INT)),

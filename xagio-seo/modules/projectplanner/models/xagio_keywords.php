@@ -296,6 +296,8 @@ if (!class_exists('XAGIO_MODEL_KEYWORDS')) {
         //--------------------------------------------
         public static function refreshXags()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             $xagio_http_code = 0;
             $xagio_result    = XAGIO_API::apiRequest($endpoint = 'info', $method = 'GET', [
                 'type' => 'xags',

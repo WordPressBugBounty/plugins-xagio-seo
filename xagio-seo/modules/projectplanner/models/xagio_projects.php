@@ -155,11 +155,6 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                 'XAGIO_MODEL_PROJECTS',
                 'shareProject'
             ]);
-            add_action('admin_post_xagio_remove_sharing', [
-                'XAGIO_MODEL_PROJECTS',
-                'unshareProject'
-            ]);
-
             add_action('admin_post_xagio_get_project_info', [
                 'XAGIO_MODEL_PROJECTS',
                 'getProjectInfo'
@@ -1399,6 +1394,8 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
         // Search Posts
         public static function getPosts()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             $xagio_request = new XAGIO_REQUEST();
             XAGIO_API::searchPosts($xagio_request);
         }
@@ -1406,12 +1403,16 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
         // Get Posts
         public static function getPostTypes()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             XAGIO_API::getPostTypes();
         }
 
         // Search Taxonomies
         public static function getTaxonomies()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             $xagio_request = new XAGIO_REQUEST();
             XAGIO_API::searchTaxonomies($xagio_request);
         }
@@ -1419,12 +1420,16 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
         // Get Taxonomies
         public static function getTaxonomyTypes()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             $xagio_taxonomies = XAGIO_MODEL_SEO::getAllTaxonomies();
             xagio_json('success', 'Retrieved taxonomies.', array_values($xagio_taxonomies));
         }
 
         public static function getTagsCategories()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             $categories = get_categories([
                 "hide_empty" => 0,
                 "type"       => "post",
@@ -1554,6 +1559,8 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
         // Get all projects
         public static function getProjects()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             global $wpdb;
 
             $results = $wpdb->get_results(
@@ -1851,6 +1858,8 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
 
         public static function getPagePostParent()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             $pages = get_pages();
             for ($xagio_i = 0; $xagio_i < count($pages); $xagio_i++) {
                 $page       = (array)$pages[$xagio_i];
@@ -1893,6 +1902,8 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
 
         public static function getPagePostStatus()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             $statusTypes  = array_keys(get_post_statuses());
             $statusValues = get_post_statuses();
             for ($xagio_i = 0; $xagio_i < count($statusTypes); $xagio_i++) {
@@ -2092,6 +2103,8 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
         // Download to CSV
         public static function exportProjects()
         {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
             $fileName = wp_parse_url(get_site_url());
             $fileName = strtolower($fileName['host']) . "-" . gmdate("Y_m_d");
 
