@@ -292,9 +292,11 @@ if (!class_exists('XAGIO_OnedriveClient')) {
         {
             $chunk_size = self::UPLOAD_CHUNK_SIZE;
 
-            // Ensure the file still exists.
+            // Ensure the file still exists. If it is gone, remove every event for it so this
+            // does not fire (and report) again on every page load.
             if (!file_exists($source_file)) {
-                XAGIO_MODEL_BACKUPS::handleOutput($createID, 'error', 'Local Backup file does not exist, cannot upload.');
+                XAGIO_MODEL_BACKUPS::purgeDeadUploadEvents($source_file);
+                XAGIO_MODEL_BACKUPS::handleOutput($createID, 'error', 'Local Backup file does not exist, cannot upload. Upload cancelled.');
                 return;
             }
 
@@ -334,8 +336,12 @@ if (!class_exists('XAGIO_OnedriveClient')) {
             $client->SetAccessToken($backup_OnedriveAccessToken);
             $client->renewAccessToken();
 
-            // Upload the current chunk.
+            // Upload the current chunk, with one retry on a transport error.
             $xagio_response = $client->uploadCall($upload_url, $headers, $chunk);
+            if (isset($xagio_response['error'])) {
+                sleep(5);
+                $xagio_response = $client->uploadCall($upload_url, $headers, $chunk);
+            }
             if (isset($xagio_response['error'])) {
                 XAGIO_MODEL_BACKUPS::handleOutput($createID, 'error', 'There was a problem while uploading backup to OneDrive: ' . $xagio_response['error']);
                 return;
@@ -355,8 +361,8 @@ if (!class_exists('XAGIO_OnedriveClient')) {
             ];
 
             if ($offset < $file_size) {
-                // Save updated upload data and reschedule the next chunk.
-                wp_schedule_single_event(time() + 10, 'XAGIO_OnedriveClient_Process_Upload', $upload_data);
+                // Schedule the next chunk upload.
+                XAGIO_MODEL_BACKUPS::continueUpload('XAGIO_OnedriveClient_Process_Upload', $upload_data);
             } else {
                 // Remove the files backup
                 wp_delete_file($source_file);

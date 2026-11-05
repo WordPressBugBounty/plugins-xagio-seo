@@ -5,6 +5,226 @@ if (!defined('ABSPATH'))
 if (!class_exists("XAGIO_MODEL_BACKUPS")) {
     class XAGIO_MODEL_BACKUPS
     {
+        // Paths that must not outlive the current request
+        private static $tempPaths = [];
+
+        // Shared lock held while this request owns temp files; null when it owns none
+        private static $tempLock = null;
+
+        private static $tempWorkStarted = false;
+        private static $tempHandlersRegistered = false;
+
+        /**
+         * Returns an unguessable path inside backups/ that is deleted when the request ends, however it ends.
+         * The name must stay out of the *_full_*, *_files_* and *_mysql_* patterns the backups page lists.
+         */
+        public static function tempPath($suffix = '')
+        {
+            $path = XAGIO_PATH . '/backups/tmp_' . bin2hex(random_bytes(32)) . $suffix;
+            self::guardTemp($path);
+            return $path;
+        }
+
+        public static function guardTemp($path)
+        {
+            self::beginTempWork();
+            self::$tempPaths[$path] = true;
+        }
+
+        public static function deleteTemp($path)
+        {
+            self::removePath($path);
+            unset(self::$tempPaths[$path]);
+        }
+
+        // Moves mysql.zip out of an extracted backup, so that copying the folder can't put it in the web root
+        public static function takeDump($folder)
+        {
+            $source = rtrim($folder, '/\\') . '/mysql.zip';
+            $target = self::tempPath('.zip');
+
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename
+            if (is_file($source) && !@rename($source, $target)) {
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.copy_copy
+                @copy($source, $target);
+                self::removePath($source);
+            }
+
+            return $target;
+        }
+
+        public static function cleanupTemp()
+        {
+            foreach (array_keys(self::$tempPaths) as $path) {
+                self::removePath($path);
+            }
+            self::$tempPaths = [];
+
+            if (self::$tempLock) {
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+                fclose(self::$tempLock);
+            }
+            self::$tempLock        = null;
+            self::$tempWorkStarted = false;
+        }
+
+        /**
+         * WP's fatal error handler ends in wp_die(), and exiting inside a shutdown function cancels the
+         * remaining ones. This filter fires just before that die, so fatals and timeouts still get cleaned up.
+         */
+        public static function cleanupTempOnFatal($message)
+        {
+            self::cleanupTemp();
+            return $message;
+        }
+
+        /**
+         * Deletes what a dead request left behind. A killed process (OOM, FPM timeout) runs no PHP at all,
+         * so this runs on every request and is what finally catches those leftovers. Backups in progress
+         * hold a shared lock which the OS drops when they die, so holding the exclusive one means nothing
+         * is still using these files.
+         */
+        public static function sweepTemp()
+        {
+            $folder = XAGIO_PATH . '/backups';
+
+            $stale = array_merge(
+                glob($folder . '/tmp_*') ?: [],
+                // ZipArchive's unfinished output files
+                glob($folder . '/*.zip.*') ?: [],
+                glob(ABSPATH . 'mysql.zip.*') ?: []
+            );
+
+            // Fixed locations used by previous versions of the plugin
+            foreach (['backups_mysql', 'restore_mysql', 'restore_full', 'restore_files'] as $legacyFolder) {
+                if (file_exists(XAGIO_PATH . '/' . $legacyFolder)) {
+                    $stale[] = XAGIO_PATH . '/' . $legacyFolder;
+                }
+            }
+            if (self::isOwnDump(ABSPATH . 'mysql.zip')) {
+                $stale[] = ABSPATH . 'mysql.zip';
+            }
+
+            if (empty($stale)) {
+                return;
+            }
+
+            $free = !is_dir($folder);
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+            $lock = $free ? false : @fopen($folder . '/index.html', 'c');
+
+            if ($lock) {
+                $wouldBlock = 0;
+                $free       = flock($lock, LOCK_EX | LOCK_NB, $wouldBlock);
+                if (!$free && $wouldBlock) {
+                    // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+                    fclose($lock);
+                    return; // A backup is running
+                }
+            }
+
+            foreach ($stale as $path) {
+                // Without working locks, only the age can tell whether a file is abandoned
+                if ($free || @filemtime($path) < time() - 6 * HOUR_IN_SECONDS) {
+                    self::removePath($path);
+                }
+            }
+
+            if ($lock) {
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+                fclose($lock);
+            }
+        }
+
+        private static function beginTempWork()
+        {
+            if (self::$tempWorkStarted) {
+                return;
+            }
+            self::$tempWorkStarted = true;
+
+            self::sweepTemp();
+
+            $folder = XAGIO_PATH . '/backups';
+            if (!file_exists($folder)) {
+                xagio_mkdir($folder);
+            }
+            if (!file_exists($folder . '/index.html')) {
+                xagio_file_put_contents($folder . '/index.html', 'Access Denied');
+            }
+
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+            $lock = @fopen($folder . '/index.html', 'c');
+            if ($lock) {
+                flock($lock, LOCK_SH);
+                self::$tempLock = $lock;
+            }
+
+            if (!self::$tempHandlersRegistered) {
+                self::$tempHandlersRegistered = true;
+                register_shutdown_function(['XAGIO_MODEL_BACKUPS', 'cleanupTemp']);
+                add_filter('wp_php_error_message', ['XAGIO_MODEL_BACKUPS', 'cleanupTempOnFatal']);
+            }
+        }
+
+        // Tells our dump from a mysql.zip the site owner put there: dumps start with 000000_<table>.sql
+        private static function isOwnDump($file)
+        {
+            if (!is_file($file) || !class_exists('ZipArchive')) {
+                return false;
+            }
+
+            $zip = new ZipArchive();
+            if ($zip->open($file) !== true) {
+                return false;
+            }
+            $firstEntry = $zip->getNameIndex(0);
+            $zip->close();
+
+            return is_string($firstEntry) && preg_match('/^\d{6}_.+\.sql$/', $firstEntry) === 1;
+        }
+
+        // Plain PHP on purpose: this runs while the request is dying, when WP_Filesystem may be unusable
+        private static function removePath($path)
+        {
+            try {
+                // ZipArchive writes to "<name>.XXXXXX" until it closes
+                foreach (glob($path . '.*') ?: [] as $partial) {
+                    // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+                    @unlink($partial);
+                }
+
+                if (is_dir($path) && !is_link($path)) {
+                    $items = new RecursiveIteratorIterator(
+                        new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST
+                    );
+                    foreach ($items as $item) {
+                        if ($item->isDir() && !$item->isLink()) {
+                            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir
+                            @rmdir($item->getPathname());
+                        } else {
+                            // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+                            @unlink($item->getPathname());
+                        }
+                    }
+                    // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_rmdir
+                    @rmdir($path);
+                } elseif (file_exists($path) || is_link($path)) {
+                    // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+                    @unlink($path);
+                }
+
+                // Sites on FTP filesystems may own these files under a different user
+                global $wp_filesystem;
+                if (file_exists($path) && !empty($wp_filesystem)) {
+                    $wp_filesystem->delete($path, true);
+                }
+            } catch (Exception $ex) {
+                // Whatever survives here gets picked up by the next sweep
+                unset($ex);
+            }
+        }
+
         private static function defines()
         {
             define('XAGIO_BACKUPS_IGNORE_DOMAINS', filter_var(get_option('XAGIO_BACKUPS_IGNORE_DOMAINS'), FILTER_VALIDATE_BOOLEAN));
@@ -26,15 +246,98 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             ]);
         }
 
+        // Upload action hooks shared by processUploadQueues() and purgeDeadUploadEvents().
+        // The first argument of every one of these events is the local backup path.
+        const UPLOAD_HOOKS = array(
+            'XAGIO_OnedriveClient_Process_Upload',
+            'XAGIO_GoogleDrive_Process_Upload',
+            'XAGIO_Dropbox_Process_Upload',
+            'XAGIO_S3_Process_Upload',
+        );
+
+        /**
+         * Remove every scheduled upload event whose local backup file no longer exists.
+         *
+         * wp_unschedule_event() keys on md5(serialize($args)) and silently misses when the
+         * stored key no longer matches, which leaves an event that fires on every page load
+         * and reports the same error to the Panel each time. This rewrites the cron array
+         * directly, so it does not depend on the args hash.
+         *
+         * @param string|null $only_path Limit the purge to events for this file. NULL purges all dead upload events.
+         *
+         * @return int Number of events removed.
+         */
+        public static function purgeDeadUploadEvents($only_path = null)
+        {
+            $cron_array = _get_cron_array();
+            if (empty($cron_array) || !is_array($cron_array)) {
+                return 0;
+            }
+
+            $removed = 0;
+
+            foreach ($cron_array as $xagio_timestamp => $cron_hooks) {
+                // The cron option carries a top-level 'version' key next to the timestamp buckets.
+                if (!is_int($xagio_timestamp) || !is_array($cron_hooks)) {
+                    continue;
+                }
+
+                foreach (self::UPLOAD_HOOKS as $xagio_hook) {
+                    if (empty($cron_hooks[$xagio_hook])) {
+                        continue;
+                    }
+
+                    foreach ($cron_hooks[$xagio_hook] as $xagio_unique_id => $xagio_event) {
+                        $xagio_path = isset($xagio_event['args'][0]) ? (string) $xagio_event['args'][0] : '';
+
+                        if ($only_path !== null && $xagio_path !== $only_path) {
+                            continue;
+                        }
+
+                        if ($xagio_path !== '' && file_exists($xagio_path)) {
+                            continue;
+                        }
+
+                        unset($cron_array[$xagio_timestamp][$xagio_hook][$xagio_unique_id]);
+                        $removed++;
+                    }
+
+                    if (empty($cron_array[$xagio_timestamp][$xagio_hook])) {
+                        unset($cron_array[$xagio_timestamp][$xagio_hook]);
+                    }
+                }
+
+                if (empty($cron_array[$xagio_timestamp])) {
+                    unset($cron_array[$xagio_timestamp]);
+                }
+            }
+
+            if ($removed > 0) {
+                _set_cron_array($cron_array);
+            }
+
+            return $removed;
+        }
+
+        /**
+         * Schedule the next upload chunk. One chunk per cron run; the next one runs on the next
+         * cron tick (or the admin-load fallback in processUploadQueues()).
+         *
+         * @param string $hook        Upload hook name.
+         * @param array  $upload_data Arguments for the next chunk.
+         */
+        public static function continueUpload($hook, array $upload_data)
+        {
+            wp_schedule_single_event(time() + 10, $hook, $upload_data);
+        }
+
         public static function processUploadQueues()
         {
+            // Drop upload events whose local file is gone before anything can fire them.
+            self::purgeDeadUploadEvents();
+
             // List of upload action hooks to check.
-            $upload_hooks = array(
-                'XAGIO_OnedriveClient_Process_Upload',
-                'XAGIO_GoogleDrive_Process_Upload',
-                'XAGIO_Dropbox_Process_Upload',
-                'XAGIO_S3_Process_Upload',
-            );
+            $upload_hooks = self::UPLOAD_HOOKS;
 
             // Retrieve the current cron array.
             $cron_array = _get_cron_array();
@@ -74,6 +377,8 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
         public static function initialize()
         {
+            self::sweepTemp();
+
             self::loadClasses();
 
             add_action('admin_enqueue_scripts', function () {
@@ -1216,7 +1521,11 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 ];
             }
 
-            // unzip the backup to the root path
+            self::guardTemp($backupFolder . "/" . $xagio_backup);
+
+            // unzip the backup next to it first: extracting straight into the root would expose the database dump
+            $extractFolder = self::tempPath();
+            xagio_mkdir($extractFolder);
 
             if (!class_exists("ZipArchive")) {
                 return [
@@ -1227,7 +1536,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 $zip = new xagio_ZipArchiveX();
                 $res = $zip->open($backupFolder . "/" . $xagio_backup);
                 if ($res === true) {
-                    $res = $zip->extractTo(ABSPATH);
+                    $res = $zip->extractTo($extractFolder);
                     $zip->close();
                 } else {
                     return [
@@ -1245,16 +1554,24 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 ];
             }
 
-            // remove the backup zip file
-            wp_delete_file($backupFolder . "/" . $xagio_backup);
+            // A database-only archive holds loose .sql files, which must not be copied into the root either
+            if (glob($extractFolder . "/*.sql")) {
+                $dumpFile = $backupFolder . "/" . $xagio_backup;
+            } else {
+                $dumpFile = self::takeDump($extractFolder);
+
+                XAGIO_MODEL_CLONE::recurseCopy(
+                    rtrim($extractFolder, DIRECTORY_SEPARATOR), rtrim(ABSPATH, DIRECTORY_SEPARATOR)
+                );
+            }
+            self::deleteTemp($extractFolder);
 
             // most tricky part, restore MySQL
-            $mysql_result = XAGIO_MODEL_BACKUPS::restoreMySQL(
-                ABSPATH . "mysql.zip"
-            );
+            $mysql_result = XAGIO_MODEL_BACKUPS::restoreMySQL($dumpFile);
 
-            // remove the backup mysql file
-            wp_delete_file(ABSPATH . "mysql.zip");
+            // remove the backup zip file and the mysql file
+            self::deleteTemp($dumpFile);
+            self::deleteTemp($backupFolder . "/" . $xagio_backup);
 
             if ($mysql_result !== true) {
                 return $mysql_result;
@@ -1355,11 +1672,8 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             WP_Filesystem();
             global $wp_filesystem;
 
-            // Check if the restore folder exists
-            $restoreFolder = XAGIO_PATH . "/restore_mysql";
-            if ($wp_filesystem->is_dir($restoreFolder)) {
-                xagio_removeRecursiveDir($restoreFolder);
-            }
+            // The extracted dump is plain SQL, so its folder gets a random name too
+            $restoreFolder = self::tempPath();
             $wp_filesystem->mkdir($restoreFolder);
 
             // Determine if the backup is a zip file
@@ -1486,6 +1800,8 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
             $log["errors"] = $errors;
 
+            self::deleteTemp($restoreFolder);
+
             if (!empty($errors)) {
                 return [
                     "status"  => "error",
@@ -1493,8 +1809,6 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                     "errors"  => $errors
                 ];
             }
-
-            xagio_removeRecursiveDir($restoreFolder);
 
             return true;
         }
@@ -1567,14 +1881,6 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                     ]);
                 }
 
-                // Check if the restore folder exists
-                $restoreFolder = XAGIO_PATH . "/restore_files";
-                if (file_exists($restoreFolder)) {
-                    xagio_removeRecursiveDir($restoreFolder);
-                }
-
-                xagio_mkdir($restoreFolder);
-
                 $upload_overrides = array('test_form' => false);
 
                 // Use wp_handle_upload to manage file uploads
@@ -1582,6 +1888,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
                 if ($uploaded_file && !isset($uploaded_file['error'])) {
                     $xagio_backup = $uploaded_file['file'];
+                    self::guardTemp($xagio_backup);
                 } else {
                     // Handle upload error
                     xagio_jsonc([
@@ -1591,6 +1898,9 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 }
 
             }
+
+            $restoreFolder = self::tempPath();
+            xagio_mkdir($restoreFolder);
 
             if (!class_exists("ZipArchive")) {
                 xagio_jsonc([
@@ -1611,22 +1921,23 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 }
             }
 
-            if (!file_exists($restoreFolder . "/index.php")) {
+            // Not index.php: the backup archive deliberately leaves out WordPress core files from the root
+            if (!file_exists($restoreFolder . "/wp-content")) {
                 xagio_jsonc([
                     "status"  => "error",
-                    "message" => "Failed to upload file backup. Make sure that you have write permissions on your web root.",
+                    "message" => "This archive is not a valid file backup: the wp-content folder is missing from it.",
                 ]);
             }
+
+            // Remove MySQL Backup if any, before it can reach the root
+            self::removePath($restoreFolder . "/mysql.zip");
 
             // Copy over the files
             XAGIO_MODEL_CLONE::recurseCopy(
                 rtrim($restoreFolder, DIRECTORY_SEPARATOR), rtrim(ABSPATH, DIRECTORY_SEPARATOR)
             );
 
-            // Remove MySQL Backup if any
-            wp_delete_file(ABSPATH . "mysql.zip");
-
-            xagio_removeRecursiveDir($restoreFolder);
+            self::deleteTemp($restoreFolder);
 
             xagio_jsonc([
                 "status"  => "success",
@@ -1672,6 +1983,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
                 if ($uploaded_file && !isset($uploaded_file['error'])) {
                     $xagio_backup = $uploaded_file['file'];
+                    self::guardTemp($xagio_backup);
                 } else {
                     // Handle upload error
                     xagio_jsonc([
@@ -1748,6 +2060,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
                 if ($uploaded_file && !isset($uploaded_file['error'])) {
                     $xagio_backup = $uploaded_file['file'];
+                    self::guardTemp($xagio_backup);
 
                 } else {
                     // Handle upload error
@@ -1759,11 +2072,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
             }
 
-            // Check if the restore folder exists
-            $restoreFolder = XAGIO_PATH . "/restore_full";
-            if (file_exists($restoreFolder)) {
-                xagio_removeRecursiveDir($restoreFolder);
-            }
+            $restoreFolder = self::tempPath();
             xagio_mkdir($restoreFolder);
 
             // Unzip the backup to the restore folder
@@ -1810,19 +2119,20 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 }
             }
 
+            // Take the dump out first, so it is never copied into the root
+            $dumpFile = self::takeDump($restoreFolder);
+
             // Copy over the files
             XAGIO_MODEL_CLONE::recurseCopy(
                 rtrim($restoreFolder, DIRECTORY_SEPARATOR), rtrim(ABSPATH, DIRECTORY_SEPARATOR)
             );
 
             // Restore MySQL
-            $mysql_result = XAGIO_MODEL_BACKUPS::restoreMySQL(
-                ABSPATH . "mysql.zip"
-            );
-            wp_delete_file(ABSPATH . "mysql.zip");
+            $mysql_result = XAGIO_MODEL_BACKUPS::restoreMySQL($dumpFile);
+            self::deleteTemp($dumpFile);
 
             // Remove files
-            xagio_removeRecursiveDir($restoreFolder);
+            self::deleteTemp($restoreFolder);
 
             if ($mysql_result !== true) {
                 xagio_jsonc($mysql_result);
@@ -2193,6 +2503,15 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
         public static function doCloneBackup($type = "full")
         {
+            try {
+                return self::runCloneBackup($type);
+            } finally {
+                self::cleanupTemp();
+            }
+        }
+
+        private static function runCloneBackup($type)
+        {
             // Check whether the folders exist (if not, make them)
             $backupFolder = XAGIO_PATH . "/backups";
 
@@ -2215,12 +2534,9 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             // Backup ZIP File
             $backupFile = $backupFolder . DIRECTORY_SEPARATOR . $backupName . ".zip";
 
-            // Backup SQL File
-            $backupSQL = $wordPressHomeDir . "mysql.zip";
+            // A backup that doesn't finish must not leave anything behind
+            self::guardTemp($backupFile);
 
-            if (file_exists($backupSQL)) {
-                wp_delete_file($backupSQL);
-            }
             // Start the MySQL backup process
             if ($type == "mysql") {
 
@@ -2232,6 +2548,8 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                     ];
                 }
 
+                unset(self::$tempPaths[$backupFile]);
+
                 return [
                     "status"  => "success",
                     "message" => "Successfully created database backup.",
@@ -2240,6 +2558,8 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                     ),
                 ];
             } elseif ($type == "full") {
+
+                $backupSQL = self::tempPath(".zip");
 
                 $xagio_output = self::doBackupMySQL($backupSQL);
                 if (!$xagio_output) {
@@ -2256,7 +2576,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                     glob($wordPressHomeDir . "*")
                 );
             } else {
-                $listOfFilesAndFolders = [$backupSQL];
+                $listOfFilesAndFolders = [];
             }
 
             if (!class_exists("ZipArchive")) {
@@ -2279,6 +2599,15 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 // Zip the whole thing
                 $archive->pack($listOfFilesAndFolders, $wordPressHomeDir);
 
+                // Restore expects the dump at the top of the archive, under this exact name
+                if ($type == "full" && !$archive->addFile($backupSQL, "mysql.zip")) {
+                    $archive->close();
+                    return [
+                        "status"  => "error",
+                        "message" => "Failed to add the database to the backup archive.",
+                    ];
+                }
+
                 $archive->close();
             }
 
@@ -2290,8 +2619,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 ];
             }
 
-            // Remote the MySQL backup from Root Dir (VERY IMPORTANT)
-            wp_delete_file($backupSQL);
+            unset(self::$tempPaths[$backupFile]);
 
             return [
                 "status"  => "success",
@@ -2305,11 +2633,21 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
         // Function that handles the overall backup process
         public static function doBackup($type = "full")
         {
+            $createID = isset($_POST['create_id']) ? intval($_POST["create_id"]) : 0;
+
             try {
+                // Zipping a whole site in one request takes minutes and a lot of memory.
+                // Lift the PHP defaults where the host allows it; hard host caps still apply.
+                if (function_exists('set_time_limit')) {
+                    @set_time_limit(0);
+                }
+                if (function_exists('wp_raise_memory_limit')) {
+                    wp_raise_memory_limit('admin');
+                }
+
                 // Update keys first
                 XAGIO_SYNC::getBackupSettings();
 
-                $createID       = isset($_POST['create_id']) ? intval($_POST["create_id"]) : 0;
                 $backupLocation = get_option("XAGIO_BACKUP_LOCATION");
                 $xagio_tokens         = get_option("XAGIO_BACKUP_SETTINGS");
 
@@ -2328,6 +2666,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
                 // WordPress Directory and Backup Names
                 $wordPressHomeDir = ABSPATH;
+                $backupSQL        = null;
                 $siteName         = self::getName(site_url());
                 $backupName       = $siteName . "_backup_{$type}_" . gmdate("m-d-Y_H-i");
 
@@ -2336,13 +2675,14 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 $backupName   .= "_" . $randomSuffix;
 
                 $backupFile = $backupFolder . DIRECTORY_SEPARATOR . $backupName . ".zip";
-                $backupSQL  = $wordPressHomeDir . "mysql.zip";
+
+                // A backup that doesn't finish must not leave anything behind
+                self::guardTemp($backupFile);
 
                 if ($type == "full" || $type == "mysql") {
 
-                    if (file_exists($backupSQL)) {
-                        wp_delete_file($backupSQL);
-                    }
+                    // A database-only backup is the dump itself, a full one carries it inside the archive
+                    $backupSQL = $type == "mysql" ? $backupFile : self::tempPath(".zip");
 
                     // Start the MySQL backup process
                     $xagio_output = self::doBackupMySQL($backupSQL);
@@ -2365,23 +2705,30 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                     }
 
                     $archive->pack($listOfFilesAndFolders, $wordPressHomeDir);
+
+                    // Restore expects the dump at the top of the archive, under this exact name
+                    if ($type == "full" && !$archive->addFile($backupSQL, "mysql.zip")) {
+                        $archive->close();
+                        return self::handleOutput($createID, "error", "Failed to add the database to the backup archive.");
+                    }
+
                     $archive->close();
-
-                } else if ($type == "mysql") {
-
-                    xagio_rename($backupSQL, $backupFile);
 
                 }
 
 
                 if (!file_exists($backupFile)) {
-                    return self::handleOutput($createID, "error", "Failed to create a backup. Could not zip the files.");
+                    return self::handleOutput($createID, "error", "Failed to create a backup. Could not zip the files (archive was not finalized, usually a PHP time or memory limit).");
                 }
 
-                if ($type == "full" || $type == "mysql") {
-                    // Remove the MySQL backup from Root Dir
-                    wp_delete_file($backupSQL);
+                if (filesize($backupFile) === 0) {
+                    wp_delete_file($backupFile);
+                    return self::handleOutput($createID, "error", "Failed to create a backup. The zip archive is empty.");
                 }
+
+                // Done with the temp files, don't keep them around during a long upload
+                unset(self::$tempPaths[$backupFile]);
+                self::cleanupTemp();
 
                 // Start uploading the backup to the remote server
                 $upload_status = self::uploadToRemoteServer($backupLocation, $xagio_tokens, $backupFile, $siteName, $createID);
@@ -2396,9 +2743,13 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
 
                 return $upload_status;
 
-            } catch (Exception $ex) {
+            } catch (Throwable $ex) {
 
                 return self::handleOutput($createID, 'error', 'Backup failed. Error: ' . $ex->getMessage());
+
+            } finally {
+
+                self::cleanupTemp();
 
             }
         }
@@ -2561,12 +2912,8 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 WP_Filesystem();
             }
 
-            // Create the folder for storing MySQL backup
-            $backupFolder = XAGIO_PATH . "/backups_mysql";
-
-            if ($wp_filesystem->exists($backupFolder)) {
-                xagio_removeRecursiveDir($backupFolder);
-            }
+            // Create the folder for storing MySQL backup. It holds plain SQL, so its name has to be unguessable
+            $backupFolder = self::tempPath();
 
             xagio_mkdir($backupFolder);
 
@@ -2673,7 +3020,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 }
             }
 
-            xagio_removeRecursiveDir($backupFolder);
+            self::deleteTemp($backupFolder);
 
             return $xagio_location;
         }

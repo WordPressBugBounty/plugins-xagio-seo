@@ -192,9 +192,11 @@ if (!class_exists('XAGIO_DropboxClient')) {
         {
             $chunk_size = self::UPLOAD_CHUNK_SIZE;
 
-            // Ensure the file still exists.
+            // Ensure the file still exists. If it is gone, remove every event for it so this
+            // does not fire (and report) again on every page load.
             if (!file_exists($source_file)) {
-                XAGIO_MODEL_BACKUPS::handleOutput($createID, 'error', 'Local backup file does not exist, cannot upload.');
+                XAGIO_MODEL_BACKUPS::purgeDeadUploadEvents($source_file);
+                XAGIO_MODEL_BACKUPS::handleOutput($createID, 'error', 'Local backup file does not exist, cannot upload. Upload cancelled.');
                 return;
             }
 
@@ -271,12 +273,24 @@ if (!class_exists('XAGIO_DropboxClient')) {
                     'close'  => false
                 ), $chunk);
 
+                // Dropbox append is idempotent for the same cursor offset, so one retry is safe.
                 if (isset($xagio_response['error'])) {
-                    XAGIO_MODEL_BACKUPS::handleOutput($createID, 'error', 'Error during upload: ' . json_encode($xagio_response['error']));
+                    sleep(5);
+                    $xagio_response = $client->uploadCall('files/upload_session/append_v2', array(
+                        'cursor' => array(
+                            'session_id' => $session_id,
+                            'offset'     => $offset
+                        ),
+                        'close'  => false
+                    ), $chunk);
+                }
+
+                if (isset($xagio_response['error'])) {
+                    XAGIO_MODEL_BACKUPS::handleOutput($createID, 'error', 'Error during upload (at offset ' . $offset . ' of ' . $file_size . '): ' . json_encode($xagio_response['error']));
                     return;
                 }
 
-                // Reschedule the next chunk upload.
+                // Schedule the next chunk upload.
                 $upload_data = array(
                     $source_file,
                     $session_id,
@@ -285,7 +299,7 @@ if (!class_exists('XAGIO_DropboxClient')) {
                     $createID,
                     $remote_file
                 );
-                wp_schedule_single_event(time() + 10, 'XAGIO_Dropbox_Process_Upload', $upload_data);
+                XAGIO_MODEL_BACKUPS::continueUpload('XAGIO_Dropbox_Process_Upload', $upload_data);
             } else {
                 // Final chunk: finish the upload session.
                 $xagio_response = $client->uploadCall('files/upload_session/finish', array(

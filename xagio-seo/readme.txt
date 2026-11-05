@@ -4,7 +4,7 @@ Tags: seo, ai seo, aeo, schema, rank tracker
 Requires at least: 5.6
 Tested up to: 7.0
 Requires PHP: 7.0
-Stable tag: 7.1.0.44
+Stable tag: 7.1.0.46
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -235,6 +235,18 @@ Xagio AI **removes the complexity**, giving you the **fastest, easiest way to ra
 3. Projects
 
 == Changelog ==
+= 7.1.0.46 =
+* 🐞 Fixed restoring file backups, which always failed with a misleading permissions error.
+
+= 7.1.0.45 =
+* 🔒 Database backups are no longer written to the website root. Temporary database files now use random names and are always removed, even if a backup or restore crashes or times out.
+* 🔒 Database files left behind by earlier versions are removed automatically.
+* 🔒 Restoring or cloning a backup no longer places database files in the website root, and uploaded restore archives are removed afterwards.
+* ⚙️ Backups now lift PHP time and memory limits where the host allows it and reject empty archives.
+* ⚙️ Backup uploads retry once on failure and report clearer errors.
+* 🐞 Fixed upload events for deleted backups firing on every page load.
+* 🐞 Fixed restoring database-only backups from remote storage.
+
 = 7.1.0.44 =
 * ⚙️ Stability improvements and vulnerability fixes.
 

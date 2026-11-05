@@ -324,9 +324,11 @@ if (!class_exists('XAGIO_GoogleDrive')) {
             $chunk_size = self::UPLOAD_CHUNK_SIZE;
             $mimeType   = 'application/zip';
 
-            // Ensure the file still exists.
+            // Ensure the file still exists. If it is gone, remove every event for it so this
+            // does not fire (and report) again on every page load.
             if (!file_exists($source_file)) {
-                XAGIO_MODEL_BACKUPS::handleOutput($createID, 'error', 'Local backup file does not exist, cannot upload.');
+                XAGIO_MODEL_BACKUPS::purgeDeadUploadEvents($source_file);
+                XAGIO_MODEL_BACKUPS::handleOutput($createID, 'error', 'Local backup file does not exist, cannot upload. Upload cancelled.');
                 return;
             }
 
@@ -384,24 +386,39 @@ if (!class_exists('XAGIO_GoogleDrive')) {
 
             $xagio_response = wp_remote_request($sessionUri, $xagio_args);
 
+            // One retry on a transport error or a 5xx; anything else is reported as-is.
+            if (is_wp_error($xagio_response) || wp_remote_retrieve_response_code($xagio_response) >= 500) {
+                sleep(5);
+                $xagio_response = wp_remote_request($sessionUri, $xagio_args);
+            }
+
             if (is_wp_error($xagio_response)) {
-                XAGIO_MODEL_BACKUPS::handleOutput($createID, 'error', 'Error during upload: ' . $xagio_response->get_error_message());
+                XAGIO_MODEL_BACKUPS::handleOutput($createID, 'error', 'Error during upload (at offset ' . $offset . ' of ' . $file_size . '): ' . $xagio_response->get_error_message());
                 return;
             }
 
             $httpCode     = wp_remote_retrieve_response_code($xagio_response);
             $bodyResponse = wp_remote_retrieve_body($xagio_response);
-            $responseData = json_decode($bodyResponse, true);
 
             // For resumable uploads the HTTP code 308 ("Resume Incomplete") is expected,
             // as are 200/201 when the upload is complete.
             if ($httpCode != 308 && ($httpCode < 200 || $httpCode > 299)) {
-                XAGIO_MODEL_BACKUPS::handleOutput($createID, 'error', 'Upload failed: ' . $bodyResponse);
+                $xagio_detail = trim((string) $bodyResponse);
+                if ($xagio_detail === '') {
+                    $xagio_detail = 'empty response body';
+                }
+                XAGIO_MODEL_BACKUPS::handleOutput($createID, 'error', 'Upload failed (HTTP ' . intval($httpCode) . ' at offset ' . $offset . ' of ' . $file_size . '): ' . $xagio_detail);
                 return;
             }
 
-            // Update the offset.
+            // Update the offset. On 308 Google reports what it actually stored; trust that over our own count.
             $offset += $chunk_length;
+            if ($httpCode == 308) {
+                $xagio_range = wp_remote_retrieve_header($xagio_response, 'range');
+                if (is_string($xagio_range) && preg_match('/bytes=\d+-(\d+)/', $xagio_range, $m)) {
+                    $offset = (int) $m[1] + 1;
+                }
+            }
 
             // Prepare new upload data.
             $upload_data = [
@@ -414,7 +431,7 @@ if (!class_exists('XAGIO_GoogleDrive')) {
 
             if ($offset < $file_size) {
                 // Schedule the next chunk upload.
-                wp_schedule_single_event(time() + 10, 'XAGIO_GoogleDrive_Process_Upload', $upload_data);
+                XAGIO_MODEL_BACKUPS::continueUpload('XAGIO_GoogleDrive_Process_Upload', $upload_data);
             } else {
                 // Remove the local backup file.
                 wp_delete_file($source_file);

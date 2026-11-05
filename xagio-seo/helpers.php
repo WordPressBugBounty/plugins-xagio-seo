@@ -317,7 +317,7 @@ if (!class_exists('xagio_ZipArchiveX') && class_exists('ZipArchive')) {
                 } elseif (is_file($fullPath)) {
                     // Add individual file if not excluded
                     $extension = pathinfo($fullPath, PATHINFO_EXTENSION);
-                    if (!isset($excludedExtensionsSet[$extension]) || basename($relativePath) == 'mysql.zip') {
+                    if (!isset($excludedExtensionsSet[$extension])) {
                         $this->zipArchive->addFile($fullPath, $relativePath);
                     }
                 }

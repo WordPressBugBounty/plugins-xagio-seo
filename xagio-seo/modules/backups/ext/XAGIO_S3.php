@@ -610,10 +610,12 @@ if (!class_exists('XAGIO_S3')) {
         {
             $chunk_size = self::UPLOAD_CHUNK_SIZE;
 
-            // Ensure the file exists.
+            // Ensure the file exists. If it is gone, remove every event for it so this
+            // does not fire (and report) again on every page load.
             if (!file_exists($local_path)) {
                 if (class_exists('XAGIO_MODEL_BACKUPS')) {
-                    XAGIO_MODEL_BACKUPS::handleOutput($createID, 'error', 'Local file does not exist, cannot upload.');
+                    XAGIO_MODEL_BACKUPS::purgeDeadUploadEvents($local_path);
+                    XAGIO_MODEL_BACKUPS::handleOutput($createID, 'error', 'Local file does not exist, cannot upload. Upload cancelled.');
                 }
                 return;
             }
@@ -672,8 +674,12 @@ if (!class_exists('XAGIO_S3')) {
             $type = wp_check_filetype($local_path);
             $mime = !empty($type['type']) ? $type['type'] : 'application/octet-stream';
 
-            // Upload this part using the existing helper method.
+            // Upload this part using the existing helper method, with one retry (S3 parts are idempotent).
             $etag = $s3->upload_part_data($data, $xagio_key, $uploadId, $partNumber, $mime);
+            if (is_wp_error($etag)) {
+                sleep(5);
+                $etag = $s3->upload_part_data($data, $xagio_key, $uploadId, $partNumber, $mime);
+            }
             if (is_wp_error($etag)) {
                 $s3->abort_multipart_upload($xagio_key, $uploadId);
                 if (class_exists('XAGIO_MODEL_BACKUPS')) {
@@ -701,7 +707,8 @@ if (!class_exists('XAGIO_S3')) {
                     $createID,
                     $parts
                 );
-                wp_schedule_single_event(time() + 10, 'XAGIO_S3_Process_Upload', $upload_data);
+                // Schedule the next part upload.
+                XAGIO_MODEL_BACKUPS::continueUpload('XAGIO_S3_Process_Upload', $upload_data);
             } else {
                 // All parts have been uploaded. Complete the multipart upload.
                 $xagio_result = $s3->complete_multipart_upload($xagio_key, $uploadId, $parts);

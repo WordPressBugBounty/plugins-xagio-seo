@@ -81,10 +81,15 @@ if (!class_exists('XAGIO_MODEL_CLONE')) {
             // Fetch user meta data
             $current_usermeta = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->usermeta} WHERE user_id = %d", $current_user_id), ARRAY_A);
 
+            // Take the database dump out first, so it is never copied into the web root
+            $dumpFile = XAGIO_MODEL_BACKUPS::takeDump($BACKUP_PATH);
+
             // Move the files from temporary directory to root
             self::recurseCopy(rtrim($BACKUP_PATH, DIRECTORY_SEPARATOR), rtrim(ABSPATH, DIRECTORY_SEPARATOR));
 
-            $xagio_result = XAGIO_MODEL_BACKUPS::restoreMySQL(ABSPATH . 'mysql.zip');
+            $xagio_result = XAGIO_MODEL_BACKUPS::restoreMySQL($dumpFile);
+
+            XAGIO_MODEL_BACKUPS::deleteTemp($dumpFile);
 
             if ($xagio_result !== true) {
                 $errors[] = $xagio_result;
