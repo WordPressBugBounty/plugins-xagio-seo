@@ -1517,7 +1517,8 @@ if (!class_exists('XAGIO_API')) {
          */
         public static function createCloneBackup($request = null)
         {
-            xagio_jsonc(XAGIO_MODEL_BACKUPS::doCloneBackup());
+            // The copy only exists for this transfer, so it goes as soon as the other site has it
+            xagio_jsonc(XAGIO_MODEL_BACKUPS::doCloneBackup("full", true));
         }
 
         /**

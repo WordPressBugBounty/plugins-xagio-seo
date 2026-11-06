@@ -118,7 +118,7 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 
                 <div class="xagio-panel">
                     <h3 class="xagio-panel-title local-backups">Local Backups</h3>
-                    <p class="xagio-text-info">A list of locally stored backups on this server for this website.</p>
+                    <p class="xagio-text-info">A list of locally stored backups on this server for this website. They are removed automatically after 72 hours.</p>
 
                     <div class="backups"><?php
                         $xagio_backups  = glob(XAGIO_PATH . '/backups/*_full_*.zip');
@@ -126,13 +126,13 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 
                             // Sort backups by date created using usort
                             usort($xagio_backups, function ($a, $b) {
-                                return filectime($b) - filectime($a);
+                                return filemtime($b) - filemtime($a);
                             });
 
                             ?><?php foreach ($xagio_backups as $xagio_backup):
-                            $xagio_date = gmdate("F d Y H:i:s", filectime($xagio_backup));
+                            $xagio_date = gmdate("F d Y H:i:s", filemtime($xagio_backup));
                             $xagio_name = basename($xagio_backup);
-                            $xagio_url  = XAGIO_URL . 'backups/' . $xagio_name;
+                            $xagio_url  = XAGIO_MODEL_BACKUPS::localDownloadUrl($xagio_name);
                             ?>
                             <div class="backup-template">
 
@@ -149,7 +149,7 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                     </button>
 
                                     <button class="xagio-button xagio-button-small xagio-button-alternative restore-backup"
-                                            type="button" data-url="<?php echo esc_attr($xagio_url); ?>"
+                                            type="button" data-url="<?php echo esc_attr($xagio_name); ?>"
                                             data-xagio-tooltip data-xagio-title="Restore this backup"><i class="xagio-icon xagio-icon-upload"></i>
                                     </button>
 
@@ -169,13 +169,13 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 
                             // Sort backups by date created using usort
                             usort($xagio_backups, function ($a, $b) {
-                                return filectime($b) - filectime($a);
+                                return filemtime($b) - filemtime($a);
                             });
 
                             foreach ($xagio_backups as $xagio_backup):
-                                $xagio_date = gmdate("F d Y H:i:s", filectime($xagio_backup));
+                                $xagio_date = gmdate("F d Y H:i:s", filemtime($xagio_backup));
                                 $xagio_name = basename($xagio_backup);
-                                $xagio_url  = XAGIO_URL . 'backups/' . $xagio_name;
+                                $xagio_url  = XAGIO_MODEL_BACKUPS::localDownloadUrl($xagio_name);
 
                                 ?>
 
@@ -195,7 +195,7 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                         </button>
 
                                         <button class="xagio-button xagio-button-small xagio-button-alternative restore-backup"
-                                                type="button" data-url="<?php echo esc_attr($xagio_url); ?>"
+                                                type="button" data-url="<?php echo esc_attr($xagio_name); ?>"
                                                 data-xagio-tooltip data-xagio-title="Restore this backup"><i
                                                     class="xagio-icon xagio-icon-upload"></i>
                                         </button>
@@ -217,13 +217,13 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 
                             // Sort backups by date created using usort
                             usort($xagio_backups, function ($a, $b) {
-                                return filectime($b) - filectime($a);
+                                return filemtime($b) - filemtime($a);
                             });
 
                             foreach ($xagio_backups as $xagio_backup):
-                                $xagio_date = gmdate("F d Y H:i:s", filectime($xagio_backup));
+                                $xagio_date = gmdate("F d Y H:i:s", filemtime($xagio_backup));
                                 $xagio_name = basename($xagio_backup);
-                                $xagio_url  = XAGIO_URL . 'backups/' . $xagio_name;
+                                $xagio_url  = XAGIO_MODEL_BACKUPS::localDownloadUrl($xagio_name);
                                 ?>
                                 <div class="backup-template">
 
@@ -241,7 +241,7 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                         </button>
 
                                         <button class="xagio-button xagio-button-small xagio-button-alternative restore-backup"
-                                                type="button" data-url="<?php echo esc_attr($xagio_url); ?>"
+                                                type="button" data-url="<?php echo esc_attr($xagio_name); ?>"
                                                 data-xagio-tooltip data-xagio-title="Restore this backup"><i
                                                     class="xagio-icon xagio-icon-upload"></i>
                                         </button>
@@ -315,7 +315,7 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 
                 <div class="xagio-panel">
                     <h3 class="xagio-panel-title local-backups">Local Backups</h3>
-                    <p class="xagio-text-info">A list of locally stored backups on this server for this website.</p>
+                    <p class="xagio-text-info">A list of locally stored backups on this server for this website. They are removed automatically after 72 hours.</p>
 
                     <div class="backups"><?php
                         $xagio_backups  = glob(XAGIO_PATH . '/backups/*_full_*.zip');
@@ -323,13 +323,13 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 
                             // Sort backups by date created using usort
                             usort($xagio_backups, function ($a, $b) {
-                                return filectime($b) - filectime($a);
+                                return filemtime($b) - filemtime($a);
                             });
 
                             ?><?php foreach ($xagio_backups as $xagio_backup):
-                            $xagio_date = gmdate("F d Y H:i:s", filectime($xagio_backup));
+                            $xagio_date = gmdate("F d Y H:i:s", filemtime($xagio_backup));
                             $xagio_name = basename($xagio_backup);
-                            $xagio_url  = XAGIO_URL . 'backups/' . $xagio_name;
+                            $xagio_url  = XAGIO_MODEL_BACKUPS::localDownloadUrl($xagio_name);
                             ?>
                             <div class="backup-template">
 
@@ -346,7 +346,7 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                     </button>
 
                                     <button class="xagio-button xagio-button-small xagio-button-alternative restore-backup"
-                                            type="button" data-url="<?php echo esc_attr($xagio_url); ?>"
+                                            type="button" data-url="<?php echo esc_attr($xagio_name); ?>"
                                             data-xagio-tooltip data-xagio-title="Restore this backup"><i class="xagio-icon xagio-icon-upload"></i>
                                     </button>
 
@@ -366,13 +366,13 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 
                             // Sort backups by date created using usort
                             usort($xagio_backups, function ($a, $b) {
-                                return filectime($b) - filectime($a);
+                                return filemtime($b) - filemtime($a);
                             });
 
                             foreach ($xagio_backups as $xagio_backup):
-                                $xagio_date = gmdate("F d Y H:i:s", filectime($xagio_backup));
+                                $xagio_date = gmdate("F d Y H:i:s", filemtime($xagio_backup));
                                 $xagio_name = basename($xagio_backup);
-                                $xagio_url  = XAGIO_URL . 'backups/' . $xagio_name;
+                                $xagio_url  = XAGIO_MODEL_BACKUPS::localDownloadUrl($xagio_name);
 
                                 ?>
 
@@ -392,7 +392,7 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                         </button>
 
                                         <button class="xagio-button xagio-button-small xagio-button-alternative restore-backup"
-                                                type="button" data-url="<?php echo esc_attr($xagio_url); ?>"
+                                                type="button" data-url="<?php echo esc_attr($xagio_name); ?>"
                                                 data-xagio-tooltip data-xagio-title="Restore this backup"><i
                                                     class="xagio-icon xagio-icon-upload"></i>
                                         </button>
@@ -414,13 +414,13 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
 
                             // Sort backups by date created using usort
                             usort($xagio_backups, function ($a, $b) {
-                                return filectime($b) - filectime($a);
+                                return filemtime($b) - filemtime($a);
                             });
 
                             foreach ($xagio_backups as $xagio_backup):
-                                $xagio_date = gmdate("F d Y H:i:s", filectime($xagio_backup));
+                                $xagio_date = gmdate("F d Y H:i:s", filemtime($xagio_backup));
                                 $xagio_name = basename($xagio_backup);
-                                $xagio_url  = XAGIO_URL . 'backups/' . $xagio_name;
+                                $xagio_url  = XAGIO_MODEL_BACKUPS::localDownloadUrl($xagio_name);
                                 ?>
                                 <div class="backup-template">
 
@@ -438,7 +438,7 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                                         </button>
 
                                         <button class="xagio-button xagio-button-small xagio-button-alternative restore-backup"
-                                                type="button" data-url="<?php echo esc_attr($xagio_url); ?>"
+                                                type="button" data-url="<?php echo esc_attr($xagio_name); ?>"
                                                 data-xagio-tooltip data-xagio-title="Restore this backup"><i
                                                     class="xagio-icon xagio-icon-upload"></i>
                                         </button>

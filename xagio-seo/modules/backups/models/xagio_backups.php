@@ -105,6 +105,8 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 $stale[] = ABSPATH . 'mysql.zip';
             }
 
+            $stale = array_merge($stale, self::expiredBackups());
+
             if (empty($stale)) {
                 return;
             }
@@ -136,6 +138,266 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             }
         }
 
+        // Finished archives in backups/, whether made by doCloneBackup or doBackup
+        private static function localBackups()
+        {
+            $backups = [];
+            foreach (glob(XAGIO_PATH . '/backups/*.zip') ?: [] as $path) {
+                if (self::isBackupName(basename($path))) {
+                    $backups[] = $path;
+                }
+            }
+            return $backups;
+        }
+
+        private static function isBackupName($name)
+        {
+            return strpos($name, 'tmp_') !== 0 && preg_match('/^[A-Za-z0-9._-]+_(full|files|mysql)_[A-Za-z0-9._-]+\.zip$/', $name) === 1;
+        }
+
+        // A backup still waiting to be uploaded in chunks must keep its name, the cron events refer to it
+        private static function queuedUploads()
+        {
+            $queued     = [];
+            $cron_array = _get_cron_array();
+            if (!is_array($cron_array)) {
+                return $queued;
+            }
+
+            foreach ($cron_array as $cron_hooks) {
+                if (!is_array($cron_hooks)) {
+                    continue;
+                }
+                foreach (self::UPLOAD_HOOKS as $xagio_hook) {
+                    if (empty($cron_hooks[$xagio_hook])) {
+                        continue;
+                    }
+                    foreach ($cron_hooks[$xagio_hook] as $xagio_event) {
+                        if (isset($xagio_event['args'][0])) {
+                            $queued[basename((string) $xagio_event['args'][0])] = true;
+                        }
+                    }
+                }
+            }
+
+            return $queued;
+        }
+
+        private static function expiredBackups()
+        {
+            $expired = [];
+            foreach (self::localBackups() as $path) {
+                if (@filemtime($path) < time() - 72 * HOUR_IN_SECONDS) {
+                    $expired[] = $path;
+                }
+            }
+
+            if (!empty($expired)) {
+                // Backups from before this limit existed get the same 72 hours, counted from the update.
+                // Their old URLs are already dead by then: createTable() has renamed them.
+                $rotatedAt = (int) get_option('XAGIO_BACKUP_NAMES_ROTATED');
+                if (!$rotatedAt || $rotatedAt > time() - 72 * HOUR_IN_SECONDS) {
+                    return [];
+                }
+
+                $queued  = self::queuedUploads();
+                $expired = array_filter($expired, function ($path) use ($queued) {
+                    return !isset($queued[basename($path)]);
+                });
+            }
+
+            return $expired;
+        }
+
+        /**
+         * Apache and LiteSpeed obey this. nginx and IIS do not read it, and we can't change their
+         * configuration from a plugin, so there the only protection is that the file name is secret.
+         * That is why only administrators ever get to see the name.
+         */
+        private static function protectBackupFolder()
+        {
+            $htaccess = XAGIO_PATH . '/backups/.htaccess';
+            if (!file_exists($htaccess)) {
+                xagio_file_put_contents(
+                    $htaccess,
+                    "<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n<IfModule !mod_authz_core.c>\n    Order deny,allow\n    Deny from all\n</IfModule>\n"
+                );
+            }
+        }
+
+        // Earlier names carried only 32 random bits and were shown in the admin HTML, so they can't stay
+        private static function rotateBackupNames()
+        {
+            if (get_option('XAGIO_BACKUP_NAMES_ROTATED')) {
+                return;
+            }
+
+            $queued = self::queuedUploads();
+
+            foreach (self::localBackups() as $path) {
+                $name = basename($path);
+                if (isset($queued[$name])) {
+                    continue;
+                }
+
+                $newName = preg_replace('/(_[0-9a-f]{64})?\.zip$/', '', $name) . '_' . bin2hex(random_bytes(32)) . '.zip';
+
+                // A file that can't be renamed keeps its old URL only until the 72 hour limit removes it
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename
+                @rename($path, dirname($path) . '/' . $newName);
+            }
+
+            update_option('XAGIO_BACKUP_NAMES_ROTATED', time());
+        }
+
+        // Runs on activation and on every version change
+        public static function createTable()
+        {
+            if (is_dir(XAGIO_PATH . '/backups')) {
+                self::protectBackupFolder();
+            }
+            self::rotateBackupNames();
+        }
+
+        /**
+         * A one-time URL for one backup, which doesn't reveal the backup's file name.
+         *
+         * Must keep a single query parameter: older clone.js posts this URL to its own site without
+         * encoding it, so a "&" here would cut the URL short and break cloning from those versions.
+         */
+        private static function createDownloadUrl($backupFile, $deleteAfterDownload)
+        {
+            $token = bin2hex(random_bytes(32));
+
+            set_transient('xagio_backup_dl_' . hash('sha256', $token), [
+                'file'   => basename($backupFile),
+                'delete' => $deleteAfterDownload,
+            ], HOUR_IN_SECONDS);
+
+            return add_query_arg('xagio_backup_download', $token, home_url('/'));
+        }
+
+        // The token is the credential: the site doing the clone downloads this anonymously
+        public static function serveDownloadToken()
+        {
+            // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+            if (empty($_GET['xagio_backup_download'])) {
+                return;
+            }
+
+            // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+            $token = sanitize_text_field(wp_unslash($_GET['xagio_backup_download']));
+            $key   = 'xagio_backup_dl_' . hash('sha256', $token);
+            $entry = false;
+
+            // A HEAD from a link scanner must not use up the token
+            if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'GET') {
+                $entry = get_transient($key);
+            }
+
+            if (!is_array($entry) || empty($entry['file'])) {
+                self::backupNotFound();
+            }
+
+            delete_transient($key);
+
+            $path = XAGIO_PATH . '/backups/' . basename($entry['file']);
+            if (!is_file($path)) {
+                self::backupNotFound();
+            }
+
+            self::streamBackup($path, !empty($entry['delete']));
+        }
+
+        public static function localDownloadUrl($name)
+        {
+            return add_query_arg([
+                'action'       => 'xagio_download_local_backup',
+                'name'         => rawurlencode($name),
+                '_xagio_nonce' => wp_create_nonce('xagio_nonce'),
+            ], admin_url('admin-post.php'));
+        }
+
+        public static function downloadLocalBackup()
+        {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
+            if (!current_user_can('manage_options')) {
+                wp_send_json_error(['message' => 'Permission denied'], 403);
+            }
+
+            $name = isset($_GET['name']) ? basename(sanitize_text_field(wp_unslash($_GET['name']))) : '';
+            $path = XAGIO_PATH . '/backups/' . $name;
+
+            if (!self::isBackupName($name) || !is_file($path)) {
+                self::backupNotFound();
+            }
+
+            self::streamBackup($path, false);
+        }
+
+        private static function backupNotFound()
+        {
+            status_header(404);
+            nocache_headers();
+            exit;
+        }
+
+        private static function streamBackup($path, $deleteAfterDownload)
+        {
+            if (function_exists('set_time_limit')) {
+                @set_time_limit(0);
+            }
+            if (!defined('DONOTCACHEPAGE')) {
+                define('DONOTCACHEPAGE', true);
+            }
+            @ini_set('zlib.output_compression', 'Off');
+            while (ob_get_level()) {
+                ob_end_clean();
+            }
+
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+            $handle = @fopen($path, 'rb');
+            if (!$handle) {
+                self::backupNotFound();
+            }
+
+            $size = filesize($path);
+
+            nocache_headers();
+            header('Cache-Control: private, no-store, no-cache, must-revalidate, max-age=0');
+            header('CDN-Cache-Control: no-store');
+            header('X-Robots-Tag: noindex, nofollow');
+            header('X-Content-Type-Options: nosniff');
+            header('Content-Type: application/zip');
+            header('Content-Length: ' . $size);
+            // The saved file doesn't need the secret part of the name
+            header('Content-Disposition: attachment; filename="' . preg_replace('/_[0-9a-f]{64}\.zip$/', '.zip', basename($path)) . '"');
+
+            $sent = 0;
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_feof
+            while (!feof($handle)) {
+                // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread
+                $chunk = fread($handle, 1024 * 1024);
+                if ($chunk === false) {
+                    break;
+                }
+                // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+                echo $chunk;
+                flush();
+                $sent += strlen($chunk);
+            }
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+            fclose($handle);
+
+            // A dropped connection ends PHP inside the loop above, so the archive survives for the 72 hour limit
+            if ($deleteAfterDownload && $sent === $size && !connection_aborted()) {
+                self::removePath($path);
+            }
+
+            exit;
+        }
+
         private static function beginTempWork()
         {
             if (self::$tempWorkStarted) {
@@ -152,6 +414,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             if (!file_exists($folder . '/index.html')) {
                 xagio_file_put_contents($folder . '/index.html', 'Access Denied');
             }
+            self::protectBackupFolder();
 
             // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
             $lock = @fopen($folder . '/index.html', 'c');
@@ -379,6 +642,8 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
         {
             self::sweepTemp();
 
+            self::serveDownloadToken();
+
             self::loadClasses();
 
             add_action('admin_enqueue_scripts', function () {
@@ -453,6 +718,10 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             add_action("admin_post_xagio_create_backup", [
                 "XAGIO_MODEL_BACKUPS",
                 "createBackup"
+            ]);
+            add_action("admin_post_xagio_download_local_backup", [
+                "XAGIO_MODEL_BACKUPS",
+                "downloadLocalBackup"
             ]);
             add_action("admin_post_xagio_remove_backup", [
                 "XAGIO_MODEL_BACKUPS",
@@ -2494,23 +2763,23 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $xagio_name         = sanitize_text_field(wp_unslash($_POST["name"]));
+            $xagio_name         = basename(sanitize_text_field(wp_unslash($_POST["name"])));
             $backupFolder = XAGIO_PATH . "/backups/";
             if (file_exists($backupFolder . $xagio_name)) {
                 wp_delete_file($backupFolder . $xagio_name);
             }
         }
 
-        public static function doCloneBackup($type = "full")
+        public static function doCloneBackup($type = "full", $deleteAfterDownload = false)
         {
             try {
-                return self::runCloneBackup($type);
+                return self::runCloneBackup($type, $deleteAfterDownload);
             } finally {
                 self::cleanupTemp();
             }
         }
 
-        private static function runCloneBackup($type)
+        private static function runCloneBackup($type, $deleteAfterDownload)
         {
             // Check whether the folders exist (if not, make them)
             $backupFolder = XAGIO_PATH . "/backups";
@@ -2527,9 +2796,8 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             $backupName = strtolower($backupName["host"]);
             $backupName = str_replace(".", "_", $backupName) . "_" . $type . "_" . gmdate("H_i_s__Y_m_d");
 
-            // Append a short secure random string to make it unique
-            $randomSuffix = hash('sha256', bin2hex(random_bytes(4))); // 8 hex characters
-            $backupName   .= "_" . $randomSuffix;
+            // On nginx this secret is all that stands between the archive and the public web
+            $backupName .= "_" . bin2hex(random_bytes(32));
 
             // Backup ZIP File
             $backupFile = $backupFolder . DIRECTORY_SEPARATOR . $backupName . ".zip";
@@ -2553,9 +2821,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 return [
                     "status"  => "success",
                     "message" => "Successfully created database backup.",
-                    "data"    => content_url(
-                        DIRECTORY_SEPARATOR . "plugins" . DIRECTORY_SEPARATOR . "xagio-seo" . DIRECTORY_SEPARATOR . "backups" . DIRECTORY_SEPARATOR . basename($backupFile)
-                    ),
+                    "data"    => self::createDownloadUrl($backupFile, $deleteAfterDownload),
                 ];
             } elseif ($type == "full") {
 
@@ -2624,9 +2890,7 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
             return [
                 "status"  => "success",
                 "message" => "Successfully created backup.",
-                "data"    => content_url(
-                    DIRECTORY_SEPARATOR . "plugins" . DIRECTORY_SEPARATOR . "xagio-seo" . DIRECTORY_SEPARATOR . "backups" . DIRECTORY_SEPARATOR . basename($backupFile)
-                ),
+                "data"    => self::createDownloadUrl($backupFile, $deleteAfterDownload),
             ];
         }
 
@@ -2670,9 +2934,8 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 $siteName         = self::getName(site_url());
                 $backupName       = $siteName . "_backup_{$type}_" . gmdate("m-d-Y_H-i");
 
-                // Append a short secure random string to make it unique
-                $randomSuffix = hash('sha256', bin2hex(random_bytes(4))); // 8 hex characters
-                $backupName   .= "_" . $randomSuffix;
+                // On nginx this secret is all that stands between the archive and the public web
+                $backupName .= "_" . bin2hex(random_bytes(32));
 
                 $backupFile = $backupFolder . DIRECTORY_SEPARATOR . $backupName . ".zip";
 

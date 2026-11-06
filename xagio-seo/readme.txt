@@ -4,7 +4,7 @@ Tags: seo, ai seo, aeo, schema, rank tracker
 Requires at least: 5.6
 Tested up to: 7.0
 Requires PHP: 7.0
-Stable tag: 7.1.0.46
+Stable tag: 7.1.0.47
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -235,6 +235,13 @@ Xagio AI **removes the complexity**, giving you the **fastest, easiest way to ra
 3. Projects
 
 == Changelog ==
+= 7.1.0.47 =
+* 🔒 Backup archives are no longer downloaded through direct file URLs. Downloads now require an administrator or a one-time link, and backup files get long random names.
+* 🔒 Direct web access to the backups folder is blocked on Apache and LiteSpeed. Existing backups are renamed on update, so previously known URLs stop working.
+* ⚙️ Backups stored locally are now removed automatically after 72 hours. Existing backups get 72 hours from this update.
+* ⚙️ The temporary copy made for cloning is removed as soon as the other site has downloaded it.
+* 🔒 Removing a local backup can no longer reach files outside the backups folder.
+
 = 7.1.0.46 =
 * 🐞 Fixed restoring file backups, which always failed with a misleading permissions error.
 
