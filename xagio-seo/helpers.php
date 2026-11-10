@@ -1041,6 +1041,31 @@ if (!function_exists('xagio_get_city_by_code')) {
     }
 }
 
+if (!function_exists('xagio_keyword_ratio')) {
+    /**
+     * Title Ratio / URL Ratio for the Project Planner CSV exports (inTITLE / Volume, inURL / Volume),
+     * 3 decimals. Same rules as the TR/UR columns in projectplanner.js; -2 is the "competition
+     * analysis not completed" sentinel. The importer ignores these columns, so they are export-only.
+     */
+    function xagio_keyword_ratio($part, $volume)
+    {
+        $part   = str_replace(',', '', (string) $part);
+        $volume = str_replace(',', '', (string) $volume);
+
+        if ($part === '' || !is_numeric($part) || $part == -2) {
+            return '';
+        }
+        if ($part == 0) {
+            return number_format(0, 3, '.', '');
+        }
+        if (!is_numeric($volume) || $volume == 0) {
+            return '';
+        }
+
+        return number_format($part / $volume, 3, '.', '');
+    }
+}
+
 if (!function_exists('mb_convert_encoding')) {
     function mb_convert_encoding($string, $to_encoding, $from_encoding = null) {
         if (strtoupper($to_encoding) === 'UTF-8') {

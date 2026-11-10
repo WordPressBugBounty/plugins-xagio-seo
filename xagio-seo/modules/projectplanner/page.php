@@ -831,8 +831,8 @@ $XAGIO_MEMBERSHIP_INFO = get_option('XAGIO_ACCOUNT_DETAILS');
                     <th>CPC&nbsp;($)</th>
                     <th>inTitle</th>
                     <th>inURL</th>
-                    <th data-xagio-tooltip data-xagio-title="Title Ratio (Volume / InTitle)" class="xagio-text-center">TR</th>
-                    <th data-xagio-tooltip data-xagio-title="URL Ratio (Volume / InURL)" class="xagio-text-center">UR</th>
+                    <th data-xagio-tooltip data-xagio-title="Title Ratio (InTitle / Volume)" class="xagio-text-center">TR</th>
+                    <th data-xagio-tooltip data-xagio-title="URL Ratio (InURL / Volume)" class="xagio-text-center">UR</th>
                     <th class="xagio-text-center">Rank</th>
                 </tr>
                 </thead>

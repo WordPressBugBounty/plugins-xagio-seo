@@ -1327,6 +1327,12 @@ if (!class_exists('XAGIO_API')) {
             ], $xagio_http_code
             );
 
+            // This REST path has no page to poll from: on a timeout (Google goto links can take
+            // minutes) report an error instead of answering with nothing.
+            if (!is_array($xagio_result)) {
+                xagio_json('error', 'Results are empty, no top domains for given keyword');
+            }
+
             if ($xagio_http_code == 403) {
                 xagio_json('error', $xagio_result['message'] ?? "Oups, something happened, please contact support.");
             }

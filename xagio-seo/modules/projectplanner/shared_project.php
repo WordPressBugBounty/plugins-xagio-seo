@@ -118,8 +118,8 @@ if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
                                         <th>CPC&nbsp;($)</th>
                                         <th>inTitle</th>
                                         <th>inURL</th>
-                                        <th data-xagio-tooltip data-xagio-title="Title Ratio (Volume / InTitle)" class="text-center">TR</th>
-                                        <th data-xagio-tooltip data-xagio-title="URL Ratio (Volume / InURL)" class="text-center">UR</th>
+                                        <th data-xagio-tooltip data-xagio-title="Title Ratio (InTitle / Volume)" class="text-center">TR</th>
+                                        <th data-xagio-tooltip data-xagio-title="URL Ratio (InURL / Volume)" class="text-center">UR</th>
                                         <th class="xagio-text-center">Rank</th>
                                     </tr>
                                     </thead>
@@ -233,8 +233,8 @@ if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
                                         <th>CPC&nbsp;($)</th>
                                         <th>inTitle</th>
                                         <th>inURL</th>
-                                        <th data-xagio-tooltip data-xagio-title="Title Ratio (Volume / InTitle)" class="text-center">TR</th>
-                                        <th data-xagio-tooltip data-xagio-title="URL Ratio (Volume / InURL)" class="text-center">UR</th>
+                                        <th data-xagio-tooltip data-xagio-title="Title Ratio (InTitle / Volume)" class="text-center">TR</th>
+                                        <th data-xagio-tooltip data-xagio-title="URL Ratio (InURL / Volume)" class="text-center">UR</th>
                                         <th class="xagio-text-center">Rank</th>
                                     </tr>
                                     </thead>
@@ -357,8 +357,8 @@ if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
                     <th>CPC&nbsp;($)</th>
                     <th>inTitle</th>
                     <th>inURL</th>
-                    <th data-xagio-tooltip data-xagio-title="Title Ratio (Volume / InTitle)" class="text-center">TR</th>
-                    <th data-xagio-tooltip data-xagio-title="URL Ratio (Volume / InURL)" class="text-center">UR</th>
+                    <th data-xagio-tooltip data-xagio-title="Title Ratio (InTitle / Volume)" class="text-center">TR</th>
+                    <th data-xagio-tooltip data-xagio-title="URL Ratio (InURL / Volume)" class="text-center">UR</th>
                     <th class="xagio-text-center">Rank</th>
                 </tr>
                 </thead>

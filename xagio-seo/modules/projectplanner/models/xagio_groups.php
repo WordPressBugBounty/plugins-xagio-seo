@@ -174,10 +174,10 @@ if (!class_exists('XAGIO_MODEL_GROUPS')) {
                 $xagio_output   .= "\n";
                 $xagio_output   .= '"' . $xagio_group['group_name'] . '","' . $xagio_group['title'] . '","' . $xagio_group['url'] . '","' . $xagio_group['description'] . '","' . $xagio_group['h1'] . '",';
                 $xagio_output   .= "\n";
-                $xagio_output   .= 'Keyword,Volume,CPC,inTITLE,inURL,"' . count($keywords) . '",';
+                $xagio_output   .= 'Keyword,Volume,CPC,inTITLE,inURL,TR,UR,"' . count($keywords) . '",';
                 $xagio_output   .= "\n";
                 foreach ($keywords as $keyword) {
-                    $xagio_output .= '"' . $keyword['keyword'] . '",="' . $keyword['volume'] . '",="' . $keyword['cpc'] . '",="' . $keyword['intitle'] . '",="' . $keyword['inurl'] . '",';
+                    $xagio_output .= '"' . $keyword['keyword'] . '",="' . $keyword['volume'] . '",="' . $keyword['cpc'] . '",="' . $keyword['intitle'] . '",="' . $keyword['inurl'] . '",="' . xagio_keyword_ratio($keyword['intitle'], $keyword['volume']) . '",="' . xagio_keyword_ratio($keyword['inurl'], $keyword['volume']) . '",';
                     $xagio_output .= "\n";
                 }
             }

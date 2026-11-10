@@ -1,3 +1,64 @@
+// Shared with modules/ocw/ocw.js (defined once, whichever loads first).
+(function ($) {
+
+    /**
+     * Top-ten lookup that waits out Google goto links. Google wraps result links in
+     * google.com/goto redirects that take a few minutes to unwrap after a search. The panel then
+     * answers status=pending + token; this shows a ticking timer and polls
+     * xagio_get_top_ten_resolve every 3s until the real links are back (the panel gives up after
+     * 6 minutes). done() gets the final answer, exactly as the old single request did.
+     */
+    window.xagioTopTenFetch = window.xagioTopTenFetch || function (holder, query, done) {
+        let started = Date.now();
+        let ticker  = null;
+        let stop    = function () {
+            if (ticker) {
+                clearInterval(ticker);
+                ticker = null;
+            }
+        };
+        let handle = function (d) {
+            if (d && d.status === 'pending' && d.token) {
+                if (!ticker) {
+                    holder.html(`
+                                    <div class="lds-facebook"><div></div><div></div><div></div></div>
+                                    <p class="xagio-text-center xag-loading-plugins">Resolving Google Goto Links... <span class="xagio-goto-elapsed">0m 0s</span><br>
+                                    Google now hides result links behind redirects. We unwrap them so you see the real websites. This can take up to a few minutes. (Please do not close, refresh or leave this page)</p>
+                             `);
+                    let tick = function () {
+                        let secs = Math.floor((Date.now() - started) / 1000);
+                        holder.find('.xagio-goto-elapsed').text(`${Math.floor(secs / 60)}m ${secs % 60}s`);
+                    };
+                    tick();
+                    ticker = setInterval(tick, 1000);
+                }
+                setTimeout(function () {
+                    poll(d.token);
+                }, 3000);
+                return;
+            }
+            stop();
+            done(d || {status: 'error', message: 'Oups, something happened, please contact support.'});
+        };
+        let poll = function (token) {
+            $.post(xagio_data.wp_post, 'action=xagio_get_top_ten_resolve&token=' + encodeURIComponent(token), handle).fail(function () {
+                // A dropped request is retried with the same token, for up to 8 minutes.
+                if (Date.now() - started > 480000) {
+                    stop();
+                    done({status: 'error', message: 'Could not resolve the Google links. Please try again.'});
+                    return;
+                }
+                handle({status: 'pending', token: token});
+            });
+        };
+        $.post(xagio_data.wp_post, query, handle).fail(function () {
+            stop();
+            done({status: 'error', message: 'Oups, something happened, please contact support.'});
+        });
+    };
+
+})(jQuery);
+
 // Sentinel written to intitle/inurl when a competition analysis did not
 // complete within the 90-minute window (kept in sync with Utils::COMPETITION_FAILED).
 const COMPETITION_FAILED_VALUE = -2;
@@ -1897,7 +1958,7 @@ let cf_template = cf_templates[cf_default_template].data;
 
                     btn.disable();
 
-                    $.post(xagio_data.wp_post, `action=xagio_get_top_ten&main-keyword=${main_keyword}&location=${location}&keyword=${keyword}&search_engine=${search_engine}&search_location=${search_location}&search_engine_text=${search_engine_text}&search_location_text=${search_location_text}`, function (d) {
+                    xagioTopTenFetch(websites_holder, `action=xagio_get_top_ten&main-keyword=${main_keyword}&location=${location}&keyword=${keyword}&search_engine=${search_engine}&search_location=${search_location}&search_engine_text=${search_engine_text}&search_location_text=${search_location_text}`, function (d) {
 
                         top_ten_results_info.slideDown();
                         btn.disable();

@@ -16,6 +16,10 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                 'XAGIO_MODEL_PROJECTS',
                 'getTopTenDomains'
             ]);
+            add_action('admin_post_xagio_get_top_ten_resolve', [
+                'XAGIO_MODEL_PROJECTS',
+                'getTopTenDomainsResolve'
+            ]);
             add_action('admin_post_xagio_generate_audit', [
                 'XAGIO_MODEL_PROJECTS',
                 'generateAudit'
@@ -309,19 +313,70 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                 'keyword' => $main_keyword,
                 'se_id'   => $search_engine ?? '14',
                 'loc_id'  => $search_location ?? '2840',
-                'ip'      => XAGIO_MODEL_LOG404::getIp()
+                'ip'      => XAGIO_MODEL_LOG404::getIp(),
+                // Google wraps result links in google.com/goto redirects that take minutes to
+                // unwrap. With async the panel answers status=pending + token right away and the
+                // page polls xagio_get_top_ten_resolve. Older panels ignore this field.
+                'async'   => 1
             ], $xagio_http_code
             );
 
+            self::topTenRespond($xagio_result, $xagio_http_code, $listings);
+        }
+
+        /**
+         * Poll a pending top-ten lookup (see getTopTenDomains). Each call waits at most ~20s on the panel.
+         */
+        public static function getTopTenDomainsResolve()
+        {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
+            if (!XAGIO_CONNECTED) {
+                wp_send_json_error(['message' => 'Your account is not connected.'], 403);
+            }
+
+            if (!isset($_POST['token'])) {
+                wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
+            }
+
+            $token = preg_replace('/[^a-f0-9t]/', '', sanitize_text_field(wp_unslash($_POST['token'])));
+
+            $xagio_http_code = 0;
+            $xagio_result    = self::apiRequest(
+                $endpoint = 'find_top_ten_domains_resolve', $method = 'POST', [
+                'token' => $token
+            ], $xagio_http_code
+            );
+
+            self::topTenRespond($xagio_result, $xagio_http_code, self::topTenListings());
+        }
+
+        /**
+         * Shape the panel's top-ten answer for the page. Never passes on a google.com/goto link.
+         */
+        private static function topTenRespond($xagio_result, $xagio_http_code, $listings)
+        {
             if ($xagio_http_code == 403) {
                 xagio_json('error', $xagio_result['message'] ?? "Oups, something happened, please contact support.");
             }
 
-            if (isset($xagio_result['data']) && sizeof($xagio_result['data']) > 0) {
+            if (is_array($xagio_result) && isset($xagio_result['status']) && $xagio_result['status'] === 'pending' && !empty($xagio_result['token'])) {
+                xagio_jsonc([
+                    'status'  => 'pending',
+                    'token'   => preg_replace('/[^a-f0-9t]/', '', (string) $xagio_result['token']),
+                    'pending' => isset($xagio_result['pending']) ? (int) $xagio_result['pending'] : 0
+                ]);
+            }
+
+            if (isset($xagio_result['data']) && is_array($xagio_result['data']) && sizeof($xagio_result['data']) > 0) {
                 $websites = $xagio_result['data'];
                 $OUT      = [];
 
                 foreach ($websites as $website) {
+                    if (empty($website['url']) || self::isGotoUrl($website['url'])) {
+                        continue;
+                    }
+
                     $path                   = wp_parse_url($website['url'], PHP_URL_PATH);
                     $website['recommended'] = false;
                     if (is_null($path)) {
@@ -336,7 +391,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
 
                     $website['listing'] = false;
 
-                    $host_check = str_replace('www.', '', $website['host']);
+                    $host_check = str_replace('www.', '', (string) $website['host']);
                     if (in_array($host_check, $listings)) {
                         $website['listing'] = true;
                     }
@@ -344,12 +399,37 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                     $OUT[] = $website;
                 }
 
-                xagio_jsonc([
-                    'status' => 'success',
-                    'data'   => $OUT
-                ]);
+                if (!empty($OUT)) {
+                    xagio_jsonc([
+                        'status' => 'success',
+                        'data'   => $OUT
+                    ]);
+                }
             }
 
+            // A dropped or timed-out panel call used to leave the page loading forever.
+            xagio_json('error', 'Results are empty, no top domains for given keyword');
+        }
+
+        private static function isGotoUrl($url)
+        {
+            return is_string($url) && preg_match('#^https?://(www\.)?google\.[a-z.]+/goto\?#i', $url) === 1;
+        }
+
+        private static function topTenListings()
+        {
+            return [
+                "facebook.com", "google.com", "instagram.com", "linkedin.com", "apple.com", "yelp.com",
+                "bing.com", "bbb.org", "mapquest.com", "foursquare.com", "angi.com", "thumbtack.com",
+                "yellowpages.com", "nextdoor.com", "manta.com", "merchantcircle.com", "yellowbook.com",
+                "chamberofcommerce.com", "dandb.com", "brownbook.net", "partners.local.com", "turbify.com",
+                "dashboard.ezlocal.com", "elocal.com", "ebusinesspages.com", "citysquares.com",
+                "local.botw.org", "ibegin.com", "neustarlocaleze.biz", "spoke.com", "golocal247.com",
+                "callupcontact.com", "n49.com", "cybo.com", "directory.justlanded.com", "tuugo.us",
+                "lacartes.com", "citylocalpro.com", "yellow.place", "hub.biz", "cylex.us.com", "fyple.com",
+                "opendi.us", "expressbusinessdirectory.com", "myhuckleberry.com", "bizhwy.com",
+                "dirjournal.com", "usdirectory.com", "finduslocal.com"
+            ];
         }
 
         public static function generateAudit()
@@ -2078,7 +2158,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                 $xagio_output   .= "\n";
                 $xagio_output   .= '"' . $xagio_group['group_name'] . '","' . $xagio_group['title'] . '","' . $xagio_group['url'] . '","' . $xagio_group['description'] . '","' . $xagio_group['h1'] . '",';
                 $xagio_output   .= "\n";
-                $xagio_output   .= 'Keyword,Volume,CPC,inTITLE,inURL,"' . count($keywords) . '",';
+                $xagio_output   .= 'Keyword,Volume,CPC,inTITLE,inURL,TR,UR,"' . count($keywords) . '",';
                 $xagio_output   .= "\n";
                 foreach ($keywords as $keyword) {
                     $volume = str_replace([','], '', $keyword['volume']);
@@ -2086,7 +2166,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                     $intitle = str_replace([','], '', $keyword['intitle']);
                     $inurl = str_replace([','], '', $keyword['inurl']);
 
-                    $xagio_output .= '"' . $keyword['keyword'] . '",="' . $volume . '",="' . $cpc . '",="' . $intitle . '",="' . $inurl . '",';
+                    $xagio_output .= '"' . $keyword['keyword'] . '",="' . $volume . '",="' . $cpc . '",="' . $intitle . '",="' . $inurl . '",="' . xagio_keyword_ratio($intitle, $volume) . '",="' . xagio_keyword_ratio($inurl, $volume) . '",';
                     $xagio_output .= "\n";
                 }
             }
@@ -2130,7 +2210,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                     $xagio_output   .= "\n";
                     $xagio_output   .= '"' . $xagio_group['group_name'] . '","' . $xagio_group['title'] . '","' . $xagio_group['url'] . '","' . $xagio_group['description'] . '","' . $xagio_group['h1'] . '",';
                     $xagio_output   .= "\n";
-                    $xagio_output   .= 'Keyword,Volume,CPC,inTITLE,inURL,"' . count($keywords) . '",';
+                    $xagio_output   .= 'Keyword,Volume,CPC,inTITLE,inURL,TR,UR,"' . count($keywords) . '",';
                     $xagio_output   .= "\n";
                     foreach ($keywords as $keyword) {
                         $volume = str_replace([','], '', $keyword['volume']);
@@ -2138,7 +2218,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                         $intitle = str_replace([','], '', $keyword['intitle']);
                         $inurl = str_replace([','], '', $keyword['inurl']);
 
-                        $xagio_output .= '"' . $keyword['keyword'] . '",="' . $volume . '",="' . $cpc . '",="' . $intitle . '",="' . $inurl . '",';
+                        $xagio_output .= '"' . $keyword['keyword'] . '",="' . $volume . '",="' . $cpc . '",="' . $intitle . '",="' . $inurl . '",="' . xagio_keyword_ratio($intitle, $volume) . '",="' . xagio_keyword_ratio($inurl, $volume) . '",';
                         $xagio_output .= "\n";
                     }
                 }
@@ -2254,7 +2334,8 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
                     $current_group_id = 0;
                     for ($xagio_i = 2; $xagio_i < sizeof($file_contents); $xagio_i++) {
                         $current = trim($file_contents[$xagio_i]);
-                        if ($current == '' || $current == ',,,,,') {
+                        // Blank separator row; spreadsheet re-saves pad it with commas to the widest row
+                        if (trim($current, ',') === '') {
                             $xagio_i           += 1;
                             $expectGroup = true;
                             continue;

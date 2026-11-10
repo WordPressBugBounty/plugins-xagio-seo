@@ -223,10 +223,10 @@ $xagio_meta['XAGIO_SEO_SCRIPTS_ENABLE'] = !isset($xagio_meta['XAGIO_SEO_SCRIPTS_
                         <th>CPC</th>
                         <th>inTitle</th>
                         <th>inURL</th>
-                        <th data-xagio-tooltip data-xagio-title="Title Ratio (Volume / InTitle)"
+                        <th data-xagio-tooltip data-xagio-title="Title Ratio (InTitle / Volume)"
                             class="xagio-text-center">TR
                         </th>
-                        <th data-xagio-tooltip data-xagio-title="URL Ratio (Volume / InURL)" class="xagio-text-center">
+                        <th data-xagio-tooltip data-xagio-title="URL Ratio (InURL / Volume)" class="xagio-text-center">
                             UR
                         </th>
                         <th>Rank</th>
