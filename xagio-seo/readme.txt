@@ -4,7 +4,7 @@ Tags: seo, ai seo, aeo, schema, rank tracker
 Requires at least: 5.6
 Tested up to: 7.1
 Requires PHP: 7.0
-Stable tag: 7.1.0.48
+Stable tag: 7.1.0.49
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -235,6 +235,9 @@ Xagio AI **removes the complexity**, giving you the **fastest, easiest way to ra
 3. Projects
 
 == Changelog ==
+= 7.1.0.49 =
+* ⚙️ Agent X and Project Planner competitor search (Get Top Ten) is now sent with your Xagio license, so it is billed to your Xagio account the same way as Get Top Ten in the Xagio panel.
+
 = 7.1.0.48 =
 * ⚙️ Agent X and Project Planner competitor search now waits while Google's redirect links are turned back into the real website links, showing "Resolving Google Goto Links..." with a running timer. Before, slow searches came back short or empty.
 * ⚙️ A competitor search that times out now shows an error instead of loading forever.

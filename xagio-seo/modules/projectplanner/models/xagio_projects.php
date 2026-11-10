@@ -308,7 +308,8 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
             ]));
 
             $xagio_http_code = 0;
-            $xagio_result    = self::apiRequest(
+            // XAGIO_API::apiRequest adds license_email/license_key; the panel charges Get Top Ten to it.
+            $xagio_result    = XAGIO_API::apiRequest(
                 $endpoint = 'find_top_ten_domains_free', $method = 'POST', [
                 'keyword' => $main_keyword,
                 'se_id'   => $search_engine ?? '14',
@@ -342,7 +343,7 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
             $token = preg_replace('/[^a-f0-9t]/', '', sanitize_text_field(wp_unslash($_POST['token'])));
 
             $xagio_http_code = 0;
-            $xagio_result    = self::apiRequest(
+            $xagio_result    = XAGIO_API::apiRequest(
                 $endpoint = 'find_top_ten_domains_resolve', $method = 'POST', [
                 'token' => $token
             ], $xagio_http_code
@@ -2433,48 +2434,6 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
 
             // wp_2redirect(add_query_arg('page', 'xagio-projects', admin_url('admin.php')));
             die();
-        }
-
-        public static function apiRequest($apiEndpoint = NULL, $method = 'GET', $xagio_args = [], &$xagio_http_code = FALSE)
-        {
-            if ($apiEndpoint == NULL) {
-                return FALSE;
-            }
-
-            if (!defined('XAGIO_DOMAIN') || XAGIO_DOMAIN === '') {
-                wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
-            }
-
-            // Set the domain name
-            $domain = XAGIO_DOMAIN;
-
-            $xagio_response = wp_remote_post(XAGIO_PANEL_URL . "/api/" . $apiEndpoint, [
-                'user-agent'  => "Xagio - " . XAGIO_CURRENT_VERSION . " ($domain)",
-                'timeout'     => 30,
-                'redirection' => 5,
-                'httpversion' => '1.0',
-                'blocking'    => TRUE,
-                'method'      => $method,
-                'body'        => $xagio_args,
-            ]);
-
-            if (is_wp_error($xagio_response)) {
-                return FALSE;
-            } else {
-
-                $xagio_http_code = $xagio_response['response']['code'];
-
-                if (!isset($xagio_response['body'])) {
-                    return FALSE;
-                } else {
-                    $data = json_decode($xagio_response['body'], TRUE);
-                    if (!$data) {
-                        return FALSE;
-                    } else {
-                        return $data;
-                    }
-                }
-            }
         }
 
     }
