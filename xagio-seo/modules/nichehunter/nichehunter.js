@@ -1,3 +1,116 @@
+/**
+ * XagioSerp: build a clean Google search URL for a keyword.
+ *
+ * Every link from Xagio to a Google results page goes through here so the user sees the SERP
+ * the way a searcher in the target place sees it, not their own personalised one:
+ *   q       the keyword (encoded)
+ *   gl      country of the search (ISO code)
+ *   hl      interface language
+ *   pws=0   no personalisation from the user's own search history
+ *   adtest=on  ads still show, but viewing them never bills or skews a competitor's campaign
+ *   uule    the searcher's location: "City,Region,Country" or the country alone. Google reads
+ *           it as w+CAIQICI + one length char + base64 of the canonical Google Ads location name
+ *           (the same names DataForSEO uses, e.g. "Albuquerque,New Mexico,United States").
+ *
+ * XagioSerp.url({ q, engine, country, language, location })
+ *   engine    host such as "google.co.uk" or "www.google.com" (default www.google.com).
+ *             A non-Google engine (bing.com, search.yahoo.com) gets a plain ?q= link.
+ *   country   ISO code ("US") or Google country name ("United States")
+ *   language  ISO code ("en") or name ("English")
+ *   location  canonical location, with or without the country on the end
+ */
+(function (root) {
+    'use strict';
+
+    // ISO code -> Google Ads country name (the name the uule must carry)
+    var COUNTRIES = {"AD":"Andorra","AE":"United Arab Emirates","AF":"Afghanistan","AG":"Antigua and Barbuda","AI":"Anguilla","AL":"Albania","AM":"Armenia","AO":"Angola","AQ":"Antarctica","AR":"Argentina","AS":"American Samoa","AT":"Austria","AU":"Australia","AW":"Aruba","AZ":"Azerbaijan","BA":"Bosnia and Herzegovina","BB":"Barbados","BD":"Bangladesh","BE":"Belgium","BF":"Burkina Faso","BG":"Bulgaria","BH":"Bahrain","BI":"Burundi","BJ":"Benin","BL":"Saint Barthelemy","BM":"Bermuda","BN":"Brunei","BO":"Bolivia","BQ":"Caribbean Netherlands","BR":"Brazil","BS":"The Bahamas","BT":"Bhutan","BV":"Bouvet Island","BW":"Botswana","BY":"Belarus","BZ":"Belize","CA":"Canada","CC":"Cocos (Keeling) Islands","CD":"Democratic Republic of the Congo","CF":"Central African Republic","CG":"Republic of the Congo","CH":"Switzerland","CI":"Cote d'Ivoire","CK":"Cook Islands","CL":"Chile","CM":"Cameroon","CN":"China","CO":"Colombia","CR":"Costa Rica","CV":"Cabo Verde","CW":"Curacao","CX":"Christmas Island","CY":"Cyprus","CZ":"Czechia","DE":"Germany","DJ":"Djibouti","DK":"Denmark","DM":"Dominica","DO":"Dominican Republic","DZ":"Algeria","EC":"Ecuador","EE":"Estonia","EG":"Egypt","EH":"Western Sahara","ER":"Eritrea","ES":"Spain","ET":"Ethiopia","FI":"Finland","FJ":"Fiji","FK":"Falkland Islands (Islas Malvinas)","FM":"Micronesia","FO":"Faroe Islands","FR":"France","GA":"Gabon","GB":"United Kingdom","GD":"Grenada","GE":"Georgia","GF":"French Guiana","GG":"Guernsey","GH":"Ghana","GI":"Gibraltar","GL":"Greenland","GM":"The Gambia","GN":"Guinea","GP":"Guadeloupe","GQ":"Equatorial Guinea","GR":"Greece","GS":"South Georgia and the South Sandwich Islands","GT":"Guatemala","GU":"Guam","GW":"Guinea-Bissau","GY":"Guyana","HK":"Hong Kong","HM":"Heard Island and McDonald Islands","HN":"Honduras","HR":"Croatia","HT":"Haiti","HU":"Hungary","ID":"Indonesia","IE":"Ireland","IL":"Israel","IM":"Isle of Man","IN":"India","IO":"British Indian Ocean Territory","IQ":"Iraq","IS":"Iceland","IT":"Italy","JE":"Jersey","JM":"Jamaica","JO":"Jordan","JP":"Japan","KE":"Kenya","KG":"Kyrgyzstan","KH":"Cambodia","KI":"Kiribati","KM":"Comoros","KN":"Saint Kitts and Nevis","KR":"South Korea","KW":"Kuwait","KY":"Cayman Islands","KZ":"Kazakhstan","LA":"Laos","LB":"Lebanon","LC":"Saint Lucia","LI":"Liechtenstein","LK":"Sri Lanka","LR":"Liberia","LS":"Lesotho","LT":"Lithuania","LU":"Luxembourg","LV":"Latvia","LY":"Libya","MA":"Morocco","MC":"Monaco","MD":"Moldova","ME":"Montenegro","MF":"Saint Martin","MG":"Madagascar","MH":"Marshall Islands","MK":"North Macedonia","ML":"Mali","MM":"Myanmar (Burma)","MN":"Mongolia","MO":"Macao","MP":"Northern Mariana Islands","MQ":"Martinique","MR":"Mauritania","MS":"Montserrat","MT":"Malta","MU":"Mauritius","MV":"Maldives","MW":"Malawi","MX":"Mexico","MY":"Malaysia","MZ":"Mozambique","NA":"Namibia","NC":"New Caledonia","NE":"Niger","NF":"Norfolk Island","NG":"Nigeria","NI":"Nicaragua","NL":"Netherlands","NO":"Norway","NP":"Nepal","NR":"Nauru","NU":"Niue","NZ":"New Zealand","OM":"Oman","PA":"Panama","PE":"Peru","PF":"French Polynesia","PG":"Papua New Guinea","PH":"Philippines","PK":"Pakistan","PL":"Poland","PM":"Saint Pierre and Miquelon","PN":"Pitcairn Islands","PR":"Puerto Rico","PS":"Palestine","PT":"Portugal","PW":"Palau","PY":"Paraguay","QA":"Qatar","RE":"Reunion","RO":"Romania","RS":"Serbia","RU":"Russia","RW":"Rwanda","SA":"Saudi Arabia","SB":"Solomon Islands","SC":"Seychelles","SD":"Sudan","SE":"Sweden","SG":"Singapore","SH":"Saint Helena, Ascension and Tristan da Cunha","SI":"Slovenia","SJ":"Svalbard and Jan Mayen","SK":"Slovakia","SL":"Sierra Leone","SM":"San Marino","SN":"Senegal","SO":"Somalia","SR":"Suriname","SS":"South Sudan","ST":"Sao Tome and Principe","SV":"El Salvador","SX":"Sint Maarten","SY":"Syria","SZ":"Eswatini","TC":"Turks and Caicos Islands","TD":"Chad","TF":"French Southern and Antarctic Lands","TG":"Togo","TH":"Thailand","TJ":"Tajikistan","TK":"Tokelau","TL":"Timor-Leste","TM":"Turkmenistan","TN":"Tunisia","TO":"Tonga","TR":"Turkiye","TT":"Trinidad and Tobago","TV":"Tuvalu","TW":"Taiwan","TZ":"Tanzania","UA":"Ukraine","UG":"Uganda","UM":"United States Minor Outlying Islands","US":"United States","UY":"Uruguay","UZ":"Uzbekistan","VA":"Vatican City","VC":"Saint Vincent and the Grenadines","VE":"Venezuela","VG":"British Virgin Islands","VI":"U.S. Virgin Islands","VN":"Vietnam","VU":"Vanuatu","WF":"Wallis and Futuna","WS":"Samoa","XK":"Kosovo","YE":"Yemen","YT":"Mayotte","ZA":"South Africa","ZM":"Zambia","ZW":"Zimbabwe"};
+
+    var NAME_TO_ISO = {};
+    Object.keys(COUNTRIES).forEach(function (iso) { NAME_TO_ISO[COUNTRIES[iso].toLowerCase()] = iso; });
+    // names Xagio uses that differ from Google's
+    NAME_TO_ISO['turkey'] = 'TR';
+    NAME_TO_ISO['czech republic'] = 'CZ';
+    NAME_TO_ISO['myanmar'] = 'MM';
+    NAME_TO_ISO['russian federation'] = 'RU';
+    NAME_TO_ISO['korea, republic of'] = 'KR';
+    NAME_TO_ISO['uk'] = 'GB';
+    NAME_TO_ISO['usa'] = 'US';
+
+    var LANGS = {
+        'arabic': 'ar', 'armenian': 'hy', 'bengali': 'bn', 'bulgarian': 'bg', 'chinese (simplified)': 'zh-CN',
+        'chinese (traditional)': 'zh-TW', 'croatian': 'hr', 'czech': 'cs', 'danish': 'da', 'dutch': 'nl',
+        'english': 'en', 'estonian': 'et', 'finnish': 'fi', 'french': 'fr', 'german': 'de', 'greek': 'el',
+        'hebrew': 'iw', 'hungarian': 'hu', 'indonesian': 'id', 'italian': 'it', 'japanese': 'ja', 'korean': 'ko',
+        'latvian': 'lv', 'lithuanian': 'lt', 'malay': 'ms', 'norwegian (bokmål)': 'no', 'norwegian': 'no',
+        'polish': 'pl', 'portuguese': 'pt', 'romanian': 'ro', 'russian': 'ru', 'serbian': 'sr', 'slovak': 'sk',
+        'slovenian': 'sl', 'spanish': 'es', 'swedish': 'sv', 'tagalog': 'tl', 'thai': 'th', 'turkish': 'tr',
+        'ukrainian': 'uk', 'urdu': 'ur', 'vietnamese': 'vi', 'hindi': 'hi', 'persian': 'fa'
+    };
+
+    var KEY = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+
+    function iso(country) {
+        if (!country) return '';
+        var c = String(country).trim();
+        if (/^[A-Za-z]{2}$/.test(c)) return c.toUpperCase();
+        return NAME_TO_ISO[c.toLowerCase()] || '';
+    }
+
+    function lang(language) {
+        if (!language) return '';
+        var l = String(language).trim();
+        if (/^[a-z]{2}(-[A-Za-z]{2})?$/.test(l)) return l;
+        return LANGS[l.toLowerCase()] || '';
+    }
+
+    function b64(s) {
+        var bin = unescape(encodeURIComponent(s));
+        return (root.btoa ? root.btoa(bin) : Buffer.from(bin, 'binary').toString('base64')).replace(/=+$/, '');
+    }
+
+    /** uule for a canonical location name, or '' when it cannot be encoded. */
+    function uule(name) {
+        name = String(name || '').trim();
+        var len = unescape(encodeURIComponent(name)).length;
+        if (!len || len >= KEY.length) return '';
+        // literal "w+" (Google reads the + as the space it expects); payload percent-encoded
+        return 'w+CAIQICI' + KEY.charAt(len) + encodeURIComponent(b64(name));
+    }
+
+    /** "Canterbury,England" + GB -> "Canterbury,England,United Kingdom" */
+    function canonical(location, code) {
+        var countryName = COUNTRIES[code] || '';
+        var loc = String(location || '').split(',').map(function (p) { return p.trim(); }).filter(Boolean);
+        if (!loc.length) return countryName;
+        var last = loc[loc.length - 1].toLowerCase();
+        if (countryName && last !== countryName.toLowerCase() && !NAME_TO_ISO[last]) loc.push(countryName);
+        return loc.join(',');
+    }
+
+    function url(o) {
+        o = o || {};
+        var host = String(o.engine || 'www.google.com').replace(/^https?:\/\//, '').replace(/\/.*$/, '').trim();
+        if (!/(^|\.)google\.[a-z.]+$/i.test(host)) {
+            return 'https://' + (host || 'www.google.com') + '/search?q=' + encodeURIComponent(o.q || '');
+        }
+        if (!/^www\./i.test(host)) host = 'www.' + host;
+
+        var code = iso(o.country), hl = lang(o.language);
+        var parts = ['q=' + encodeURIComponent(o.q || '')];
+        if (code) parts.push('gl=' + code.toLowerCase());
+        if (hl) parts.push('hl=' + hl);
+        parts.push('pws=0', 'adtest=on');
+        var u = uule(canonical(o.location, code));
+        if (!u && code) u = uule(COUNTRIES[code]);
+        if (u) parts.push('uule=' + u);
+        return 'https://' + host + '/search?' + parts.join('&');
+    }
+
+    var api = { url: url, uule: uule, iso: iso, lang: lang, canonical: canonical };
+    root.XagioSerp = api;
+    if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
 var history_chart = null;
 let selected_keywords = {};
 let table = '';
@@ -645,6 +758,13 @@ let cf_template = cf_templates[cf_default_template].data;
                     engine = language;
                 }
 
+                // clean Google SERP for the searched country (XagioSerp: gl, hl, pws=0, adtest=on, uule)
+                let nh_country = $('[name="filters[location]"]').val() || '';
+                if (nh_country && countries.hasOwnProperty(nh_country)) engine = `www.${countries[nh_country]}`;
+                let serp = function (q) {
+                    return XagioSerp.url({q: q, engine: engine, country: nh_country, language: btn.attr('data-language')});
+                };
+
                 xagioModal("Notice", "Please make sure to allow popups in your browser for this domain, Xagio will attempt to open multiple URLs at the same time after you click Continue.", function (ok) {
                     if (ok) {
 
@@ -656,17 +776,17 @@ let cf_template = cf_templates[cf_default_template].data;
                             }
 
                             if(d.broad) {
-                                window.open(`https://${engine}/search?q=${attr}`);
+                                window.open(serp(attr));
                             }
                             if(d.phrase) {
-                                window.open(`https://${engine}/search?q="${attr}"`);
+                                window.open(serp(`"${attr}"`));
                             }
 
                             if(d.intitle) {
-                                window.open(`https://${engine}/search?q=intitle:"${attr}"`);
+                                window.open(serp(`intitle:"${attr}"`));
                             }
                             if(d.inurl) {
-                                window.open(`https://${engine}/search?q=inurl:"${attr}"`);
+                                window.open(serp(`inurl:"${attr}"`));
                             }
 
                         });

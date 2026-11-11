@@ -4,7 +4,7 @@ Tags: seo, ai seo, aeo, schema, rank tracker
 Requires at least: 5.6
 Tested up to: 7.1
 Requires PHP: 7.0
-Stable tag: 7.1.0.49
+Stable tag: 7.1.0.50
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -235,6 +235,9 @@ Xagio AI **removes the complexity**, giving you the **fastest, easiest way to ra
 3. Projects
 
 == Changelog ==
+= 7.1.0.50 =
+* ⚙️ Niche Hunter "Search keyword in Google" now opens a clean Google results page for the searched country and location (no personalisation from your own search history, ads shown without billing advertisers), and keywords with special characters are encoded correctly.
+
 = 7.1.0.49 =
 * ⚙️ Agent X and Project Planner competitor search (Get Top Ten) is now sent with your Xagio license, so it is billed to your Xagio account the same way as Get Top Ten in the Xagio panel.
 
