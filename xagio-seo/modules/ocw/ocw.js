@@ -2185,8 +2185,7 @@
                                 </button>
                                 <button class="credits permanent" data-xagio-tooltip data-xagio-title="This is the number of xTemplates you have on your account. These claims do not expire and you can use them anytime you see fit!">
                                     <span class="credits-value">${d.data.template_bonus}</span> Bonus Claims
-                                </button>
-                                <a href="https://xagio.com/store/" target="_blank" class="xagio-button xagio-button-secondary"><i class="xagio-icon xagio-icon-store"></i> PURCHASE TEMPLATES</a>`);
+                                </button>`);
                     } else {
                         // Show unlimited
                         template_credits_el.html(`<button class="credits monthly" data-xagio-tooltip data-xagio-title="You can claim all current and future templates free of charge!">

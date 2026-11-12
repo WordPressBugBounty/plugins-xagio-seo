@@ -2465,6 +2465,21 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             return $xagio_url;
         }
 
+        /**
+         * The post's own SEO on/off switch as 1 / 0: post meta XAGIO_SEO, which the editor metabox, the panel
+         * toggle (XAGIO_API::toggleSEO) and bulk actions (XAGIO_API::updatePosts) write. Posts that never got
+         * XAGIO_SEO fall back to the pre-v7 key ps_seo_enabled. The site-wide XAGIO_SEO_FORCE_ENABLE is not
+         * part of this value.
+         */
+        public static function getPostSeoSwitch($post_id)
+        {
+            $post_id = absint($post_id);
+            if (metadata_exists('post', $post_id, 'XAGIO_SEO')) {
+                return get_post_meta($post_id, 'XAGIO_SEO', true) == 1 ? 1 : 0;
+            }
+            return (int) get_post_meta($post_id, 'ps_seo_enabled', true) === 1 ? 1 : 0;
+        }
+
         public static function is_homepage($post_id = null) {
             $show_on_front = get_option('show_on_front');
 

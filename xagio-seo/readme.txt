@@ -4,7 +4,7 @@ Tags: seo, ai seo, aeo, schema, rank tracker
 Requires at least: 5.6
 Tested up to: 7.1
 Requires PHP: 7.0
-Stable tag: 7.1.0.50
+Stable tag: 7.1.0.52
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -235,6 +235,15 @@ Xagio AI **removes the complexity**, giving you the **fastest, easiest way to ra
 3. Projects
 
 == Changelog ==
+= 7.1.0.52 =
+* 🔒 Security: Link Manager shortcodes now escape the link title, image and URL when a post is shown, so a title attribute added in post content can no longer inject script (reported through Wordfence).
+
+= 7.1.0.51 =
+* 🐞 Editing a post from the Xagio panel (Quick Edit) no longer turns it into plain text. Headings, links, paragraphs and other formatting are kept; scripts and unsafe attributes are still removed.
+* 🐞 The SEO on/off state the Xagio panel shows for each post now matches what was set from the panel or in the post editor.
+* 🐞 Removing the schema of a category or tag from the Xagio panel no longer removes the schema of the post or page with the same ID (or the site-wide schema).
+* ⚙️ Agent X no longer shows a Purchase Templates button, because templates are free.
+
 = 7.1.0.50 =
 * ⚙️ Niche Hunter "Search keyword in Google" now opens a clean Google results page for the searched country and location (no personalisation from your own search history, ads shown without billing advertisers), and keywords with special characters are encoded correctly.
 

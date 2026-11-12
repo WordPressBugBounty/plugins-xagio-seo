@@ -3869,7 +3869,20 @@ if (!class_exists('XAGIO_API')) {
                     xagio_json('error', 'A problem occurred.', $xagio_output);
                 }
             } else {
-                if ($ID !== 0) {
+                // No schemas: clear them, on the same object the set branch above writes to
+                if ($TYPE === 'term') {
+                    if ($ID !== 0) {
+                        $tag = get_term($ID);
+                        if ($tag && !is_wp_error($tag)) {
+                            update_term_meta($tag->term_id, 'XAGIO_SEO_SCHEMA_META', false);
+                            update_term_meta($tag->term_id, 'XAGIO_SEO_SCHEMA_DATA', false);
+                        } else {
+                            xagio_json('error', 'Invalid term ID.');
+                            return;
+                        }
+                    }
+                    // no global term schema exists, so a term request without ID has nothing to clear
+                } elseif ($ID !== 0) {
                     update_post_meta($ID, 'XAGIO_SEO_SCHEMA_META', false);
                     update_post_meta($ID, 'XAGIO_SEO_SCHEMA_DATA', false);
                 } else {
@@ -3997,23 +4010,61 @@ if (!class_exists('XAGIO_API')) {
             }
         }
 
+        /**
+         * Panel "Quick Edit" (Websites::updateRemotePost) saves a post through here.
+         *
+         * post_content / post_excerpt are HTML: they go through wp_kses_post (script and style blocks are
+         * removed with their contents first). Every other field is plain text. Until 7.1.0.51 the HTML fields
+         * went through sanitize_text_field too, which saved the post as one line of plain text.
+         * REST parameters arrive unslashed and wp_update_post() expects slashed data, so the result is
+         * slashed once before saving (otherwise backslashes in the content are lost).
+         */
         public static function updatePost($request = null)
         {
+            $DATA = !empty($request->get_param('data')) ? $request->get_param('data') : null;
 
-
-            $DATA = !empty($request->get_param('data')) ? map_deep(wp_unslash($request->get_param('data')), 'sanitize_text_field') : null;
-
-            if (is_null($DATA)) {
+            if (!is_array($DATA)) {
                 xagio_json('error', 'DATA is not properly being sent.');
-            } else {
-                $DATA   = array_map('sanitize_text_field', $DATA);
-                $xagio_result = wp_update_post($DATA, true);
+                return;
+            }
 
-                if (is_wp_error($xagio_result)) {
-                    xagio_json('error', 'Failed to update post content.', $xagio_result->get_error_message());
-                } else {
-                    xagio_json('success', 'Successfully updated post content.');
+            $ID   = isset($DATA['ID']) ? absint($DATA['ID']) : 0;
+            $post = $ID > 0 ? get_post($ID) : null;
+
+            if (!$post) {
+                xagio_json('error', 'Post not found.');
+                return;
+            }
+
+            if (isset($DATA['post_type']) && sanitize_key($DATA['post_type']) !== $post->post_type) {
+                xagio_json('error', 'The post type of an existing post cannot be changed.');
+                return;
+            }
+
+            $html_fields = ['post_content', 'post_excerpt'];
+            $xagio_post  = [];
+
+            foreach ($DATA as $xagio_field => $xagio_value) {
+                if (!is_string($xagio_field) || $xagio_field === 'ID') {
+                    continue;
                 }
+                if (in_array($xagio_field, $html_fields, true)) {
+                    $xagio_value = is_scalar($xagio_value) ? (string) $xagio_value : '';
+                    $xagio_value = preg_replace('@<(script|style)[^>]*?>.*?</\\1>@si', '', $xagio_value);
+                    $xagio_post[$xagio_field] = wp_kses_post($xagio_value);
+                } else {
+                    $xagio_post[$xagio_field] = is_array($xagio_value) ? map_deep($xagio_value, 'sanitize_text_field') : sanitize_text_field($xagio_value);
+                }
+            }
+
+            $xagio_post['ID'] = $ID;
+
+            $xagio_result = wp_update_post(wp_slash($xagio_post), true);
+
+            if (is_wp_error($xagio_result)) {
+                xagio_json('error', 'Failed to update post content.', $xagio_result->get_error_message());
+            } else {
+                xagio_json('success', 'Successfully updated post content.');
             }
         }
 

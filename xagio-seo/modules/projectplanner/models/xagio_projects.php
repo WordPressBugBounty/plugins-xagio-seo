@@ -1399,7 +1399,8 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
             $page['post_title']       = XAGIO_MODEL_PROJECTS::postChildren($page['ID'], $page['post_parent']) . $page['post_title'];
             $page['permalink']        = get_permalink($page['ID']);
             $page['post_author_name'] = isset($author->user_login) ? $author->user_login : 'n/a';
-            $page['seo']              = (int)get_post_meta($page['ID'], 'ps_seo_enabled', TRUE);
+            $page['seo']              = XAGIO_MODEL_SEO::getPostSeoSwitch($page['ID']);
+            $page['seo_forced']       = defined('XAGIO_SEO_FORCE_ENABLE') && XAGIO_SEO_FORCE_ENABLE ? 1 : 0;
             $page['reviews']          = (int)XAGIO_MODEL_REVIEWS::countReviews($page['ID']);
             $page['schema']           = XAGIO_MODEL_SCHEMA::getSchemas($page['ID']);
             $page['script_disable']   = get_post_meta($page['ID'], 'ps_seo_disable_global_scripts', TRUE);

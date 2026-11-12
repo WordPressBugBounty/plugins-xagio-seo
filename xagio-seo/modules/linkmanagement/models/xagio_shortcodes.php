@@ -674,21 +674,22 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
 
             if ($tag === 'aff') {
 
-                $shortcode = $wpdb->get_row($wpdb->prepare("SELECT * FROM xag_shortcodes WHERE shortcode = %s", str_replace(' ', '_', $atts['name'])), ARRAY_A);
+                $shortcode = $wpdb->get_row($wpdb->prepare("SELECT * FROM xag_shortcodes WHERE shortcode = %s", str_replace(' ', '_', isset($atts['name']) ? $atts['name'] : '')), ARRAY_A);
 
             } else if ($tag === 'xagio_project_keyword') {
                 // Render!
-                $a = '<a class="prs-group-keyword" href="' . esc_url($atts['url']) . '"';
+                $a = '<a class="prs-group-keyword" href="' . esc_url(isset($atts['url']) ? $atts['url'] : '') . '"';
 
-                if ($atts['target'] === 'true')
+                if (isset($atts['target']) && $atts['target'] === 'true')
                     $a .= ' target="_blank"';
 
                 $a .= '>';
 
-                if ($atts['capitalize'] === 'true')
-                    $atts['keyword'] = ucfirst(strtolower($atts['keyword']));
+                $xagio_keyword = isset($atts['keyword']) ? sanitize_text_field(wp_unslash($atts['keyword'])) : '';
+                if (isset($atts['capitalize']) && $atts['capitalize'] === 'true')
+                    $xagio_keyword = ucfirst(strtolower($xagio_keyword));
 
-                $a .= sanitize_text_field(wp_unslash($atts['keyword']));
+                $a .= esc_html($xagio_keyword);
                 $a .= '</a>';
                 return $a;
             } else {
@@ -701,8 +702,8 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                     $shortcode = $shortcode[0];
                 }
 
-                if (empty($atts))
-                    $atts = ['mask' => 0];
+                if (!is_array($atts))
+                    $atts = [];
 
                 // Track!
                 $ip_address   = sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']));
@@ -717,7 +718,7 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                     $xagio_redirect_mask = 'xredirect';
 
                 // Check if URL needs to be masked
-                if ($shortcode['mask'] == 1 || $atts['mask'] == 1) {
+                if ($shortcode['mask'] == 1 || (isset($atts['mask']) && $atts['mask'] == 1)) {
                     $isMasked         = 'masked';
                     $shortcode['url'] = '/?' . $xagio_redirect_mask . '=' . $shortcode_id;
 
@@ -760,12 +761,14 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
 
                 }
 
+                // The title attribute comes from post content (any Contributor can write it): plain text only,
+                // and every value below is escaped for its HTML context (stored XSS report, Wordfence, 7.1.0.50).
                 if (isset($atts['title'])) {
-                    $shortcode['title'] = $atts['title'];
+                    $shortcode['title'] = sanitize_text_field(wp_unslash($atts['title']));
                 }
 
                 // Render!
-                $a = '<a class="xagio-tracking ' . $isMasked . '" data-id="' . $shortcode_id . '" href="' . $shortcode['url'] . '"';
+                $a = '<a class="xagio-tracking ' . esc_attr($isMasked) . '" data-id="' . absint($shortcode_id) . '" href="' . esc_url($shortcode['url']) . '"';
                 if ($shortcode['target_blank'] == 1) {
                     $a .= ' target="_blank"';
                 }
@@ -775,9 +778,9 @@ if (!class_exists('XAGIO_MODEL_SHORTCODES')) {
                 $a .= '>';
 
                 if (empty($shortcode['image'])) {
-                    $a .= $shortcode['title'];
+                    $a .= esc_html($shortcode['title']);
                 } else {
-                    $a .= '<img src="' . $shortcode['image'] . '" title="' . $shortcode['title'] . '"/>';
+                    $a .= '<img src="' . esc_url($shortcode['image']) . '" title="' . esc_attr($shortcode['title']) . '"/>';
                 }
                 $a .= '</a>';
                 return $a;
