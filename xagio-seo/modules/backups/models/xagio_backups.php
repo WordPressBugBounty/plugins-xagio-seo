@@ -3095,7 +3095,8 @@ if (!class_exists("XAGIO_MODEL_BACKUPS")) {
                 $dropboxOutput = $XAGIO_DropboxClient->upload($backupFile, "/" . $siteName, $createID);
 
                 if (isset($dropboxOutput["error"])) {
-                    return "Failed to upload backup to Dropbox. Info: " . $dropboxOutput["error"];
+                    // "error" is Dropbox's error object, which used to be printed as "Array" (T-138).
+                    return "Failed to upload backup to Dropbox. Info: " . ($dropboxOutput["error_text"] ?? XAGIO_DropboxClient::describe($dropboxOutput));
                 }
 
                 return [

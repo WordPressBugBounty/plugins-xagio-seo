@@ -10,25 +10,104 @@ if (!class_exists('XAGIO_DropboxClient')) {
 
         private $accessToken;
 
+        /** Why the last token refresh failed (readable, never a token), or null. */
+        private $refreshError = null;
+
+        /** TRUE when Dropbox itself refused the refresh (revoked, malformed): trying again cannot help. */
+        private $refreshFinal = false;
+
         function __construct($token)
         {
             $this->accessToken = $token;
+            $this->refresh();
+        }
 
-            // Refresh access token if a refresh token exists.
-            if (isset($this->accessToken['refresh_token'])) {
-                $refreshToken = $this->accessToken['refresh_token'];
+        /**
+         * Swap the stored refresh token for a fresh 4-hour access token. A failure used to be
+         * silent: the client then went on with the access token stored at connect time, which
+         * Dropbox had expired long ago, and the upload failed as "Info: Array" (T-138). The reason
+         * is now kept (lastRefreshError) and a network failure is tried once more.
+         */
+        public function refresh()
+        {
+            if (!is_array($this->accessToken) || empty($this->accessToken['refresh_token'])) {
+                $this->refreshError = 'the stored Dropbox connection has no refresh token; reconnect Dropbox in Xagio';
+                $this->refreshFinal = true;
+                return false;
+            }
+            if (!XAGIO_DROPBOX_KEY || !XAGIO_DROPBOX_SECRET) {
+                $this->refreshError = 'the Dropbox app keys are missing; synchronize the website with Xagio';
+                $this->refreshFinal = true;
+                return false;
+            }
 
+            $at = null;
+            for ($attempt = 0; $attempt < 2; $attempt++) {
                 $at = $this->authCall("oauth2/token", array(
-                    'refresh_token' => $refreshToken,
+                    'refresh_token' => $this->accessToken['refresh_token'],
                     'grant_type'    => 'refresh_token',
                     'client_id'     => XAGIO_DROPBOX_KEY,
                     'client_secret' => XAGIO_DROPBOX_SECRET
                 ));
-
                 if (isset($at['access_token'])) {
                     $this->accessToken['access_token'] = $at['access_token'];
+                    $this->refreshError = null;
+                    $this->refreshFinal = false;
+                    return true;
+                }
+                // Only a transport failure (no HTTP answer) is worth a second try; invalid_grant is final.
+                if (isset($at['_http']) && (int) $at['_http'] > 0 && (int) $at['_http'] < 500) {
+                    $this->refreshFinal = true;
+                    break;
+                }
+                if ($attempt === 0) {
+                    sleep(3);
                 }
             }
+            $this->refreshError = 'token refresh failed: ' . self::describe($at);
+            return false;
+        }
+
+        /** Why the last refresh failed, or null when the client holds a fresh token. */
+        public function lastRefreshError()
+        {
+            return $this->refreshError;
+        }
+
+        /**
+         * One line for a Dropbox answer, for the stored backup message: the HTTP status and
+         * Dropbox's error_summary (e.g. "HTTP 401 expired_access_token/"), else the error as JSON.
+         * Dropbox error answers carry no token, and nothing from the request is added here.
+         */
+        public static function describe($xagio_response)
+        {
+            if (!is_array($xagio_response)) {
+                return 'no readable answer from Dropbox';
+            }
+            $parts = array();
+            if (!empty($xagio_response['_http'])) {
+                $parts[] = 'HTTP ' . (int) $xagio_response['_http'];
+            }
+            if (isset($xagio_response['error_summary']) && is_string($xagio_response['error_summary'])) {
+                $parts[] = $xagio_response['error_summary'];
+            } elseif (isset($xagio_response['error_description']) && is_string($xagio_response['error_description'])) {
+                $parts[] = (is_string($xagio_response['error'] ?? null) ? $xagio_response['error'] . ': ' : '') . $xagio_response['error_description'];
+            } elseif (isset($xagio_response['error'])) {
+                $parts[] = is_string($xagio_response['error']) ? $xagio_response['error'] : (string) wp_json_encode($xagio_response['error']);
+            }
+            $text = trim(implode(' ', $parts));
+            if ($text === '') {
+                $text = 'unknown Dropbox error';
+            }
+            return function_exists('mb_substr') ? mb_substr($text, 0, 300) : substr($text, 0, 300);
+        }
+
+        /** Is this answer an access token Dropbox no longer accepts? */
+        private static function isTokenError($xagio_response)
+        {
+            $summary = is_array($xagio_response) && isset($xagio_response['error_summary']) ? (string) $xagio_response['error_summary'] : '';
+            return strpos($summary, 'expired_access_token') === 0 || strpos($summary, 'invalid_access_token') === 0
+                || (is_array($xagio_response) && (int) ($xagio_response['_http'] ?? 0) === 401);
         }
 
         // ##################################################
@@ -147,7 +226,27 @@ if (!class_exists('XAGIO_DropboxClient')) {
                 'close' => false
             ), $chunk);
 
+            // One more try for the two failures that are not final: a token Dropbox refuses
+            // (refresh again, it may have failed for a moment) and "too many writes" (wait).
             if (isset($session['error'])) {
+                $retry = false;
+                if (self::isTokenError($session) && !$this->refreshFinal && $this->refresh()) {
+                    $retry = true;
+                } elseif ((int) ($session['_http'] ?? 0) === 429) {
+                    $wait = (int) ($session['error']['retry_after'] ?? 5);
+                    sleep(max(1, min(30, $wait)));
+                    $retry = true;
+                }
+                if ($retry) {
+                    $session = $this->uploadCall('files/upload_session/start', array(
+                        'close' => false
+                    ), $chunk);
+                }
+            }
+
+            if (isset($session['error'])) {
+                $session['error_text'] = self::describe($session)
+                    . ($this->refreshError !== null ? ' (' . $this->refreshError . ')' : '');
                 return $session;
             }
 
@@ -223,7 +322,7 @@ if (!class_exists('XAGIO_DropboxClient')) {
                 ), ""); // Send an empty string since there is no data left.
 
                 if (isset($xagio_response['error'])) {
-                    XAGIO_MODEL_BACKUPS::handleOutput($createID, 'error', 'Error finishing upload: ' . $xagio_response['error']);
+                    XAGIO_MODEL_BACKUPS::handleOutput($createID, 'error', 'Error finishing upload: ' . self::describe($xagio_response) . self::refreshNote($client));
                     return;
                 }
                 // Remove the local backup file and signal success.
@@ -286,7 +385,7 @@ if (!class_exists('XAGIO_DropboxClient')) {
                 }
 
                 if (isset($xagio_response['error'])) {
-                    XAGIO_MODEL_BACKUPS::handleOutput($createID, 'error', 'Error during upload (at offset ' . $offset . ' of ' . $file_size . '): ' . json_encode($xagio_response['error']));
+                    XAGIO_MODEL_BACKUPS::handleOutput($createID, 'error', 'Error during upload (at offset ' . $offset . ' of ' . $file_size . '): ' . self::describe($xagio_response) . self::refreshNote($client));
                     return;
                 }
 
@@ -316,7 +415,7 @@ if (!class_exists('XAGIO_DropboxClient')) {
                 ), $chunk);
 
                 if (isset($xagio_response['error'])) {
-                    XAGIO_MODEL_BACKUPS::handleOutput($createID, 'error', 'Error finishing upload: ' . json_encode($xagio_response['error']));
+                    XAGIO_MODEL_BACKUPS::handleOutput($createID, 'error', 'Error finishing upload: ' . self::describe($xagio_response) . self::refreshNote($client));
                     return;
                 }
                 // Remove the local backup file once the upload is complete.
@@ -325,6 +424,13 @@ if (!class_exists('XAGIO_DropboxClient')) {
             }
         }
 
+
+        /** " (token refresh failed: …)" when the client could not refresh, else ''. */
+        private static function refreshNote($client)
+        {
+            $why = $client->lastRefreshError();
+            return $why !== null ? ' (' . $why . ')' : '';
+        }
 
         // ##################################################
         // Helper Functions (downloadCall, uploadCall, apiCall, authCall, cleanUrl)
@@ -387,8 +493,7 @@ if (!class_exists('XAGIO_DropboxClient')) {
                 return array('error' => $xagio_response->get_error_message());
             }
 
-            $body = wp_remote_retrieve_body($xagio_response);
-            return json_decode($body, true);
+            return self::decodeAnswer($xagio_response);
         }
 
         private function apiCall($path, $fields = null)
@@ -410,8 +515,7 @@ if (!class_exists('XAGIO_DropboxClient')) {
                 return array('error' => $xagio_response->get_error_message());
             }
 
-            $body = wp_remote_retrieve_body($xagio_response);
-            return json_decode($body, true);
+            return self::decodeAnswer($xagio_response);
         }
 
         private function authCall($path, $request_data = null)
@@ -432,8 +536,28 @@ if (!class_exists('XAGIO_DropboxClient')) {
                 return array('error' => $xagio_response->get_error_message());
             }
 
+            return self::decodeAnswer($xagio_response);
+        }
+
+        /**
+         * Dropbox's JSON answer with its HTTP status added as '_http'. A non-JSON error page
+         * (proxy, 5xx) becomes ['error' => 'HTTP n: <start of the page>'] instead of null, so the
+         * caller sees a failure with a reason. Callers read the same keys as before.
+         */
+        private static function decodeAnswer($xagio_response)
+        {
+            $code = (int) wp_remote_retrieve_response_code($xagio_response);
             $body = wp_remote_retrieve_body($xagio_response);
-            return json_decode($body, true);
+            $data = json_decode($body, true);
+            if (is_array($data)) {
+                $data['_http'] = $code;
+                return $data;
+            }
+            if ($code !== 200) {
+                $text = trim(preg_replace('/\s+/', ' ', wp_strip_all_tags((string) $body)));
+                return array('error' => $text !== '' ? substr($text, 0, 200) : 'no body', '_http' => $code);
+            }
+            return $data;
         }
 
         private function cleanUrl($xagio_url)

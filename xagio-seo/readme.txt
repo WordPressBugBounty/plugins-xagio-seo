@@ -4,7 +4,7 @@ Tags: seo, ai seo, aeo, schema, rank tracker
 Requires at least: 5.6
 Tested up to: 7.1
 Requires PHP: 7.0
-Stable tag: 7.1.0.52
+Stable tag: 7.1.0.53
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -235,6 +235,11 @@ Xagio AI **removes the complexity**, giving you the **fastest, easiest way to ra
 3. Projects
 
 == Changelog ==
+= 7.1.0.53 =
+* ⚙️ New: the Xagio panel can read a site's structure for converting it to a fast static site (pages, redirects, SEO settings, forms and their recipients, menus, comments, uploads). Only the panel's connection for a site administrator can call it, and it never includes passwords, API keys or CAPTCHA secret keys.
+* 🐞 Dropbox backups that fail now say why (for example an expired or revoked connection, or a full Dropbox) instead of "Info: Array", and a refused token or a busy Dropbox is retried once.
+* 🐞 Sites without a connected Xagio account no longer send plugin, theme and AI price requests that the Xagio panel could only refuse.
+
 = 7.1.0.52 =
 * 🔒 Security: Link Manager shortcodes now escape the link title, image and URL when a post is shown, so a title attribute added in post content can no longer inject script (reported through Wordfence).
 

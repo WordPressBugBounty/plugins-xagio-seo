@@ -276,6 +276,27 @@ if (!class_exists('XAGIO_API')) {
             return true;
         }
 
+        /**
+         * The WP -> HTML converter's export (contract: design document §5, export_version 1). Reached only
+         * through the panel API route, so only a super admin (restPermissionCheck). Never logged.
+         */
+        public static function exportSite($request = null)
+        {
+            if ($request === null || !class_exists('XAGIO_EXPORT')) {
+                xagio_json('error', 'Export is not available.');
+            }
+            XAGIO_EXPORT::handle($request);
+        }
+
+        /** One upload file (or a range of it) for the converter; the path comes from the uploads manifest. */
+        public static function exportFile($request = null)
+        {
+            if ($request === null || !class_exists('XAGIO_EXPORT')) {
+                xagio_json('error', 'Export is not available.');
+            }
+            XAGIO_EXPORT::handleFile($request);
+        }
+
         public static function ping($request = null)
         {
             xagio_json("success", "pong");
@@ -342,6 +363,12 @@ if (!class_exists('XAGIO_API')) {
 
         public static function themeSwitch($old_name)
         {
+            // No licence connected: the panel can only refuse this ("'license_key' variable is not
+            // being sent"), so do not call it. Unlicensed installs sent hundreds a day (T-132).
+            if (!XAGIO_LICENSE::isLicenseSet()) {
+                return FALSE;
+            }
+
             if (!defined('XAGIO_DOMAIN') || XAGIO_DOMAIN === '') {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
@@ -359,6 +386,12 @@ if (!class_exists('XAGIO_API')) {
 
         public static function pluginDeleted($root_name, $success)
         {
+            // No licence connected: the panel can only refuse this ("'license_key' variable is not
+            // being sent"), so do not call it. Unlicensed installs sent hundreds a day (T-132).
+            if (!XAGIO_LICENSE::isLicenseSet()) {
+                return FALSE;
+            }
+
             if (!defined('XAGIO_DOMAIN') || XAGIO_DOMAIN === '') {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
@@ -377,6 +410,12 @@ if (!class_exists('XAGIO_API')) {
 
         public static function pluginDeactivated($root_name, $network_activation)
         {
+            // No licence connected: the panel can only refuse this ("'license_key' variable is not
+            // being sent"), so do not call it. Unlicensed installs sent hundreds a day (T-132).
+            if (!XAGIO_LICENSE::isLicenseSet()) {
+                return FALSE;
+            }
+
             if (!defined('XAGIO_DOMAIN') || XAGIO_DOMAIN === '') {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
@@ -392,6 +431,12 @@ if (!class_exists('XAGIO_API')) {
 
         public static function pluginActivated($root_name, $network_activation)
         {
+            // No licence connected: the panel can only refuse this ("'license_key' variable is not
+            // being sent"), so do not call it. Unlicensed installs sent hundreds a day (T-132).
+            if (!XAGIO_LICENSE::isLicenseSet()) {
+                return FALSE;
+            }
+
             if (!defined('XAGIO_DOMAIN') || XAGIO_DOMAIN === '') {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }

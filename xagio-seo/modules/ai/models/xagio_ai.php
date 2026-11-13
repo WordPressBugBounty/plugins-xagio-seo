@@ -214,6 +214,15 @@ if (!class_exists('XAGIO_MODEL_AI')) {
         {
             check_ajax_referer('xagio_nonce', '_xagio_nonce');
 
+            // Without a licence the panel cannot price anything (it answered "Args cannot be
+            // empty!" with HTTP 500, ~240 times a day from Agent X pages on unlicensed sites, T-132).
+            if (!XAGIO_LICENSE::isLicenseSet()) {
+                xagio_jsonc([
+                    'status'  => 'error',
+                    'message' => 'Connect your Xagio account to see AI prices.'
+                ]);
+            }
+
             $xagio_output = XAGIO_API::apiRequest('ai', 'POST', [], $xagio_http_code);
             if ($xagio_http_code == 203) {
                 xagio_jsonc([
