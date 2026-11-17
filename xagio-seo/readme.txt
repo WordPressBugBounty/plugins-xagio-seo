@@ -4,7 +4,7 @@ Tags: seo, ai seo, aeo, schema, rank tracker
 Requires at least: 5.6
 Tested up to: 7.1
 Requires PHP: 7.0
-Stable tag: 7.1.0.53
+Stable tag: 7.1.0.54
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -235,6 +235,11 @@ Xagio AI **removes the complexity**, giving you the **fastest, easiest way to ra
 3. Projects
 
 == Changelog ==
+= 7.1.0.54 =
+* 🐞 Contact forms on sites built from older Xagio Elementor templates now send their messages to the site owner (the site admin e-mail) instead of a Xagio address. This is cleaned up once on update; e-mail addresses you entered yourself are kept.
+* 🐞 Fixed a PHP 8 error in the scheduled task that sets the default SEO settings for custom post types and taxonomies.
+* 🐞 The Xagio log file keeps every entry of the day instead of only the last one.
+
 = 7.1.0.53 =
 * ⚙️ New: the Xagio panel can read a site's structure for converting it to a fast static site (pages, redirects, SEO settings, forms and their recipients, menus, comments, uploads). Only the panel's connection for a site administrator can call it, and it never includes passwords, API keys or CAPTCHA secret keys.
 * 🐞 Dropbox backups that fail now say why (for example an expired or revoked connection, or a full Dropbox) instead of "Info: Array", and a refused token or a busy Dropbox is retried once.

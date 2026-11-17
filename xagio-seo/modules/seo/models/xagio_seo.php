@@ -524,11 +524,14 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
 
             // POSTS
             $xagio_post_types = get_option('XAGIO_SEO_DEFAULT_POST_TYPES');
+            if (!is_array($xagio_post_types)) {
+                $xagio_post_types = [];
+            }
 
             foreach (self::getAllPostObjects() as $post_type) {
                 $post_type = (is_array($post_type) ? $post_type['name'] : $post_type);
                 if ($post_type !== 'post' && $post_type !== 'page') {
-                    if (@array_key_exists($post_type, $xagio_post_types)) {
+                    if (array_key_exists($post_type, $xagio_post_types)) {
                         continue;
                     } else {
                         $pa                         = [
@@ -558,9 +561,12 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             // TAXONOMIES
             $taxonomy_templates = [];
             $xagio_taxonomies         = get_option('XAGIO_SEO_DEFAULT_TAXONOMIES');
+            if (!is_array($xagio_taxonomies)) {
+                $xagio_taxonomies = [];
+            }
 
             foreach (self::getAllTaxonomies() as $taxonomy) {
-                if (@!array_key_exists($taxonomy, $xagio_taxonomies)) {
+                if (!array_key_exists($taxonomy, $xagio_taxonomies)) {
                     $pa                            = [
                         'title'       => '%%term_title%% %%sep%% %%sitename%%',
                         'description' => '',

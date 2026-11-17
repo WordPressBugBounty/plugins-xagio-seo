@@ -689,8 +689,9 @@ if (!function_exists('xagio_log')) {
             $wp_filesystem->mkdir($log_dir);
         }
 
-        // Append the log message to the log file
-        $wp_filesystem->put_contents($log_path, $log_message, 0777);
+        // Append the log message to the log file (put_contents always overwrites)
+        $existing = $wp_filesystem->exists($log_path) ? $wp_filesystem->get_contents($log_path) : '';
+        $wp_filesystem->put_contents($log_path, $existing . $log_message, 0777);
     }
 }
 
