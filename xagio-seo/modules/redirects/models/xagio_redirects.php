@@ -99,6 +99,18 @@ if (!class_exists('XAGIO_MODEL_REDIRECTS')) {
 
         }
 
+        /**
+         * A redirect path or URL from the admin screens: plain text, HTML entities decoded and then the
+         * characters that could end a double-quoted HTML attribute or open a tag removed (" < > `). A path never needs
+         * them; a value logged from a 404 could otherwise bring an encoded quote back as a real one.
+         */
+        public static function cleanPath($raw)
+        {
+            $v = sanitize_text_field(wp_unslash((string) $raw));
+            $v = html_entity_decode($v, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            return trim(str_replace(['"', '<', '>', '`'], '', $v));
+        }
+
         public static function addRedirect()
         {
             check_ajax_referer('xagio_nonce', '_xagio_nonce');
@@ -107,8 +119,8 @@ if (!class_exists('XAGIO_MODEL_REDIRECTS')) {
                 wp_die('Required parameters are missing.', 'Missing Parameters', ['response' => 400]);
             }
 
-            $oldURL = sanitize_text_field(wp_unslash($_POST['oldURL']));
-            $newURL = sanitize_text_field(wp_unslash($_POST['newURL']));
+            $oldURL = self::cleanPath($_POST['oldURL']);
+            $newURL = self::cleanPath($_POST['newURL']);
 
             self::add($oldURL, $newURL);
         }
@@ -124,8 +136,8 @@ if (!class_exists('XAGIO_MODEL_REDIRECTS')) {
             }
 
             $id     = intval($_POST['id']);
-            $oldURL = sanitize_text_field(wp_unslash($_POST['oldURL']));
-            $newURL = sanitize_text_field(wp_unslash($_POST['newURL']));
+            $oldURL = self::cleanPath($_POST['oldURL']);
+            $newURL = self::cleanPath($_POST['newURL']);
 
             $oldURL = trim($oldURL, '/');
             $newURL = trim($newURL, '/');

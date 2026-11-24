@@ -197,6 +197,26 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
                 ]);
             }
 
+            // Rebuild the rewrite rules only when the category base setting or the category slugs change
+            add_action('wp_loaded', [
+                'XAGIO_MODEL_SETTINGS',
+                'maybeFlushRewriteRules'
+            ]);
+        }
+
+        public static function maybeFlushRewriteRules()
+        {
+            $state = 'off';
+            if (XAGIO_REMOVE_CATEGORY_BASE) {
+                $slugs = get_categories(['hide_empty' => false, 'fields' => 'id=>slug']);
+                $state = md5(wp_json_encode(is_array($slugs) ? $slugs : []));
+            }
+
+            if (get_option('XAGIO_CATEGORY_REWRITE_STATE') === $state) {
+                return;
+            }
+
+            update_option('XAGIO_CATEGORY_REWRITE_STATE', $state);
             flush_rewrite_rules();
         }
 
@@ -871,19 +891,10 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
             xagio_jsonc(XAGIO_MODEL_BACKUPS::doBackup());
         }
 
-        public static function exportOptions()
+        // Options that the settings export writes and the import accepts
+        private static function exportOptionKeys()
         {
-            check_ajax_referer('xagio_nonce', '_xagio_nonce');
-
-            // Set headers for plain text and JSON download
-            header("Content-type: text/plain");
-            header('Content-Disposition: attachment; filename=Xagio_Export_Settings_' . gmdate('Y-m-d_H:i:s') . '.psexp');
-            header('Content-type: application/json');
-
-            global $wpdb;
-
-            // List of options to export
-            $all_wp_options = [
+            return [
                 'XAGIO_DISABLE_HTML_FOOTPRINT',
                 'XAGIO_DISABLE_WP_CANONICALS',
                 'XAGIO_FORCE_HOMEPAGE_SCHEMA',
@@ -923,18 +934,12 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
                 'XAGIO_RECAPTCHA',
                 'ps_remove_footprint'
             ];
+        }
 
-            $return = [];
-            // Collect all options
-            foreach ($all_wp_options as $wp_option) {
-                $option_value = get_option($wp_option);
-                if ($option_value !== false) {
-                    $return['options'][$wp_option] = $option_value;
-                }
-            }
-
-            // List of post meta to export
-            $all_post_meta = [
+        // Post meta that the settings export writes and the import accepts
+        private static function exportMetaKeys()
+        {
+            return [
                 'XAGIO_SEO',
                 'XAGIO_SEO_SEARCH_PREVIEW_ENABLE',
                 'XAGIO_SEO_SOCIAL_ENABLE',
@@ -958,12 +963,39 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
                 'XAGIO_SEO_FACEBOOK_IMAGE',
                 'XAGIO_SEO_NOTES',
             ];
+        }
+
+        public static function exportOptions()
+        {
+            check_ajax_referer('xagio_nonce', '_xagio_nonce');
+
+            // Set headers for plain text and JSON download
+            header("Content-type: text/plain");
+            header('Content-Disposition: attachment; filename=Xagio_Export_Settings_' . gmdate('Y-m-d_H:i:s') . '.psexp');
+            header('Content-type: application/json');
+
+            global $wpdb;
+
+            // List of options to export
+            $all_wp_options = self::exportOptionKeys();
+
+            $return = [];
+            // Collect all options
+            foreach ($all_wp_options as $wp_option) {
+                $option_value = get_option($wp_option);
+                if ($option_value !== false) {
+                    $return['options'][$wp_option] = $option_value;
+                }
+            }
+
+            // List of post meta to export
+            $all_post_meta = self::exportMetaKeys();
 
             $by_id = [];
             // Collect all post meta
             foreach ($all_post_meta as $meta_key) {
                 // Securely prepare the query using wpdb::prepare
-                $results = $wpdb->get_results($wpdb->prepare("SELECT post_id, meta_key, meta_value FROM wp_postmeta WHERE meta_key = %s", $meta_key), ARRAY_A);
+                $results = $wpdb->get_results($wpdb->prepare("SELECT post_id, meta_key, meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s", $meta_key), ARRAY_A);
 
                 // Organize results by post ID
                 foreach ($results as $xagio_result) {
@@ -1014,15 +1046,29 @@ if (!class_exists('XAGIO_MODEL_SETTINGS')) {
                 $options  = $json['options'];
                 $postmeta = $json['postmeta'];
 
+                // Only the keys the export writes, so a crafted file cannot change other WordPress settings
+                $allowed_options = self::exportOptionKeys();
+                $allowed_meta    = self::exportMetaKeys();
+
                 foreach ($options as $xagio_key => $option) {
+                    if (!in_array($xagio_key, $allowed_options, TRUE)) {
+                        continue;
+                    }
                     update_option($xagio_key, $option);
                 }
 
                 foreach ($postmeta as $xagio_key => $metas) {
-                    $post_id = $xagio_key;
-                    if (get_post_status($post_id) != FALSE) {
+                    $post_id = absint($xagio_key);
+                    if ($post_id && get_post_status($post_id) != FALSE && is_array($metas)) {
                         foreach ($metas as $xagio_value) {
-                            update_post_meta($post_id, $xagio_value['meta_key'], maybe_unserialize($xagio_value['meta_value']));
+                            if (!isset($xagio_value['meta_key'], $xagio_value['meta_value']) || !in_array($xagio_value['meta_key'], $allowed_meta, TRUE)) {
+                                continue;
+                            }
+                            $meta_value = $xagio_value['meta_value'];
+                            if (is_serialized($meta_value)) {
+                                $meta_value = @unserialize(trim($meta_value), ['allowed_classes' => FALSE]);
+                            }
+                            update_post_meta($post_id, $xagio_value['meta_key'], $meta_value);
                         }
                     }
                 }

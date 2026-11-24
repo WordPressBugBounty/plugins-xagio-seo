@@ -95,17 +95,18 @@ $xagioDisplayReviewsTitle = (@$xagio_review['details']['display_reviews_heading'
             $xagio_date = gmdate('d, M Y', strtotime($xagio_r['date']));
 
             // Stars
-            $xagio_full_stars  = $xagio_r['rating'];
-            $xagio_empty_stars = 5 - $xagio_r['rating'];
+            $xagio_full_stars  = max(0, min(5, intval($xagio_r['rating'])));
+            $xagio_empty_stars = 5 - $xagio_full_stars;
 
             // Review Author
             $xagio_name = '';
-            if (!empty($xagio_r['name'])) $xagio_name = '<b>' . stripslashes($xagio_r['name']) . '</b> <br>';
-            if (!empty($xagio_r['website'])) $xagio_name = '<a href="' . $xagio_r['website'] . '" target="_blank">' . $xagio_name . '</a>';
-            if (!empty($xagio_r['age'])) $xagio_name .= $xagio_r['age'];
-            if (!empty($xagio_r['location'])) $xagio_name .= ' from ' . $xagio_r['location'];
-            if (!empty($xagio_r['email'])) $xagio_name .= ' (<a style="color: blue;" href="mailto:' . $xagio_r['email'] . '" target="_blank"><i class="xagio-icon xagio-icon-at"></i></a>)';
-            if (!empty($xagio_r['telephone'])) $xagio_name .= ' (<a style="color: blue;" href="tel:' . $xagio_r['telephone'] . '" target="_blank"><i class="xagio-icon xagio-icon-phone"></i></a>)';
+            // Every field comes from a public form, so each one is escaped for the spot it lands in
+            if (!empty($xagio_r['name'])) $xagio_name = '<b>' . esc_html(stripslashes($xagio_r['name'])) . '</b> <br>';
+            if (!empty($xagio_r['website'])) $xagio_name = '<a href="' . esc_url($xagio_r['website']) . '" target="_blank" rel="nofollow noopener">' . $xagio_name . '</a>';
+            if (!empty($xagio_r['age'])) $xagio_name .= esc_html(intval($xagio_r['age']));
+            if (!empty($xagio_r['location'])) $xagio_name .= ' from ' . esc_html(stripslashes($xagio_r['location']));
+            if (!empty($xagio_r['email'])) $xagio_name .= ' (<a style="color: blue;" href="' . esc_url('mailto:' . sanitize_email($xagio_r['email'])) . '" target="_blank"><i class="xagio-icon xagio-icon-at"></i></a>)';
+            if (!empty($xagio_r['telephone'])) $xagio_name .= ' (<a style="color: blue;" href="' . esc_attr('tel:' . preg_replace('/[^0-9+]/', '', $xagio_r['telephone'])) . '" target="_blank"><i class="xagio-icon xagio-icon-phone"></i></a>)';
 
             // Limit Reviews
             $xagio_limit_class = '';
@@ -146,7 +147,7 @@ $xagioDisplayReviewsTitle = (@$xagio_review['details']['display_reviews_heading'
                     <div class="prs-review-body"><?php echo esc_html(stripslashes($xagio_r['review'])); ?></div>
                 <?php } ?>
 
-                <div class="prs-review-author"><?php echo wp_kses_post(stripslashes($xagio_name)); ?></div>
+                <div class="prs-review-author"><?php echo wp_kses_post($xagio_name); ?></div>
 
             </div>
 

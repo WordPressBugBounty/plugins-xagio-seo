@@ -1,4 +1,10 @@
 var logTable;
+// Every stored value (redirect paths, logged 404 paths and URLs) is text, never HTML: escape it before it is
+// concatenated into markup or an attribute. A 404 path may carry "&quot;" that the browser would decode into a quote.
+function xagioRedirEsc(v) {
+    return String(v === null || v === undefined ? '' : v)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
 var plugins,
     themes;
 let log_info = [
@@ -173,7 +179,7 @@ let selected_refs = 0;
                         mRender: function (data, type, row) {
                             let clean = row.old ? row.old.replace(/^\/+/, '') : '';
                             let label = clean ? '/' + clean : 'Homepage';
-                            return '<a target="_blank" href="/' + clean + '">' + label + '</a>';
+                            return '<a target="_blank" rel="noopener" href="/' + xagioRedirEsc(clean) + '">' + xagioRedirEsc(label) + '</a>';
                         }
                     },
                     {
@@ -182,8 +188,9 @@ let selected_refs = 0;
                         bSortable: false,
                         bSearchable: true,
                         mRender: function (data, type, row) {
-                            let url = row.new.match(/^https?:\/\//) ? row.new : '/' + row.new.replace(/^\/+/, '');
-                            return '<a target="_blank" href="' + url + '">' + url + '</a>';
+                            let to = row.new ? String(row.new) : '';
+                            let url = to.match(/^https?:\/\//i) ? to : '/' + to.replace(/^\/+/, '');
+                            return '<a target="_blank" rel="noopener" href="' + xagioRedirEsc(url) + '">' + xagioRedirEsc(url) + '</a>';
                         }
                     },
                     {
@@ -202,7 +209,7 @@ let selected_refs = 0;
                         mRender: function (data, type, row) {
                             return '<div class="xagio-cell-actions-row xagio-flex-align-center">' +
                                 '<button type="button" class="xagio-button xagio-button-primary xagio-button-mini edit-redirect" data-id="' +
-                                row.id + '" data-old-url="' + row.old + '" data-new-url="' + row.new +
+                                parseInt(row.id, 10) + '" data-old-url="' + xagioRedirEsc(row.old) + '" data-new-url="' + xagioRedirEsc(row.new) +
                                 '" data-xagio-tooltip data-xagio-title="Edit this redirect"><i class="xagio-icon xagio-icon-edit"></i></button>' +
                                 '<button type="button" class="xagio-button xagio-button-danger xagio-button-mini delete-redirect" data-id="' +
                                 row.id + '" data-xagio-tooltip data-xagio-title="Trash this redirect"><i class="xagio-icon xagio-icon-delete"></i></button>' +
@@ -578,8 +585,8 @@ let selected_refs = 0;
                                            "mData"      : null,
                                            "render"     : function (data, type, row) {
                                                // row.url_href & row.url_text come from the escaped PHP above
-                                               return '<a href="' + row.url_href + '" target="_blank" rel="noopener">' +
-                                                      row.url_text +
+                                               return '<a href="' + xagioRedirEsc(row.url_href) + '" target="_blank" rel="noopener">' +
+                                                      row.url_text +   // esc_html()'d by the server
                                                       '</a>';
                                            }
                                        },
@@ -650,10 +657,10 @@ let selected_refs = 0;
                                            "mRender"    : function (data, type, row) {
                                                var html =
                                                        '<div class="xagio-cell-actions-row xagio-flex-align-center"><a class="xagio-button xagio-button-primary xagio-button-mini add-new-404-redirect" data-current-url="' +
-                                                       row.slug +
+                                                       xagioRedirEsc(row.slug) +
                                                        '" data-xagio-tooltip data-xagio-title="Add 301 Redirect"><i class="xagio-icon xagio-icon-plus"></i></a>' +
-                                                       '<a class="xagio-button xagio-button-primary xagio-button-mini open-404-redirect" target="_blank" href="' +
-                                                       row.url +
+                                                       '<a class="xagio-button xagio-button-primary xagio-button-mini open-404-redirect" target="_blank" rel="noopener" href="' +
+                                                       xagioRedirEsc(row.url_href) +
                                                        '" data-xagio-tooltip data-xagio-title="Open URL in new window"><i class="xagio-icon xagio-icon-external-link"></i></a>' +
                                                        '<button type="button" class="xagio-button xagio-button-danger xagio-button-mini delete-log404" data-id="' +
                                                        row.id +

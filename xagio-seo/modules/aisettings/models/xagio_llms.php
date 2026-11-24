@@ -256,6 +256,8 @@ if (!class_exists('XAGIO_MODEL_LLMS')) {
             $posts = get_posts([
                 'post_type'      => $post_type,
                 'post_status'    => 'publish',
+                // Password-protected posts are not public, so they are left out
+                'has_password'   => false,
                 'posts_per_page' => $max_items,
                 'orderby'        => 'menu_order title',
                 'order'          => 'ASC',

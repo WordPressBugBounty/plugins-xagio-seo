@@ -290,18 +290,30 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
 
             $slug = '';
             if (isset($_SERVER['REQUEST_URI'])) {
-                $slug = sanitize_url(wp_unslash($_SERVER['REQUEST_URI']));
+                $slug = self::cleanRequestUri(wp_unslash($_SERVER['REQUEST_URI']));
             }
 
             $xagio_url = $urlProtocol . '://' . $serverName . $slug;
             return $xagio_url;
         }
 
+        /**
+         * The request path as stored in the 404 log. HTML entities are decoded before sanitize_url(), so an
+         * encoded quote (&quot;, &#34;) is stripped like a literal one instead of being stored and turned back
+         * into a quote by the browser later (Wordfence report: 404 log -> Add 301 Redirect -> stored XSS).
+         */
+        public static function cleanRequestUri($uri)
+        {
+            $uri = html_entity_decode((string) $uri, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $uri = str_replace(['"', '<', '>', '`'], '', $uri);
+            return sanitize_url($uri);
+        }
+
         public static function getCurrentSlug()
         {
             $slug = '';
             if (isset($_SERVER['REQUEST_URI'])) {
-                $slug = sanitize_url(wp_unslash($_SERVER['REQUEST_URI']));
+                $slug = self::cleanRequestUri(wp_unslash($_SERVER['REQUEST_URI']));
             }
             return $slug;
         }
@@ -660,7 +672,7 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
             check_ajax_referer('xagio_nonce', '_xagio_nonce');
 
             if (isset($_POST['old404URL']) && isset($_POST['newURL'])) {
-                self::add404Redirect(sanitize_text_field(wp_unslash($_POST['old404URL'])), sanitize_text_field(wp_unslash($_POST['newURL'])));
+                self::add404Redirect(XAGIO_MODEL_REDIRECTS::cleanPath($_POST['old404URL']), XAGIO_MODEL_REDIRECTS::cleanPath($_POST['newURL']));
             }
             xagio_json('error', '404 URL not fetched! Please add this URL from 301 redirects.');
         }

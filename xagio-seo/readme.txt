@@ -4,7 +4,7 @@ Tags: seo, ai seo, aeo, schema, rank tracker
 Requires at least: 5.6
 Tested up to: 7.1
 Requires PHP: 7.0
-Stable tag: 7.1.0.54
+Stable tag: 7.1.0.55
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -235,6 +235,12 @@ Xagio AI **removes the complexity**, giving you the **fastest, easiest way to ra
 3. Projects
 
 == Changelog ==
+= 7.1.0.55 =
+* 🔒 Security: the 301 & 404 screens now escape every redirect and 404 path they show, and a logged 404 path can no longer carry an encoded quote into a redirect, so a crafted 404 request cannot inject script into the admin (reported through Wordfence).
+* 🔒 Security: a page's own header, body and footer scripts can only be set from the Xagio SEO box and only contain script tags; the Xagio fields can no longer be written through the WordPress Custom Fields box (reported through Wordfence).
+* 🔒 Security: settings import only accepts the settings Xagio exports, stored data is unserialized safely, the SEO search checks the user's permission, and review ratings are limited to 1-5.
+* 🔒 Security: llms.txt and the AI knowledge file leave out password-protected posts, and review author fields are escaped one by one.
+
 = 7.1.0.54 =
 * 🐞 Contact forms on sites built from older Xagio Elementor templates now send their messages to the site owner (the site admin e-mail) instead of a Xagio address. This is cleaned up once on update; e-mail addresses you entered yourself are kept.
 * 🐞 Fixed a PHP 8 error in the scheduled task that sets the default SEO settings for custom post types and taxonomies.

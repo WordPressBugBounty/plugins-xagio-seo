@@ -655,42 +655,39 @@ if (!class_exists('XAGIO_MODEL_PROJECTS')) {
 
             $group_id = $wpdb->insert_id;
 
-            $likeKeywords = [];
+            $likeValues = [];
             foreach ($keywords as $keyword) {
-                $keyword        = '%' . $wpdb->esc_like(trim($keyword)) . '%';
-                $likeKeywords[] = $wpdb->prepare("keyword LIKE %s", $keyword);
+                $keyword = trim($keyword);
+                if ($keyword === '') {
+                    continue;
+                }
+                $likeValues[] = '%' . $wpdb->esc_like($keyword) . '%';
             }
             unset($keywords);
 
-            $likeKeywords = implode(" OR ", $likeKeywords);
-            $likeKeywords = "($likeKeywords)";
-
-            // Create placeholders for project group IDs
-            $groupIdsPlaceholders = implode(", ", array_fill(0, count($project_group_ids), '%d'));
-
-            // Merge group IDs with likeKeywords into a single array
-            $queryParams = array_merge(array_map('absint', $project_group_ids), [sanitize_text_field($likeKeywords)]);
-
-            // Prepare and execute the query
-            $updateKeywords = $wpdb->get_results(
-                $wpdb->prepare(
-                    "SELECT id FROM xag_keywords WHERE group_id IN ($groupIdsPlaceholders) AND %s", ...$queryParams
-                ), ARRAY_A
-            );
-
-            unset($likeKeywords);
-
             $keywordIDs = [];
-            foreach ($updateKeywords as $uk) {
-                $keywordIDs[] = $uk['id'];
-            }
-            unset($updateKeywords);
+            if (!empty($project_group_ids) && !empty($likeValues)) {
+                // One placeholder per group ID and per keyword, so the whole query goes through prepare()
+                $groupIdsPlaceholders = implode(", ", array_fill(0, count($project_group_ids), '%d'));
+                $likePlaceholders     = implode(" OR ", array_fill(0, count($likeValues), 'keyword LIKE %s'));
 
-            $wpdb->update('xag_projects', [
-                'group_id' => $group_id
-            ], [
-                'id' => $keywordIDs
-            ]);
+                $keywordIDs = $wpdb->get_col(
+                    $wpdb->prepare(
+                        "SELECT id FROM xag_keywords WHERE group_id IN ($groupIdsPlaceholders) AND ($likePlaceholders)", ...array_merge(array_map('absint', $project_group_ids), $likeValues)
+                    )
+                );
+            }
+            unset($likeValues);
+
+            // Move the matching keywords into the new seed group
+            if (!empty($keywordIDs)) {
+                $xagio_placeholders = implode(", ", array_fill(0, count($keywordIDs), '%d'));
+                $wpdb->query(
+                    $wpdb->prepare(
+                        "UPDATE xag_keywords SET group_id = %d WHERE id IN ($xagio_placeholders)", $group_id, ...array_map('absint', $keywordIDs)
+                    )
+                );
+            }
 
             xagio_jsonc([
                 'project_id' => $project_id

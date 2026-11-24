@@ -31,6 +31,10 @@ if (!class_exists('XAGIO_MODEL_OKF')) {
         // Hard ceiling: the whole bundle lives in one wp_option row.
         const MAX_POSTS = 1000;
 
+        // Bump to drop bundles built by older versions (v2: password-protected posts left out)
+        const OPTION_BUNDLE_VERSION = 'XAGIO_OKF_BUNDLE_VERSION';
+        const BUNDLE_VERSION        = 2;
+
         public static function initialize()
         {
             add_action('init', ['XAGIO_MODEL_OKF', 'addRewrite']);
@@ -39,6 +43,13 @@ if (!class_exists('XAGIO_MODEL_OKF')) {
 
             // Build-on-change: flag on content edits, rebuild once on shutdown (mirrors sitemaps).
             if (get_option(self::OPTION_ENABLED) === '1') {
+                // A bundle from an older version may hold content that is no longer served: drop it so it is rebuilt
+                if ((int) get_option(self::OPTION_BUNDLE_VERSION) !== self::BUNDLE_VERSION) {
+                    delete_option(self::OPTION_BUNDLE);
+                    update_option(self::OPTION_NEEDS_REBUILD, 1, false);
+                    update_option(self::OPTION_BUNDLE_VERSION, self::BUNDLE_VERSION);
+                }
+
                 add_action('save_post', ['XAGIO_MODEL_OKF', 'onSavePostInvalidate'], 20, 3);
                 add_action('transition_post_status', ['XAGIO_MODEL_OKF', 'onTransitionInvalidate'], 10, 3);
                 add_action('trashed_post', ['XAGIO_MODEL_OKF', 'invalidate']);
@@ -761,6 +772,8 @@ if (!class_exists('XAGIO_MODEL_OKF')) {
             $posts = get_posts([
                 'post_type'        => $types,
                 'post_status'      => 'publish',
+                // Password-protected posts are not public, so their content must not be served
+                'has_password'     => false,
                 'posts_per_page'   => self::MAX_POSTS,
                 'orderby'          => 'date',
                 'order'            => 'DESC',

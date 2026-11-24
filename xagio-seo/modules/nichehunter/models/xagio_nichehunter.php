@@ -195,7 +195,7 @@ if (!class_exists('XAGIO_MODEL_NICHEHUNTER')) {
             if(is_array($xagio_output)) {
                 foreach ($xagio_output as $o) {
                     if (!is_array($o)) continue;
-                    $o['filters'] = unserialize($o['filters']);
+                    $o['filters'] = is_string($o['filters']) ? @unserialize($o['filters'], ['allowed_classes' => FALSE]) : $o['filters'];
                     $OUT[]        = $o;
                 }
             }

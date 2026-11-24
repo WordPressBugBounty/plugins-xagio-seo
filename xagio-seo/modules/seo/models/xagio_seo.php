@@ -43,6 +43,12 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 'saveSeoSearch'
             ]);
 
+            // Xagio's post meta is written by the plugin only, never through core Custom Fields / REST / XML-RPC
+            add_filter('is_protected_meta', [
+                'XAGIO_MODEL_SEO',
+                'protectMeta'
+            ], 10, 3);
+
             add_filter('post_row_actions', [
                 'XAGIO_MODEL_SEO',
                 'duplicatePostButton'
@@ -515,6 +521,10 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             $post_id = abs(intval($_POST['post_id']));
             $status  = abs(intval($_POST['status']));
 
+            if (!current_user_can('edit_post', $post_id)) {
+                wp_die('You are not allowed to edit this post.', 'Forbidden', ['response' => 403]);
+            }
+
             update_post_meta($post_id, 'XAGIO_SEO', $status);
 
         }
@@ -661,6 +671,51 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             }
         }
 
+        /** What a page's own header / body / footer scripts may contain: script tags only (also enforced on output). */
+        public static function scriptAllowedTags()
+        {
+            return [
+                'script' => [
+                    'src'            => true,
+                    'type'           => true,
+                    'async'          => true,
+                    'defer'          => true,
+                    'crossorigin'    => true,
+                    'integrity'      => true,
+                    'nomodule'       => true,
+                    'charset'        => true,
+                    'referrerpolicy' => true,
+                    'id'             => true,
+                    'class'          => true,
+                    'data-*'         => true
+                ]
+            ];
+        }
+
+        /**
+         * A page's own scripts (XAGIO_SEO_SCRIPTS_HEADER / _BODY / _FOOTER) as they may be printed: through the same
+         * script-only allow-list savePost() applies, so a value written some other way (core Custom Fields before
+         * these keys were protected) cannot add other tags or event handlers. Returned slashed like the stored value,
+         * because the caller runs stripslashes_deep() on the whole block.
+         */
+        public static function postScripts($post_id, $key)
+        {
+            $value = get_post_meta($post_id, $key, TRUE);
+            if (!is_string($value) || $value === '') {
+                return '';
+            }
+            return addslashes(wp_kses(stripslashes($value), self::scriptAllowedTags()));
+        }
+
+        /** is_protected_meta: Xagio's post meta (XAGIO_*, the legacy ps_seo_*) can only be written by the plugin itself. */
+        public static function protectMeta($protected, $meta_key, $meta_type)
+        {
+            if ($meta_type === 'post' && is_string($meta_key) && (strpos($meta_key, 'XAGIO_') === 0 || strpos($meta_key, 'ps_seo_') === 0)) {
+                return true;
+            }
+            return $protected;
+        }
+
         public static function renderCustomHeaderScripts()
         {
             if (XAGIO_DISABLE_SCRIPTS_LOGGED_IN == TRUE) {
@@ -686,10 +741,10 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                         if ($XAGIO_SEO_SCRIPTS_ENABLE === "") {
                             $scripts = '';
                         } else {
-                            $scripts = get_post_meta($xagio_object->ID, 'XAGIO_SEO_SCRIPTS_HEADER', TRUE);
+                            $scripts = self::postScripts($xagio_object->ID, 'XAGIO_SEO_SCRIPTS_HEADER');
                         }
                     } else {
-                        $scripts = get_post_meta($xagio_object->ID, 'XAGIO_SEO_SCRIPTS_HEADER', TRUE);
+                        $scripts = self::postScripts($xagio_object->ID, 'XAGIO_SEO_SCRIPTS_HEADER');
                     }
 
 
@@ -741,10 +796,10 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                         if ($XAGIO_SEO_SCRIPTS_ENABLE === "") {
                             $scripts = '';
                         } else {
-                            $scripts = get_post_meta($xagio_object->ID, 'XAGIO_SEO_SCRIPTS_FOOTER', TRUE);
+                            $scripts = self::postScripts($xagio_object->ID, 'XAGIO_SEO_SCRIPTS_FOOTER');
                         }
                     } else {
-                        $scripts = get_post_meta($xagio_object->ID, 'XAGIO_SEO_SCRIPTS_FOOTER', TRUE);
+                        $scripts = self::postScripts($xagio_object->ID, 'XAGIO_SEO_SCRIPTS_FOOTER');
                     }
 
                     if ($disable_global != 1) {
@@ -795,10 +850,10 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                         if ($XAGIO_SEO_SCRIPTS_ENABLE === "") {
                             $scripts = '';
                         } else {
-                            $scripts = get_post_meta($xagio_object->ID, 'XAGIO_SEO_SCRIPTS_BODY', TRUE);
+                            $scripts = self::postScripts($xagio_object->ID, 'XAGIO_SEO_SCRIPTS_BODY');
                         }
                     } else {
-                        $scripts = get_post_meta($xagio_object->ID, 'XAGIO_SEO_SCRIPTS_BODY', TRUE);
+                        $scripts = self::postScripts($xagio_object->ID, 'XAGIO_SEO_SCRIPTS_BODY');
                     }
 
                     if ($disable_global != 1) {
@@ -1020,6 +1075,10 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
             // get post_id with sanitized value
             $post_id = abs(intval($_POST['post_id']));
             $status  = abs(intval($_POST['status']));
+
+            if (!current_user_can('edit_post', $post_id)) {
+                wp_die('You are not allowed to edit this post.', 'Forbidden', ['response' => 403]);
+            }
 
             update_post_meta($post_id, 'XAGIO_SEO_SEARCH_PREVIEW_ENABLE', $status);
 
@@ -2102,22 +2161,7 @@ if (!class_exists('XAGIO_MODEL_SEO')) {
                 }
             }
 
-            $allowed_tags = [
-                'script' => [
-                    'src'            => true,
-                    'type'           => true,
-                    'async'          => true,
-                    'defer'          => true,
-                    'crossorigin'    => true,
-                    'integrity'      => true,
-                    'nomodule'       => true,
-                    'charset'        => true,
-                    'referrerpolicy' => true,
-                    'id'             => true,
-                    'class'          => true,
-                    'data-*'         => true
-                ]
-            ];
+            $allowed_tags = self::scriptAllowedTags();
 
             // Define field configurations with their sanitization functions
             $field_configs = [

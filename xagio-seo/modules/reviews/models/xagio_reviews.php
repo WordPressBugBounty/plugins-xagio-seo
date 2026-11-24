@@ -989,7 +989,7 @@ if (!class_exists('XAGIO_MODEL_REVIEWS')) {
                 'name'       => isset($_POST['name']) ? sanitize_text_field(wp_unslash($_POST['name'])) : 'n/a',
                 'review'     => isset($_POST['review']) ? sanitize_text_field(wp_unslash($_POST['review'])) : 'n/a',
                 'title'      => isset($_POST['title']) ? sanitize_text_field(wp_unslash($_POST['title'])) : 'n/a',
-                'rating'     => isset($_POST['rating']) ? intval($_POST['rating']) : 5,
+                'rating'     => isset($_POST['rating']) ? max(1, min(5, intval($_POST['rating']))) : 5,
                 'email'      => isset($_POST['email']) ? sanitize_email(wp_unslash($_POST['email'])) : 'n/a',
                 'website'    => isset($_POST['website']) ? sanitize_url(wp_unslash($_POST['website'])) : 'n/a',
                 'telephone'  => isset($_POST['telephone']) ? sanitize_text_field(wp_unslash($_POST['telephone'])) : 'n/a',

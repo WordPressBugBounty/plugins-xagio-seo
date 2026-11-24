@@ -85,7 +85,7 @@ if (!class_exists('XAGIO_EXPORT')) {
                     $out = self::uploads($cursor, $limit);
                     break;
                 case 'prepare':
-                    $out = ['item' => self::prepare()];
+                    $out = ['item' => self::prepareSite()];
                     break;
                 case 'crawl_pass':
                     $out = ['item' => self::crawlPass((string) $request->get_param('job'), (int) $request->get_param('ttl'))];
@@ -1283,7 +1283,7 @@ if (!class_exists('XAGIO_EXPORT')) {
          *  prepare: fresh, consistent builder CSS and empty page caches before the crawl
          * ============================================================================================== */
 
-        private static function prepare()
+        private static function prepareSite()
         {
             $done = ['elementor_css' => null, 'divi_cache' => null, 'page_caches' => []];
 
