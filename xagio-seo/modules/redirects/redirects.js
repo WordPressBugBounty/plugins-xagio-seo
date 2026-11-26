@@ -5,6 +5,26 @@ function xagioRedirEsc(v) {
     return String(v === null || v === undefined ? '' : v)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
+// A list of logged values (IPs, user agents) travels in an attribute as base64 JSON and is put into the page only as
+// text, never parsed as HTML (Wordfence report CVE-2026-137052: an entity-encoded tag in the User-Agent / Client-IP).
+function xagioListB64(arr) {
+    return btoa(unescape(encodeURIComponent(JSON.stringify(arr || []))));
+}
+function xagioListFromB64(b64) {
+    try { return JSON.parse(decodeURIComponent(escape(atob(b64 || '')))) || []; } catch (e) { return []; }
+}
+function xagioListRow(toggleId, title, items) {
+    let $ul = jQuery('<ul>');
+    jQuery.each(items, function (i, v) { $ul.append(jQuery('<li>').text(String(v))); });
+    return jQuery('<tr>', {id: toggleId, 'class': 'add-' + toggleId + '-list'}).append(
+        jQuery('<td>', {colspan: 8}).append(
+            jQuery('<div>', {'class': 'xagio-toogle-tr-row'}).append(jQuery('<div>').append(jQuery('<strong>').text(title)), $ul)
+        )
+    );
+}
+function xagioParseList(data) {
+    try { let a = JSON.parse(data); return Array.isArray(a) ? a : []; } catch (e) { return []; }
+}
 var plugins,
     themes;
 let log_info = [
@@ -604,16 +624,11 @@ let selected_refs = 0;
                                            "bSearchable": false,
                                            "mData"      : "ip",
                                            "mRender"    : function (data, type, row) {
-                                               var lengthIpCount = 0;
-                                               var ipAr = jQuery.parseJSON(data);
-                                               linkIp = " <span>" + ipAr.join("<br/>") + "</span>";
-                                               lengthIpCount = ipAr.length;
-                                               var html = lengthIpCount +
-                                                          ' <i title="View list of IPs" class="xagio-icon xagio-icon-list toggleIp tgl-btn-csr" ip-list="' +
-                                                          linkIp + '" log404s-toggle-id-ip="log404s-' + row.id +
+                                               var ipAr = xagioParseList(data);
+                                               return ipAr.length +
+                                                          ' <i title="View list of IPs" class="xagio-icon xagio-icon-list toggleIp tgl-btn-csr" data-xagio-list="' +
+                                                          xagioListB64(ipAr) + '" log404s-toggle-id-ip="log404s-' + parseInt(row.id, 10) +
                                                           '-ip"></i>';
-
-                                               return html;
                                            }
                                        },
                                        {
@@ -637,16 +652,11 @@ let selected_refs = 0;
                                            "bSearchable": false,
                                            "mData"      : "agent",
                                            "mRender"    : function (data, type, row) {
-                                               var lengthAgntCount = 0;
-                                               var agentAr = jQuery.parseJSON(data);
-                                               linkAgnt = " <span>" + agentAr.join("<br/>") + "</span>";
-                                               lengthAgntCount = agentAr.length;
-                                               var html = lengthAgntCount +
-                                                          ' <i title="View list of user agents" class="xagio-icon xagio-icon-list toggleAgnt tgl-btn-csr" agnt-list="' +
-                                                          linkAgnt + '" log404s-toggle-id-agnt="log404s-' + row.id +
+                                               var agentAr = xagioParseList(data);
+                                               return agentAr.length +
+                                                          ' <i title="View list of user agents" class="xagio-icon xagio-icon-list toggleAgnt tgl-btn-csr" data-xagio-list="' +
+                                                          xagioListB64(agentAr) + '" log404s-toggle-id-agnt="log404s-' + parseInt(row.id, 10) +
                                                           '-agnts"></i>';
-
-                                               return html;
                                            }
                                        },
                                        {
@@ -694,7 +704,7 @@ let selected_refs = 0;
             $(document).on('click', '.toggleIp', function (e) {
                 var tr = $(this).closest('tr');
                 var toggleId = $(this).attr('log404s-toggle-id-ip');
-                var ipList = $(this).attr('ip-list');
+                var ipList = xagioListFromB64($(this).attr('data-xagio-list'));
                 var chkClsIp = $('.logTable tbody tr').hasClass('add-' + toggleId + '-list');
                 let td = $(this).parents('td');
                 if (td.hasClass('xagio-tr-opened')) {
@@ -704,15 +714,7 @@ let selected_refs = 0;
                 }
                 if (chkClsIp === false) {
 
-                    var html =
-                            '<tr id="' + toggleId + '" class="add-' + toggleId + '-list"><td colspan="8">' +
-                            '<div class="xagio-toogle-tr-row">' +
-                            '<div><strong>IPs</strong></div>' +
-                            '<ul><li>' + ipList + '</li></ul>' +
-                            '</div>' +
-                            '</td></tr>';
-
-                    $(tr).after(html);
+                    $(tr).after(xagioListRow(toggleId, 'IPs', ipList));
 
                 } else {
                     $('#' + toggleId).toggle();
@@ -739,7 +741,7 @@ let selected_refs = 0;
                 $.each(refList, function (index, value) {
                     let dr = value.DR == null ? '' : value.DR;
                     let ur = value.UR == null ? '': value.UR;
-                    list += '<tr><td>' + $('<a>', { target: '_blank', rel: 'noopener', href: value.reference }).text(value.reference)[0].outerHTML + '</td>' + '<td>' + dr + '</td>' + '<td>' + ur + '</td></tr>';
+                    list += '<tr><td>' + $('<a>', { target: '_blank', rel: 'noopener', href: value.reference }).text(value.reference)[0].outerHTML + '</td>' + '<td>' + xagioRedirEsc(dr) + '</td>' + '<td>' + xagioRedirEsc(ur) + '</td></tr>';
                 });
                 
                 if (chkClsRef === false) {
@@ -763,7 +765,7 @@ let selected_refs = 0;
             $(document).on('click', '.toggleAgnt', function (e) {
                 var tr = $(this).closest('tr');
                 var toggleId = $(this).attr('log404s-toggle-id-agnt');
-                var agntList = $(this).attr('agnt-list');
+                var agntList = xagioListFromB64($(this).attr('data-xagio-list'));
                 var chkClsAgnt = $('.logTable tbody tr').hasClass('add-' + toggleId + '-list');
                 let td = $(this).parents('td');
                 if (td.hasClass('xagio-tr-opened')) {
@@ -774,15 +776,7 @@ let selected_refs = 0;
 
                 if (chkClsAgnt === false) {
 
-                    var html =
-                            '<tr id="' + toggleId + '" class="add-' + toggleId + '-list"><td colspan="8">' +
-                            '<div class="xagio-toogle-tr-row">' +
-                            '<div><strong>User Agents</strong></div>' +
-                            '<ul><li>' + agntList + '</li></ul>' +
-                            '</div>' +
-                            '</td></tr>';
-
-                    $(tr).after(html);
+                    $(tr).after(xagioListRow(toggleId, 'User Agents', agntList));
 
                 } else {
                     $('#' + toggleId).toggle();

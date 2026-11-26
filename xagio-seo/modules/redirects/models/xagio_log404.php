@@ -255,18 +255,34 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
             return true;
         }
 
+        /**
+         * The visitor's IP for the 404 log. Client-IP and X-Forwarded-For are headers anybody can send, so a value
+         * from them is used only when it is a valid IP address (the first one of an X-Forwarded-For list); otherwise
+         * REMOTE_ADDR. Never free text (Wordfence report CVE-2026-137052: an HTML payload in Client-IP).
+         */
         public static function getIp()
         {
-            if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
-                /* check ip from share internet */
-                $ip = sanitize_text_field(wp_unslash($_SERVER['HTTP_CLIENT_IP']));
-            } else if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-                /* to check ip is pass from proxy */
-                $ip = sanitize_text_field(wp_unslash($_SERVER['HTTP_X_FORWARDED_FOR']));
-            } else if (isset($_SERVER['REMOTE_ADDR'])) {
-                $ip = sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']));
+            foreach (['HTTP_CLIENT_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR'] as $header) {
+                if (empty($_SERVER[$header])) {
+                    continue;
+                }
+                $first = trim(explode(',', sanitize_text_field(wp_unslash($_SERVER[$header])))[0]);
+                if (filter_var($first, FILTER_VALIDATE_IP) !== false) {
+                    return $first;
+                }
             }
-            return $ip;
+            return '';
+        }
+
+        /**
+         * A User-Agent for the 404 log: plain text. Entities are decoded before sanitize_text_field() strips tags,
+         * so "&lt;img ...&gt;" cannot be stored as markup that a later decode turns into a tag (CVE-2026-137052).
+         */
+        public static function cleanAgent($raw)
+        {
+            $v = html_entity_decode((string) $raw, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $v = sanitize_text_field($v);
+            return str_replace(['<', '>', '"', '`'], '', $v);
         }
 
         public static function getServerName()
@@ -346,7 +362,7 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
 
                     $agent = '';
                     if (isset($_SERVER['HTTP_USER_AGENT'])) {
-                        $agent = sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT']));
+                        $agent = self::cleanAgent(wp_unslash($_SERVER['HTTP_USER_AGENT']));
 
                         if ($chk404sSpiderLog != 1) {
                             $checkBot = self::smartIpDetectCrawler($agent);
@@ -627,8 +643,9 @@ if (!class_exists('XAGIO_MODEL_LOG404')) {
 
                 $d['date_updated'] = gmdate("M dS, Y", strtotime($d['date_updated']));
 
-                $d['agent'] = wp_json_encode(array_map('esc_html', (array) json_decode($d['agent'], true)));
-                $d['ip']    = wp_json_encode(array_map('esc_html', (array) json_decode($d['ip'], true)));
+                // plain strings: redirects.js only ever puts them into the page with .text()
+                $d['agent'] = wp_json_encode(array_values(array_map('strval', (array) json_decode($d['agent'], true))));
+                $d['ip']    = wp_json_encode(array_values(array_map('strval', (array) json_decode($d['ip'], true))));
 
                 $log_id = absint($d['id']);
 
